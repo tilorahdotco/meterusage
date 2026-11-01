@@ -25,6 +25,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Resolve the macOS temporary directory before validating staged update links.
+
 - Keep credential and personal-path checks effective on large staged diffs.
 
 - Center side-notch provider marks on whole-pixel frames inside their quota rings.

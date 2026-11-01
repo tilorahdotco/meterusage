@@ -1,14 +1,14 @@
 # Electron public beta
 
-MeterUsage **0.3.0-beta.10, build 80** is the sole offered app and default
+MeterUsage **0.3.0-beta.11, build 81** is the sole offered app and default
 download. It remains a beta. The ZIP supports Apple silicon and macOS 13 or
 later and is Developer ID signed, notarized and stapled. Historical Swift
 source/releases remain available for recovery; stable acceptance is still open.
 
 ## Install
 
-1. Download [the beta ZIP](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.10/MeterUsage-0.3.0-beta.10-mac-arm64.zip)
-   and [SHA256SUMS](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.10/SHA256SUMS).
+1. Download [the beta ZIP](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.11/MeterUsage-0.3.0-beta.11-mac-arm64.zip)
+   and [SHA256SUMS](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.11/SHA256SUMS).
 2. Quit MeterUsage and keep a copy of your existing app and its saved data for
    rollback. The beta shares the app identity and data locations with Swift.
 3. Unzip the download, move `MeterUsage.app` to Applications, and open it.
@@ -24,11 +24,13 @@ notice with an inline icon in Usage and Settings > General. Install and Dismiss
 are disabled while a request, download or installation is pending; failed offers
 retain Retry update. **Install update** asks for confirmation, downloads the ZIP, verifies
 its GitHub SHA-256 digest, bundle identity and signature, then replaces the app
-and relaunches. The next beta adds **Install updates automatically** in
+and relaunches. Beta 11 adds **Install updates automatically** in
 Settings > General (off by default). When on, a newer version that hasn't been
 dismissed installs through the same checks without the dialog, only while you
 aren't using MeterUsage. Beta 4 and earlier cannot see betas; install the current beta
-manually once. `Scripts/make-app.sh` now prepares the pinned Electron beta with
+manually once. Beta 5 through 10 can discover newer releases, but their installer
+may reject macOS temporary-directory aliases. Install beta.11 manually once to
+receive the updater fix. `Scripts/make-app.sh` now prepares the pinned Electron beta with
 checksum/signature verification, destination staging and no compiler fallback.
 It preserves the published signature. Preparing output does not install it.
 
@@ -41,7 +43,7 @@ shasum -a 256 -c SHA256SUMS
 Expected ZIP SHA-256:
 
 ```text
-08ffe8d126c649ca0bb7d92ee906fab9163177b91bef949e592f4bc086174fba
+5f097d1a0dc7826c13d32fbf5abc03d0d98f41c66a914d9e4089762474d9232b
 ```
 
 ## Provider coverage
@@ -83,8 +85,8 @@ Expected ZIP SHA-256:
   preserved and newly pasted keys are not saved. OpenRouter keeps its existing
   balance and aggregate activity source. Read [API setup and limits](API_USAGE_BETA.md).
 
-See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/docs/electron/README.md#source-choices),
-[desktop connections](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/docs/PRIVACY.md).
+See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/docs/electron/README.md#source-choices),
+[desktop connections](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/docs/PRIVACY.md).
 
 ## Known limits
 
@@ -114,25 +116,27 @@ See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/doc
 
 Use Settings > Diagnostics for sanitized diagnostics and **Send report**.
 The app limits report attempts to one every ten minutes, including relaunches.
-Review the [report contents and privacy limits](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/docs/REPORTING.md) before sending.
+Review the [report contents and privacy limits](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/docs/REPORTING.md) before sending.
 Never include tokens, passwords or raw account files in an issue.
 
 ## Build and screenshot identity
 
-The signed artifact was built from `git archive` of main
-`2d39e0a02ba6850d048262679251660ab6f04783`, which adds the OpenAI API remaining
-balance (#88) and centered notch provider marks (#85) to beta.9. Source
-manifests retain `0.2.41`; packaging sets `0.3.0-beta.10`, build 80. Screenshots
-are from build 61 and do not show the Quota activity heatmap, the reset line
-beside pace estimates or the OpenAI balance line.
+The signed artifact uses executable inputs matching source
+`7b813734881beda757ec7757d8c63d8e3eb25c80`, which includes opt-in automatic
+updates (#91) and fixes update staging through macOS temporary aliases. Source manifests retain `0.2.41`; packaging sets
+`0.3.0-beta.11`, build 81. Screenshots are from build 61 and do not show
+later controls, including the automatic-update setting.
 
-Hosted CI (typecheck, 896 TypeScript tests, build, `swift build` and
-`swift test`) passed on that commit. Apple accepted notarization; stapling,
-Gatekeeper (`Notarized Developer ID`), bundle version and the uploaded ZIP's
-SHA-256 were verified separately. Installation from the published ZIP was
-verified on one Mac; installation and relaunch through the in-app updater
-remain unverified. The new artifact does not close the native acceptance gaps
+Source validation passed typecheck, 902 synthetic tests and production build.
+Hosted CI for the automatic-update feature (#91) passed the Electron checks,
+`swift build` and `swift test`. The temporary-path fix passed the local checks
 above.
+Apple accepted notarization; the final ZIP passed native updater staging,
+extracted signature, stapled-ticket and Gatekeeper checks. The extracted
+executable returned schema-1 synthetic demo JSON without stderr, and ran as
+an isolated demo process. No normal-profile installation was performed.
+Native automatic replacement and relaunch remain unverified. The new artifact
+does not close the native acceptance gaps above.
 
 The [screenshot gallery](SCREENSHOTS.md) uses invented demo data and the actual
 release renderer. It replaces old product captures without exposing real accounts.

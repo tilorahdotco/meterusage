@@ -72,7 +72,7 @@ export async function stageUpdate(release: Release, data: Uint8Array, command: C
   verifyDigest(data, release.asset.digest);
   await inspectUpdateArchive(Buffer.from(data)); signal?.throwIfAborted();
   const run: Command = (binary, args, options) => command(binary, args, { ...options, signal });
-  const directory = await mkdtemp(join(tmpdir(), "MeterUsageUpdate-")), zip = join(directory, `MeterUsage-${release.version}.zip`), bundle = join(directory, "MeterUsage.app");
+  const directory = await mkdtemp(join(await realpath(tmpdir()), "MeterUsageUpdate-")), zip = join(directory, `MeterUsage-${release.version}.zip`), bundle = join(directory, "MeterUsage.app");
   try {
   await writeFile(zip, data, { mode: 0o600 });
   await run("/usr/bin/ditto", ["-x", "-k", zip, directory], { timeoutMs: 30000 });
