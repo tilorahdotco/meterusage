@@ -1,0 +1,82 @@
+name: Windows release build
+
+# Builds the unsigned Windows pre-release on a GitHub-hosted runner, the only
+# Windows build machine (ADR 0038). It runs the Windows tests and smoke checks
+# and uploads the artifacts. It never creates a tag or publishes a release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without the leading v, e.g. 0.3.0-beta.13
+        required: true
+      build:
+        description: Build number, e.g. 83
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      VERSION: ${{ inputs.version }}
+      BUILD: ${{ inputs.build }}
+    steps:
+      - name: Validate inputs
+        shell: pwsh
+        run: |
+          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+(-beta\.\d+)?$') { throw "Invalid version" }
+          if ($env:BUILD -notmatch '^[1-9]\d{0,5}$') { throw "Invalid build" }
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Install pnpm
+        run: npm install --global pnpm@12.9.1 --ignore-scripts
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test (Windows subset)
+        run: pnpm test:windows
+      - name: Build
+        run: pnpm build
+      - name: Package unsigned Windows build
+        shell: pwsh
+        run: pnpm exec electron-builder --win --x64 --publish never "-c.extraMetadata.version=$env:VERSION" "-c.buildVersion=$env:BUILD"
+      - name: Smoke test packaged app
+        shell: pwsh
+        run: ./Scripts/electron/windows-smoke.ps1
+      - name: Smoke test installer, update handoff and uninstall
+        shell: pwsh
+        run: ./Scripts/electron/windows-install-smoke.ps1
+      - name: Collect release assets
+        shell: pwsh
+        run: |
+          $assets = New-Item -ItemType Directory -Force -Path release-assets
+          foreach ($name in "MeterUsage-$env:VERSION-win-x64.exe", "MeterUsage-$env:VERSION-win-x64.zip") {
+            $path = Join-Path release $name
+            if (-not (Test-Path $path)) { throw "Missing $name" }
+            Copy-Item $path $assets
+          }
+          Push-Location $assets
+          Get-ChildItem -File | Sort-Object Name | ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant(), $_.Name } | Set-Content -Encoding ascii SHA256SUMS
+          Get-Content SHA256SUMS
+          Pop-Location
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-release-smoke
+          path: smoke-artifacts
+          retention-days: 30
+      - name: Upload release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-release-assets
+          path: release-assets
+          retention-days: 30
