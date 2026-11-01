@@ -19,7 +19,8 @@ function Wait-Until([scriptblock]$Condition, [int]$Seconds, [string]$Message) {
   $deadline = (Get-Date).AddSeconds($Seconds)
   while (-not (& $Condition)) { if ((Get-Date) -gt $deadline) { throw $Message }; Start-Sleep -Milliseconds 500 }
 }
-function Stop-App { Get-Process -Name MeterUsage -ErrorAction SilentlyContinue | ForEach-Object { & taskkill.exe /pid $_.Id /t /f | Out-Null } }
+# A tree kill can end a later-listed process first; its "not found" result is expected and must not fail the step.
+function Stop-App { Get-Process -Name MeterUsage -ErrorAction SilentlyContinue | ForEach-Object { & taskkill.exe /pid $_.Id /t /f 2>&1 | Out-Null }; $global:LASTEXITCODE = 0 }
 
 # 1. Silent per-user install.
 $p = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -PassThru
@@ -60,3 +61,5 @@ Stop-App
 Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait | Out-Null
 Wait-Until { -not (Test-Path $exe) } 60 "Uninstall left MeterUsage.exe behind"
 Write-Host "Windows install smoke passed"
+# The Actions pwsh wrapper exits with the last native exit code.
+exit 0
