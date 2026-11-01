@@ -40,3 +40,48 @@ jobs:
         run: swift build
       - name: Test
         run: swift test
+  # Windows has no physical test machine; this runner is the test machine (ADR 0038).
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Install pnpm
+        run: npm install --global pnpm@12.9.1 --ignore-scripts
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test (Windows-safe subset)
+        run: pnpm test:windows
+      - name: Full test suite (informational)
+        continue-on-error: true
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Package unsigned Windows build
+        run: pnpm exec electron-builder --win --x64 --publish never
+      - name: Smoke test packaged app
+        shell: pwsh
+        run: ./Scripts/electron/windows-smoke.ps1
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-smoke
+          path: smoke-artifacts
+          retention-days: 14
+      - name: Upload Windows packages
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-packages
+          path: |
+            release/*.exe
+            release/*.zip
+          retention-days: 7

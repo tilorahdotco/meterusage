@@ -798,14 +798,15 @@ it("keeps JSON startup outside app readiness and native sessions", async () => {
   vi.doMock("../src/main/launch", () => ({ launchConfiguration: () => ({ demo: false, candidate: false }) }));
   vi.doMock("../src/main/cli", () => ({ runJSON }));
   vi.doMock("../src/main/preferences", () => ({ Preferences: { load } }));
-  const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+  // Exit waits for the write callback so a redirected Windows pipe flushes first.
+  const stdout = vi.spyOn(process.stdout, "write").mockImplementation(((_chunk: unknown, done?: unknown) => { if (typeof done === "function") setTimeout(done, 0); return true; }) as typeof process.stdout.write);
   try {
     Object.defineProperty(process, "platform", { value: "darwin" });
     process.argv = [argv[0], "meterusage", "--json"];
     vi.stubGlobal("__dirname", tmpdir());
     await import("../src/main/electron");
     await vi.waitFor(() => expect(application.exit).toHaveBeenCalledWith(0));
-    expect(runJSON).toHaveBeenCalledOnce(); expect(stdout).toHaveBeenCalledWith("synthetic-report\n");
+    expect(runJSON).toHaveBeenCalledOnce(); expect(stdout).toHaveBeenCalledWith("synthetic-report\n", expect.any(Function));
     expect(application.whenReady).not.toHaveBeenCalled(); expect(fromPartition).not.toHaveBeenCalled(); expect(load).not.toHaveBeenCalled();
   } finally {
     process.argv = argv; Object.defineProperty(process, "platform", platform); vi.restoreAllMocks(); vi.unstubAllGlobals();

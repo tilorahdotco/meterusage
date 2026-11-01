@@ -107,7 +107,7 @@ export class Coordinator {
   }
   private async sweep(force: boolean, onlyKey?: string) {
     if (!this.launch.demo && !this.launch.codexTest && !this.launch.claudeTest) {
-      this.apiBilling = Object.fromEntries(apiBillingProviders.map(provider => [provider, readApiBilling(this.launch.home, provider, this.now())]));
+      this.apiBilling = Object.fromEntries(apiBillingProviders.map(provider => [provider, readApiBilling(this.launch.home, provider, this.now(), this.launch.platform, this.launch.env)]));
     }
     const tasks: Promise<void>[] = [];
     for (const source of this.sources) {

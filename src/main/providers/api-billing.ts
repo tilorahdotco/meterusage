@@ -1,8 +1,8 @@
 import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { type ApiBillingBalance, type ApiBillingPrepaid, type ApiBillingProvider, type ApiBillingReading, type ApiBillingSnapshot } from "../../domain/api-billing";
 import { selectJSON, type Selection } from "../select-json";
+import { appDataDirectory, modeExposes, ownedByUser, pathFor, type Platform } from "../platform";
 
 const day = 86400000, maxBytes = 1048576;
 const invalid = () => new Error("API billing data unavailable");
@@ -10,15 +10,17 @@ const record = (value: unknown): Record<string, unknown> => { if (!value || type
 const timestamp = (value: unknown): number => { if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value > 8640000000000000) throw invalid(); return value; };
 const monthStart = (value: number) => { const at = new Date(value); return Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1); };
 const amount = (value: unknown): number => { if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > Number.MAX_SAFE_INTEGER) throw invalid(); return value; };
-const directory = (home: string) => join(home, "Library/Application Support/MeterUsage/api-usage");
-export const apiBillingPath = (home: string, provider: ApiBillingProvider) => join(directory(home), `${provider}.json`);
+const directory = (home: string, platform: Platform, env: NodeJS.ProcessEnv) => pathFor(platform).join(appDataDirectory(home, platform, env), "api-usage");
+export const apiBillingPath = (home: string, provider: ApiBillingProvider, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env) => pathFor(platform).join(directory(home, platform, env), `${provider}.json`);
+// Each directory from home to api-usage is checked without following links.
+const ancestry = (home: string, platform: Platform, env: NodeJS.ProcessEnv) => { const path = pathFor(platform); return ["", ...path.relative(home, directory(home, platform, env)).split(path.sep)]; };
 
-function privateDirectory(home: string) {
+function privateDirectory(home: string, platform: Platform, env: NodeJS.ProcessEnv) {
   let path = home;
-  for (const part of ["", "Library", "Application Support", "MeterUsage", "api-usage"]) {
-    path = join(path, part);
+  for (const part of ancestry(home, platform, env)) {
+    path = pathFor(platform).join(path, part);
     const stat = lstatSync(path);
-    if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o022) || part === "api-usage" && (stat.mode & 0o077)) throw invalid();
+    if (!stat.isDirectory() || stat.isSymbolicLink() || !ownedByUser(stat, platform) || modeExposes(stat, 0o022, platform) || part === "api-usage" && modeExposes(stat, 0o077, platform)) throw invalid();
   }
 }
 
@@ -51,13 +53,16 @@ function parseBalance(row: Record<string, unknown>, provider: ApiBillingProvider
   return { source: "manual", availableUSD: prepaidUSD - spentSinceUSD, prepaidUSD, since, spentSinceUSD };
 }
 
-export function readApiBilling(home: string, provider: ApiBillingProvider, now = Date.now()): ApiBillingReading {
+export function readApiBilling(home: string, provider: ApiBillingProvider, now = Date.now(), platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): ApiBillingReading {
   let fd: number | undefined;
   try {
-    privateDirectory(home);
-    fd = openSync(apiBillingPath(home, provider), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    privateDirectory(home, platform, env);
+    const file = apiBillingPath(home, provider, platform, env);
+    // Windows has no O_NOFOLLOW; reject a link before opening it.
+    if (platform === "win32" && lstatSync(file).isSymbolicLink()) throw invalid();
+    fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
     const stat = fstatSync(fd);
-    if (!stat.isFile() || stat.uid !== process.getuid?.() || stat.mode & 0o077 || stat.nlink !== 1 || stat.size > maxBytes) throw invalid();
+    if (!stat.isFile() || !ownedByUser(stat, platform) || modeExposes(stat, 0o077, platform) || stat.nlink !== 1 || stat.size > maxBytes) throw invalid();
     const buffer = Buffer.alloc(maxBytes + 1); let size = 0;
     while (size < buffer.length) { const count = readSync(fd, buffer, size, buffer.length - size, null); if (!count) break; size += count; }
     const after = fstatSync(fd);
@@ -69,19 +74,19 @@ export function readApiBilling(home: string, provider: ApiBillingProvider, now =
   } finally { if (fd !== undefined) closeSync(fd); }
 }
 
-export function writeApiBilling(home: string, snapshot: ApiBillingSnapshot) {
+export function writeApiBilling(home: string, snapshot: ApiBillingSnapshot, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env) {
   const value = parseApiBillingSnapshot(JSON.stringify(snapshot), snapshot.provider, snapshot.capturedAt);
   // Validate existing ancestors before recursive mkdir can follow a symlink.
   let path = home;
-  for (const part of ["", "Library", "Application Support", "MeterUsage", "api-usage"]) {
-    path = join(path, part);
-    try { const stat = lstatSync(path); if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || stat.mode & 0o022) throw invalid(); }
+  for (const part of ancestry(home, platform, env)) {
+    path = pathFor(platform).join(path, part);
+    try { const stat = lstatSync(path); if (!stat.isDirectory() || stat.isSymbolicLink() || !ownedByUser(stat, platform) || modeExposes(stat, 0o022, platform)) throw invalid(); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; mkdirSync(path, { mode: 0o700 }); }
   }
-  privateDirectory(home);
-  const target = apiBillingPath(home, value.provider), temp = join(directory(home), `.${randomUUID()}.tmp`);
+  privateDirectory(home, platform, env);
+  const target = apiBillingPath(home, value.provider, platform, env), temp = pathFor(platform).join(directory(home, platform, env), `.${randomUUID()}.tmp`);
   try {
-    try { const stat = lstatSync(target); if (!stat.isFile() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || stat.mode & 0o077 || stat.nlink !== 1) throw invalid(); }
+    try { const stat = lstatSync(target); if (!stat.isFile() || stat.isSymbolicLink() || !ownedByUser(stat, platform) || modeExposes(stat, 0o077, platform) || stat.nlink !== 1) throw invalid(); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     writeFileSync(temp, JSON.stringify(value) + "\n", { mode: 0o600, flag: "wx" });
     renameSync(temp, target);

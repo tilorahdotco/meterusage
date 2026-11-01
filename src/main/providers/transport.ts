@@ -1,19 +1,35 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { constants, accessSync } from "node:fs";
+import { constants, accessSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { Unavailable, failed, type Provider } from "../../domain/models";
 import { selectJSON } from "../select-json";
 import { object } from "./parsers";
+import { envValue, pathFor, spawnPlan, supportRoot, systemBinary, withEnvValue, type Platform } from "../platform";
 
 export interface CommandOptions { env?: NodeJS.ProcessEnv; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number }
 export type Command = (binary: string, args: string[], options?: CommandOptions) => Promise<string>;
-export function cliPath(name: string, home: string, env: NodeJS.ProcessEnv): string {
+// GUI apps do not inherit shell PATH changes, so common user install folders are probed first.
+function windowsUserBins(home: string, env: NodeJS.ProcessEnv, name?: string) {
+  const path = pathFor("win32");
+  return [path.join(supportRoot(home, "win32", env), "npm"), path.join(home, ".cargo", "bin"), ...(name === "opencode" ? [path.join(home, ".bun", "bin")] : []), path.join(home, ".local", "bin")];
+}
+export function cliPath(name: string, home: string, env: NodeJS.ProcessEnv, platform: Platform = process.platform): string {
+  if (platform === "win32") {
+    const path = pathFor("win32"), dirs = [...windowsUserBins(home, env, name), ...(envValue(env, "PATH", "win32") ?? "").split(";").map(dir => dir.trim().replace(/^"(.*)"$/, "$1")).filter(dir => path.isAbsolute(dir))];
+    // Prefer a native executable anywhere on the search path over an npm .cmd shim.
+    for (const extension of [".exe", ".cmd", ".bat"]) for (const dir of dirs) {
+      const candidate = path.join(dir, name + extension);
+      try { if (statSync(candidate).isFile()) return candidate; } catch { /* Probe the next folder. */ }
+    }
+    throw new Unavailable("cliNotFound", name);
+  }
   const paths = ["/opt/homebrew/bin", "/usr/local/bin", join(home, ".cargo/bin"), ...(name === "opencode" ? [join(home, ".bun/bin")] : []), join(home, ".local/bin"), ...(env.PATH ?? "/usr/bin:/bin").split(":")];
   for (const dir of paths) { const path = join(dir, name); try { accessSync(path, constants.X_OK); return path; } catch { /* Probe common GUI install paths. */ } }
   throw new Unavailable("cliNotFound", name);
 }
-export function cliEnvironment(home: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+export function cliEnvironment(home: string, env: NodeJS.ProcessEnv, platform: Platform = process.platform): NodeJS.ProcessEnv {
+  if (platform === "win32") return withEnvValue(env, "PATH", [...windowsUserBins(home, env), envValue(env, "PATH", "win32") ?? ""].filter(Boolean).join(";"), "win32");
   return { ...env, PATH: ["/opt/homebrew/bin", "/usr/local/bin", join(home, ".cargo/bin"), join(home, ".local/bin"), env.PATH ?? "/usr/bin:/bin"].join(":") };
 }
 // Provider stderr may contain credentials or paths. Drain it, but never retain
@@ -21,9 +37,19 @@ export function cliEnvironment(home: string, env: NodeJS.ProcessEnv): NodeJS.Pro
 export function boundedChild(binary: string, args: string[], options: CommandOptions, exchange: (child: ChildProcessWithoutNullStreams, finish: (result: string | Error) => void) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     if (options.signal?.aborted) { reject(new Error("Provider request cancelled")); return; }
-    const child = spawn(binary, args, { env: options.env, stdio: "pipe", shell: false });
-    let outcome: string | Error | undefined, killTimer: ReturnType<typeof setTimeout> | undefined, bytes = 0;
-    const stop = () => { if (child.exitCode === null) { child.kill("SIGTERM"); killTimer ??= setTimeout(() => child.kill("SIGKILL"), 250); } };
+    let plan;
+    try { plan = spawnPlan(binary, args, process.platform, options.env ?? process.env); } catch { reject(new Error("Provider process unavailable")); return; }
+    const child = spawn(plan.file, plan.args, { env: options.env, stdio: "pipe", shell: false, windowsHide: true, windowsVerbatimArguments: plan.verbatim });
+    let outcome: string | Error | undefined, killTimer: ReturnType<typeof setTimeout> | undefined, bytes = 0, treeKilled = false;
+    const stop = () => {
+      if (child.exitCode !== null) return;
+      // Windows signals end only the direct child; a cmd.exe shim would orphan the provider CLI, so end the tree.
+      if (process.platform === "win32" && child.pid !== undefined) {
+        if (!treeKilled) { treeKilled = true; spawn(systemBinary("taskkill.exe"), ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore", windowsHide: true }).on("error", () => child.kill()); }
+        return;
+      }
+      child.kill("SIGTERM"); killTimer ??= setTimeout(() => child.kill("SIGKILL"), 250);
+    };
     const finish = (result: string | Error) => { if (outcome !== undefined) return; outcome = result; stop(); };
     const timer = setTimeout(() => finish(new Error("Provider request timed out")), options.timeoutMs ?? 20000);
     const abort = () => finish(new Error("Provider request cancelled"));

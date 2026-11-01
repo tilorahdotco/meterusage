@@ -15,6 +15,8 @@ export interface SettingsState {
 export interface IssueReportState { sending: boolean; receipt?: string; error?: string; retryAt?: number }
 export interface ViewState {
   appVersion?: string;
+  /** Present only on Windows; absent means the macOS shell. */
+  platform?: "win32";
   issueReport?: IssueReportState;
   connections?: ConnectionState[];
   snapshot: Snapshot; settings: SettingsState; systemDark: boolean;
