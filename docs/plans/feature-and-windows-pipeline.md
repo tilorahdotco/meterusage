@@ -25,7 +25,7 @@ establish Windows behavior.
    build. Implemented.
 2. Windows updater: installer asset, GitHub SHA-256 digest verification and the
    existing automatic-install deferral. Implemented under
-   [ADR 0039](../adr/0039-windows-updater.md); CI exercises the installer handoff.
+   [ADR 0039](../adr/0039-windows-updater.md); CI checks the installer flags and relaunch.
 3. Windows desktop account connections (DPAPI, read-only `node:sqlite`, Windows
    paths) with synthetic fixtures; marked unverified against real accounts.
 4. Unsigned GitHub pre-release and user docs, after the CI smoke run passes.

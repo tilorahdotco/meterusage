@@ -119,7 +119,9 @@ it.each([
     refresh = refresh; forgetQuota = forgetQuota;
     start = start; stop = vi.fn(); publish = vi.fn(); subscribe = vi.fn(() => vi.fn()); snapshot = () => ({ appearance: {}, quotas: { codex: { status: "value", value: { provider: "codex", windows: [{ label: "5-hour", usedPercent: 10 }] } } }, archived: {}, notchSlots: [{ provider: "codex", slotID: "" }, { provider: "claude", slotID: "" }] }); refreshIfStale = vi.fn();
   } }));
-  vi.doMock("../src/main/updater", () => ({ Updater: class { reset = vi.fn(); autoInstallRelease = vi.fn(() => undefined); launchPendingInstaller = vi.fn(() => false); } }));
+  // A staged Windows installer may start only once, after quit cleanup has destroyed the tray.
+  const installerLaunches: boolean[] = [];
+  vi.doMock("../src/main/updater", () => ({ Updater: class { reset = vi.fn(); autoInstallRelease = vi.fn(() => undefined); launchPendingInstaller = vi.fn(() => { installerLaunches.push(destroyed); return false; }); } }));
   vi.doMock("../src/domain/overview", () => ({ trayTooltip: () => "Synthetic usage" }));
   try {
     Object.defineProperty(process, "platform", { value: "darwin" });
@@ -595,6 +597,7 @@ it.each([
     application.emit("before-quit", { preventDefault: vi.fn() });
     await Promise.resolve();
     vi.useRealTimers();
+    await vi.waitFor(() => expect(installerLaunches).toEqual([true]));
     Object.defineProperty(process, "platform", platform);
     if (resourcesPath) Object.defineProperty(process, "resourcesPath", resourcesPath); else Reflect.deleteProperty(process, "resourcesPath");
     vi.unstubAllGlobals();

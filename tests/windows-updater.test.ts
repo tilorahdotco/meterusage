@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { Updater, inspectWindowsInstaller, parseRelease, parseReleases, releasesEndpoint, stageWindowsInstaller, windowsInstallation, windowsInstallerArgs, type Release } from "../src/main/updater";
+import { Updater, inspectWindowsInstaller, removeStagedInstallers, parseRelease, parseReleases, releasesEndpoint, stageWindowsInstaller, windowsInstallation, windowsInstallerArgs, type Release } from "../src/main/updater";
 import { Preferences } from "../src/main/preferences";
 
 const roots: string[] = [];
@@ -59,6 +59,13 @@ describe("Windows installer staging", () => {
     await expect(stageWindowsInstaller({ ...target, asset: { ...target.asset, digest: sha(installer(0x8664)) } }, bytes)).rejects.toThrow("Invalid update digest");
     const path = await stageWindowsInstaller(target, bytes); roots.push(dirname(path));
     expect(path.endsWith("MeterUsage-0.3.0-beta.14-win-x64.exe")).toBe(true); expect(readFileSync(path).equals(bytes)).toBe(true);
+  });
+  it("removes only stale MeterUsage installer folders from the temporary root", async () => {
+    const root = temp();
+    for (const name of ["MeterUsageUpdate-Ab12Cd", "MeterUsageUpdate-other-name", "Unrelated-Ab12Cd"]) { mkdirSync(join(root, name)); writeFileSync(join(root, name, "file"), "synthetic"); }
+    writeFileSync(join(root, "MeterUsageUpdate-File01"), "synthetic file, not a folder");
+    await removeStagedInstallers(root);
+    expect(["MeterUsageUpdate-Ab12Cd", "MeterUsageUpdate-other-name", "Unrelated-Ab12Cd", "MeterUsageUpdate-File01"].map(name => existsSync(join(root, name)))).toEqual([false, true, true, true]);
   });
   it("recognizes only an NSIS installation folder", () => {
     const portable = temp(); writeFileSync(join(portable, "MeterUsage.exe"), "synthetic");

@@ -1,8 +1,10 @@
 # Installer smoke test for the unsigned Windows NSIS build on a CI runner.
-# Exercises the mechanics the in-app updater relies on: silent per-user
-# install, the quit-then-install handoff with `/S --updated --force-run`
-# relaunching the app, and silent uninstall. It does not exercise the in-app
-# download, a real version change, SmartScreen or a user's existing data.
+# Exercises the installer behavior the in-app updater relies on: silent
+# per-user install, `/S --updated --force-run` relaunching the installed app
+# after it has been stopped, and silent uninstall. The app is force-stopped and
+# the installer started from PowerShell, so this does not exercise the in-app
+# download, Electron's detached spawn at quit, a real version change,
+# SmartScreen or a user's existing data.
 param([string]$Artifacts = "smoke-artifacts")
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force -Path $Artifacts | Out-Null
@@ -20,7 +22,9 @@ function Wait-Until([scriptblock]$Condition, [int]$Seconds, [string]$Message) {
 function Stop-App { Get-Process -Name MeterUsage -ErrorAction SilentlyContinue | ForEach-Object { & taskkill.exe /pid $_.Id /t /f | Out-Null } }
 
 # 1. Silent per-user install.
-$p = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait -PassThru
+$p = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -PassThru
+$null = $p.Handle
+if (-not $p.WaitForExit(120000)) { throw "Installer did not finish" }
 if ($p.ExitCode -ne 0) { throw "Installer exited with $($p.ExitCode)" }
 if (-not (Test-Path $exe) -or -not (Test-Path $uninstaller)) { throw "Installed files missing under $dir" }
 Write-Host "installed to LOCALAPPDATA\Programs\MeterUsage"
@@ -41,7 +45,10 @@ Start-Sleep -Seconds 10
 if ($running.HasExited) { throw "Installed app exited early" }
 Stop-App; $running.WaitForExit(10000) | Out-Null
 $before = Get-Date
-$p = Start-Process -FilePath $installer.FullName -ArgumentList @("/S", "--updated", "--force-run") -Wait -PassThru
+# -Wait would also wait for the relaunched app if it became a descendant; wait for the installer process only.
+$p = Start-Process -FilePath $installer.FullName -ArgumentList @("/S", "--updated", "--force-run") -PassThru
+$null = $p.Handle
+if (-not $p.WaitForExit(120000)) { throw "Update installer did not finish" }
 if ($p.ExitCode -ne 0) { throw "Update installer exited with $($p.ExitCode)" }
 Wait-Until { @(Get-Process -Name MeterUsage -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe -and $_.StartTime -gt $before }).Count -gt 0 } 30 "The update installer did not relaunch MeterUsage"
 Write-Host "update installer relaunched the installed app"

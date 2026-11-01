@@ -110,6 +110,11 @@ export function inspectWindowsInstaller(data: Uint8Array) {
 }
 /** An NSIS install keeps its uninstaller beside the executable; zip and portable copies cannot be updated in place. */
 export const windowsInstallation = (directory: string) => existsSync(join(directory, "MeterUsage.exe")) && existsSync(join(directory, "Uninstall MeterUsage.exe"));
+/** Removes installers staged by earlier Windows updates; one still running stays locked and is skipped. */
+export async function removeStagedInstallers(root = tmpdir()) {
+  const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) if (entry.isDirectory() && /^MeterUsageUpdate-[A-Za-z0-9]{6}$/.test(entry.name)) await rm(join(root, entry.name), { recursive: true, force: true }).catch(() => {});
+}
 export async function stageWindowsInstaller(release: Release, data: Uint8Array, signal?: AbortSignal): Promise<string> {
   verifyDigest(data, release.asset.digest);
   inspectWindowsInstaller(data); signal?.throwIfAborted();
@@ -156,6 +161,7 @@ export class Updater {
   autoInstallRelease(idle: boolean, packaged: boolean) {
     return this.prefs.values.updateAutoInstall === true && idle && packaged && this.installState === "idle" ? this.visible : undefined;
   }
+  // Leaves pendingInstaller alone: quit calls reset() first and launchPendingInstaller() at its end.
   reset() { this.generation++; this.checkController?.abort(); this.installController?.abort(); this.checkController = undefined; this.check = undefined; this.available = undefined; this.changed(); }
   async dismiss() { if (this.available) await this.prefs.set("updateDismissedVersion", this.available.version); this.changed(); }
   installAutomatically(current: string, release: Release, notInUse: () => boolean, command: Command = runCommand) {
@@ -199,7 +205,7 @@ export class Updater {
   launchPendingInstaller(start: typeof spawn = spawn) {
     const installer = this.pendingInstaller; this.pendingInstaller = undefined;
     if (!installer || !isAbsolute(installer)) return false;
-    try { start(installer, [...windowsInstallerArgs], { detached: true, stdio: "ignore", windowsHide: true }).on("error", () => { /* The current app stays installed. */ }).unref(); return true; }
+    try { start(installer, [...windowsInstallerArgs], { cwd: dirname(installer), detached: true, stdio: "ignore", windowsHide: true }).on("error", () => { /* The current app stays installed. */ }).unref(); return true; }
     catch { return false; }
   }
 }

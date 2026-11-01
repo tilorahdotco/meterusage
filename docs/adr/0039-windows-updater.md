@@ -1,6 +1,6 @@
 # ADR 0039: Windows updater without a code signature
 
-- Status: Source implementation; CI exercises the installer handoff; real-machine acceptance pending
+- Status: Source implementation; CI checks installer flags and relaunch; real-machine acceptance pending
 - Date: 2026-11-01
 - Amends: [ADR 0038](0038-windows-ci-test-machine.md) ("Windows builds make no
   release check and offer no installation")
@@ -33,15 +33,16 @@ running app holds open.
   users who install updates. Release notes must say the build is unsigned.
 - **Install location.** In-app installation runs only from an NSIS install
   folder, which holds `Uninstall MeterUsage.exe` next to `MeterUsage.exe`. Zip
-  or portable copies show the offer but cannot install it, and must be replaced
-  by hand.
+  or portable copies show the offer, never install automatically, and answer
+  **Install update** with a fixed message to download the installer.
 - **Handoff.** The installer is staged in a new temporary folder with an
   exclusive write. It is not started until MeterUsage has completed its normal
   quit: settings saved, connections stopped and windows closed. It then starts
   detached and hidden with `/S --updated --force-run`. That is a silent
   per-user install which keeps app data and relaunches the app, as
   electron-builder's installer defines. No shell, script or elevation is used.
-  The staged installer remains in the temporary folder; Windows cleans that up.
+  The staged installer remains in the temporary folder until the next launch
+  of an installed copy removes stale `MeterUsageUpdate-*` folders.
 - **Automatic installs.** ADR 0037 applies unchanged. "Not in use" is checked
   before the download, after it, and after staging, just before control passes
   to quit. If MeterUsage comes into use, the install returns to idle with
@@ -58,8 +59,11 @@ Synthetic tests cover:
 - automatic-install deferral.
 
 The CI install smoke run installs the packaged NSIS build silently, runs the
-installed app, stops it, runs the same installer with `/S --updated --force-run`,
-confirms the installed app relaunches, and uninstalls silently.
+installed app, force-stops it, starts the same installer from PowerShell with
+`/S --updated --force-run`, confirms the installed app relaunches, and
+uninstalls silently. That checks the installer flags and relaunch, not
+Electron's detached spawn at the end of quit, which a synthetic test orders
+after cleanup.
 
 CI does not prove:
 

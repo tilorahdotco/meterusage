@@ -16,7 +16,7 @@ import { IssueReports } from "./issue-reports";
 import { ApiBillingFetch, apiBillingFetchErrors } from "./api-billing-fetch";
 import { prepaidFrom } from "../domain/api-billing";
 import { NotchFold } from "./notch-fold";
-import { Updater } from "./updater";
+import { Updater, removeStagedInstallers, windowsInstallation } from "./updater";
 import { runJSON } from "./cli";
 import { channel, stateChannel, statusPages, panelScales, PanelSize, type ViewState, type Surface, type Request, type Reply } from "../shared/ipc";
 import { parseRequest, trustedSender, projectSettings, shareSnapshot } from "./ipc";
@@ -26,6 +26,7 @@ import { trayTooltip } from "../domain/overview";
 
 const shareCardWidth = 250;
 const windowsShell = process.platform === "win32";
+const portableUpdate = "This copy of MeterUsage cannot update itself. Download the Windows installer from the GitHub release.";
 
 const args = process.argv.slice(1);
 const desktopHelper = app.isPackaged ? join(process.resourcesPath, "desktop-keychain") : join(__dirname, "../../build/desktop-keychain");
@@ -55,6 +56,7 @@ async function main() {
 }
 async function start(launch: Launch) {
   mkdirSync(launch.data, { recursive: true });
+  if (windowsShell && app.isPackaged && !launch.demo && !launch.candidate) void removeStagedInstallers();
   app.dock?.hide();
   // Windows would otherwise add Electron's default File/Edit/View menu to the framed Settings window.
   if (windowsShell) Menu.setApplicationMenu(null);
@@ -107,7 +109,8 @@ async function start(launch: Launch) {
       && !connections.state.some(c => c.status === "connecting") && !apiBillingFetch.running;
   };
   async function maybeAutoInstall() {
-    const release = updater.autoInstallRelease(notInUse(), app.isPackaged && !launch.demo && !launch.candidate);
+    // Zip and portable Windows copies cannot update in place; only the manual offer applies to them.
+    const release = updater.autoInstallRelease(notInUse(), app.isPackaged && !launch.demo && !launch.candidate && (!windowsShell || windowsInstallation(appLocation())));
     if (!release || autoInstalling) return;
     autoInstalling = true;
     try { await updater.installAutomatically(appLocation(), structuredClone(release), notInUse); app.quit(); }
@@ -411,6 +414,7 @@ async function start(launch: Launch) {
       case "updateDismiss": await updater.dismiss(); break;
       case "updateInstall": {
         if (launch.demo || launch.candidate || !app.isPackaged || !updater.visible) throw new Error("Update installation unavailable");
+        if (windowsShell && !windowsInstallation(appLocation())) throw new Error(portableUpdate);
         const confirmedRelease = structuredClone(updater.visible);
         confirmingUpdate = true;
         const accepted = await dialog.showMessageBox(source, { type: "question", title: "Install MeterUsage update?", message: `Install MeterUsage ${confirmedRelease.version}?`, detail: windowsShell ? "MeterUsage will quit, run the verified installer and relaunch." : "The app will quit, verify the downloaded bundle, replace this app and relaunch.", buttons: ["Cancel", "Install update"], defaultId: 0, cancelId: 0 }).finally(() => { confirmingUpdate = false; });
@@ -425,7 +429,7 @@ async function start(launch: Launch) {
     const source = BrowserWindow.fromWebContents(event.sender), surface = [...windows].find(([, w]) => w === source)?.[0];
     if (!source || !surface) return { ok: false, error: "Unknown window" };
     try { return await handle(parseRequest(raw), source, surface); }
-    catch (e) { return { ok: false, error: e instanceof Error && [...Object.values(apiBillingFetchErrors), "Invalid request", "Unknown account", "Reset credit unavailable", "Reset confirmation expired", "Couldn't redeem Codex reset", "Login items require an installed app", "Could not change login item", "Could not share snapshot", "Card too tall to share", "Open Codex on this Mac, then try connecting again", "Codex app not found in Applications. Install or update Codex, then try connecting again", "Open Claude Desktop and sign in, then try connecting again", "Could not access Claude Desktop through macOS Keychain. Check the access prompt, then try connecting again.", ...Object.values(desktopReadErrors), ...Object.values(grokBotConnectionErrors), "Could not read Claude account allowance. Try connecting again later.", "Could not verify the same Claude Desktop account after the allowance request. Try connecting again.", "Could not save the Claude Desktop connection preferences. Try connecting again.", "Could not clear the cancelled Codex connection", "Could not disconnect Codex", "Could not disconnect Claude Desktop", "Open one Antigravity Desktop account and sign in, then try connecting again", "Could not disconnect Antigravity Desktop", "Could not select Grok CLI", "Could not disconnect Grok Bot Desktop", "Connections are disabled in demo mode", "Could not connect Grok Bot Desktop. Sign in to Grok Bot, check allowance and Keychain access, then reconnect."].includes(e.message) ? e.message : "Could not complete action" }; }
+    catch (e) { return { ok: false, error: e instanceof Error && [...Object.values(apiBillingFetchErrors), portableUpdate, "Invalid request", "Unknown account", "Reset credit unavailable", "Reset confirmation expired", "Couldn't redeem Codex reset", "Login items require an installed app", "Could not change login item", "Could not share snapshot", "Card too tall to share", "Open Codex on this Mac, then try connecting again", "Codex app not found in Applications. Install or update Codex, then try connecting again", "Open Claude Desktop and sign in, then try connecting again", "Could not access Claude Desktop through macOS Keychain. Check the access prompt, then try connecting again.", ...Object.values(desktopReadErrors), ...Object.values(grokBotConnectionErrors), "Could not read Claude account allowance. Try connecting again later.", "Could not verify the same Claude Desktop account after the allowance request. Try connecting again.", "Could not save the Claude Desktop connection preferences. Try connecting again.", "Could not clear the cancelled Codex connection", "Could not disconnect Codex", "Could not disconnect Claude Desktop", "Open one Antigravity Desktop account and sign in, then try connecting again", "Could not disconnect Antigravity Desktop", "Could not select Grok CLI", "Could not disconnect Grok Bot Desktop", "Connections are disabled in demo mode", "Could not connect Grok Bot Desktop. Sign in to Grok Bot, check allowance and Keychain access, then reconnect."].includes(e.message) ? e.message : "Could not complete action" }; }
   });
   const unsubscribe = coordinator.subscribe(() => { syncNotch(); publish(); if (!coordinator.snapshot().refreshing) { void updater.checkIfDue(); void maybeAutoInstall(); } });
   screen.on("display-metrics-changed", () => { placeNotch(); sizeFlyout(); sizeSettings(); publish(); }); screen.on("display-removed", () => { placeNotch(); sizeFlyout(); sizeSettings(); publish(); });
