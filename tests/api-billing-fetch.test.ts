@@ -68,7 +68,8 @@ it("refuses an in-flight duplicate, permits the other provider, and releases the
   await billing.run("anthropic", keys.anthropic); expect(fetcher).toHaveBeenCalledTimes(2);
   finish(response("openai")); await pending;
   fetcher.mockResolvedValueOnce(response("openai")); await billing.run("openai", keys.openai);
-  expect(fetcher).toHaveBeenCalledTimes(3);
+  // Each OpenAI run makes a costs request plus one optional credit_grants request.
+  expect(fetcher).toHaveBeenCalledTimes(5);
 });
 
 it.each([401, 403, 500, "transport", "write"])("preserves the old snapshot, masks failure and releases the lock (%s)", async failure => {
@@ -144,4 +145,22 @@ it.each(["missing", "denied", "cancelled"])("preserves snapshots and hides saved
   }
   await expect(pending).rejects.toThrow(failure === "cancelled" ? apiBillingFetchErrors.unavailable : failure === "missing" ? apiBillingFetchErrors.savedMissing : apiBillingFetchErrors.savedAccess);
   expect(fetcher).not.toHaveBeenCalled(); expect(refresh).not.toHaveBeenCalled(); expect(files(home)).toEqual(before);
+});
+
+it("passes the prepaid fallback only to OpenAI and drops an in-flight balance request on quit", async () => {
+  const { launch, home, refresh } = await setup();
+  const prepaid = vi.fn(() => ({ amountUSD: 10, since: start }));
+  const fetcher = vi.fn<typeof fetch>(async url => response(new URL(String(url)).hostname === "api.openai.com" ? "openai" : "anthropic"));
+  const billing = new ApiBillingFetch(launch, refresh, fetcher, undefined, prepaid);
+  await billing.run("anthropic", keys.anthropic); expect(prepaid).not.toHaveBeenCalled();
+  await billing.run("openai", keys.openai); expect(prepaid).toHaveBeenCalledOnce();
+  expect(JSON.parse(readFileSync(apiBillingPath(home, "openai"), "utf8")).balance).toEqual({ source: "manual", availableUSD: 8, prepaidUSD: 10, since: start, spentSinceUSD: 2 });
+
+  const before = files(home); let grants!: () => void;
+  const hanging = vi.fn<typeof fetch>(async url => new URL(String(url)).pathname.endsWith("/credit_grants") ? new Promise<Response>((_resolve, reject) => { grants = () => reject(new Error("aborted")); }) : response("openai"));
+  const stopping = new ApiBillingFetch(launch, refresh, hanging, undefined, prepaid), pending = stopping.run("openai", keys.openai);
+  await vi.waitFor(() => expect(hanging).toHaveBeenCalledTimes(2));
+  stopping.stop(); grants();
+  await expect(pending).rejects.toThrow(apiBillingFetchErrors.unavailable);
+  expect(hanging).toHaveBeenCalledTimes(2); expect(files(home)).toEqual(before);
 });

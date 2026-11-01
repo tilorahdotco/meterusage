@@ -411,6 +411,13 @@ to open Settings. No window is shown or focused by preload.
   owner-only USD files. Cards retain the
   reported UTC period, exact capture time and explicit stale state. Empty
   reports do not become zero usage. Real organization billing remains unverified.
+- The OpenAI API card also shows the remaining balance. It comes from the
+  undocumented `credit_grants` report, labelled unofficial. If that fails, it
+  falls back to an estimate: the prepaid amount and UTC date entered in Settings,
+  minus documented spend since that date. Balance failures never fail the spend
+  fetch. A live dev-build fetch on 2026-10-31 with an organization Admin key
+  stored spend but no credit grants balance; why it returned none was not
+  captured. See [ADR 0035](adr/0035-openai-remaining-balance.md).
   See [API billing](API_USAGE_BETA.md) and [ADR 0029](adr/0029-api-billing-snapshots.md).
 - The Grok Bot encrypted reader accepts canonical v10 legacy values with the
   same full-subject active-account binding as scoped envelopes. Its fixed

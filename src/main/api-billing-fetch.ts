@@ -1,4 +1,4 @@
-import type { ApiBillingProvider } from "../domain/api-billing";
+import type { ApiBillingPrepaid, ApiBillingProvider } from "../domain/api-billing";
 import type { Launch } from "./launch";
 import { collectApiBilling, writeApiBilling } from "./providers/api-billing";
 
@@ -15,7 +15,7 @@ export const apiBillingFetchErrors = {
 export class ApiBillingFetch {
   private readonly busy = new Map<ApiBillingProvider, AbortController>();
   private stopped = false;
-  constructor(private readonly launch: Launch, private readonly refresh: () => Promise<void>, private readonly fetcher: typeof fetch = fetch, private readonly savedKey?: (provider: ApiBillingProvider, signal: AbortSignal) => Promise<string>) {}
+  constructor(private readonly launch: Launch, private readonly refresh: () => Promise<void>, private readonly fetcher: typeof fetch = fetch, private readonly savedKey?: (provider: ApiBillingProvider, signal: AbortSignal) => Promise<string>, private readonly prepaid?: () => ApiBillingPrepaid | undefined) {}
 
   async run(provider: ApiBillingProvider, adminKey?: string) {
     if (this.launch.demo || this.launch.candidate || this.launch.profile || this.launch.codexTest || this.launch.claudeTest) throw new Error(apiBillingFetchErrors.profile);
@@ -30,7 +30,7 @@ export class ApiBillingFetch {
         if (!adminKey) throw new Error(apiBillingFetchErrors.savedMissing);
       }
       if (this.stopped) throw new Error(apiBillingFetchErrors.unavailable);
-      const snapshot = await collectApiBilling(provider, adminKey, Date.now(), (url, init) => this.fetcher(url, { ...init, signal: AbortSignal.any([controller.signal, ...(init?.signal ? [init.signal] : [])]) }));
+      const snapshot = await collectApiBilling(provider, adminKey, Date.now(), (url, init) => { controller.signal.throwIfAborted(); return this.fetcher(url, { ...init, signal: AbortSignal.any([controller.signal, ...(init?.signal ? [init.signal] : [])]) }); }, provider === "openai" ? this.prepaid?.() : undefined);
       if (this.stopped) throw new Error(apiBillingFetchErrors.unavailable);
       writeApiBilling(this.launch.home, snapshot);
       await this.refresh();
