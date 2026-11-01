@@ -85,6 +85,27 @@ describe("verified explicit updates", () => {
     respond(bytes); await rejected; expect(staged).toBe(false); expect(updater.installState).toBe("failed");
   });
 
+describe("opt-in automatic install", () => {
+  const live = async () => { const root = temp(); return Preferences.load({ demo: false, candidate: false, home: root, data: root, env: {} }, async (_binary, args) => { if (args[0] !== "write") throw new Error("absent fixture defaults"); return ""; }, "fixture.meterusage"); };
+  it("is off by default and offers a release only when opted in, idle and packaged", async () => {
+    const prefs = await live(), updater = new Updater(prefs, "0.2.41", () => {}, async () => bytes);
+    updater.available = parseRelease(payload());
+    expect(prefs.values.updateAutoInstall).toBe(false);
+    expect(updater.autoInstallRelease(true, true)).toBeUndefined();
+    await prefs.set("updateAutoInstall", true);
+    expect(updater.autoInstallRelease(true, true)?.version).toBe("0.2.42");
+    expect(updater.autoInstallRelease(false, true)).toBeUndefined();
+    expect(updater.autoInstallRelease(true, false)).toBeUndefined();
+  });
+  it("skips dismissed versions, disabled checks and a failed or running install", async () => {
+    const prefs = await live(), updater = new Updater(prefs, "0.2.41", () => {}, async () => bytes);
+    await prefs.set("updateAutoInstall", true); updater.available = parseRelease(payload());
+    updater.installState = "failed"; expect(updater.autoInstallRelease(true, true)).toBeUndefined();
+    updater.installState = "downloading"; expect(updater.autoInstallRelease(true, true)).toBeUndefined();
+    updater.installState = "idle"; await updater.dismiss(); expect(updater.autoInstallRelease(true, true)).toBeUndefined();
+    await prefs.set("updateDismissedVersion", ""); await prefs.set("updateCheckEnabled", false); expect(updater.autoInstallRelease(true, true)).toBeUndefined();
+  });
+});
 describe("beta update channel", () => {
   const beta = (tag: string, extra: Record<string, unknown> = {}) => { const v = tag.slice(1); return { tag_name: tag, draft: false, assets: [{ name: `MeterUsage-${v}-mac-arm64.zip`, browser_download_url: `https://github.com/pekth/meterusage/releases/download/${tag}/MeterUsage-${v}-mac-arm64.zip`, digest }], ...extra }; };
   it("orders betas below their final release", () => {

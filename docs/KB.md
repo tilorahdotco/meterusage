@@ -425,6 +425,12 @@ to open Settings. No window is shown or focused by preload.
   these shapes; access and live allowance remain separate gates. See
   [ADR 0030](adr/0030-grok-bot-encrypted-compatibility.md).
 
+- **Install updates automatically** (`updateAutoInstall`, off by default)
+  installs an offered, undismissed, newer release without the confirmation
+  dialog. It only runs when the app is packaged, no install has failed this
+  session, and the usage panel, Settings and share windows are hidden with the
+  side notch collapsed. It reuses the verified install path. Native install
+  acceptance is pending. See [ADR 0037](adr/0037-opt-in-automatic-updates.md).
 - Grok Bot Desktop quota burn uses live same-account observations spanning at
   least one minute and no more than five minutes. It reports percentage points
   per hour and can estimate run-out without assuming a quota-cycle duration.

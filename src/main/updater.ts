@@ -124,6 +124,10 @@ export class Updater {
     })().catch(() => { /* A release lookup failure stays separate from usage. */ }).finally(() => { if (this.check === pending) { this.check = undefined; this.checkController = undefined; } });
     this.check = pending; return pending;
   }
+  /** The release to install without a prompt, only when opted in, idle, packaged and not previously failed or dismissed. */
+  autoInstallRelease(idle: boolean, packaged: boolean) {
+    return this.prefs.values.updateAutoInstall === true && idle && packaged && this.installState === "idle" ? this.visible : undefined;
+  }
   reset() { this.generation++; this.checkController?.abort(); this.installController?.abort(); this.checkController = undefined; this.check = undefined; this.available = undefined; this.changed(); }
   async dismiss() { if (this.available) await this.prefs.set("updateDismissedVersion", this.available.version); this.changed(); }
   async install(current: string, release: Release | undefined, command: Command = runCommand) {

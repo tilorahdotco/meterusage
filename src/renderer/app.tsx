@@ -159,7 +159,7 @@ function UnifiedStrip({ state }: { state: ViewState }) {
   if (totals.todayTokens === undefined && !nudge) return null;
   return <section className="provider-card activity-summary"><h2>AI activity on this Mac</h2>{totals.todayTokens !== undefined && <dl className="metrics"><div><dt>Tokens today</dt><dd>{n(totals.todayTokens)}</dd></div><div><dt>Last 7 days</dt><dd>{n(totals.weekTokens!)}</dd></div><div><dt>Estimated cost today</dt><dd>{money(totals.todayCost!)}</dd></div></dl>}{nudge && <p className="stale">{nudge}</p>}</section>;
 }
-const labels: Record<string, string> = { launchAtLogin: "Launch at login", quotaAlertsEnabled: "Quota alerts", updateCheckEnabled: "Check for updates", sideNotchPanelEnabled: "Show side notch", menuBarCompactEnabled: "Compact menu bar", showHeatmap: "Daily heatmaps", showClaudeHeatmap: "Claude heatmap", showCodexHeatmap: "Codex heatmap", showPacingBurnRate: "Pacing and burn rate", showActivityTelemetry: "Activity statistics", showDailyActivityChart: "Daily activity chart", showSideNotchResetButton: "Codex limit resets in the side notch" };
+const labels: Record<string, string> = { launchAtLogin: "Launch at login", quotaAlertsEnabled: "Quota alerts", updateCheckEnabled: "Check for updates", updateAutoInstall: "Install updates automatically", sideNotchPanelEnabled: "Show side notch", menuBarCompactEnabled: "Compact menu bar", showHeatmap: "Daily heatmaps", showClaudeHeatmap: "Claude heatmap", showCodexHeatmap: "Codex heatmap", showPacingBurnRate: "Pacing and burn rate", showActivityTelemetry: "Activity statistics", showDailyActivityChart: "Daily activity chart", showSideNotchResetButton: "Codex limit resets in the side notch" };
 function ConnectionRow({ connection: c, state, action }: { connection: ConnectionState; state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const [method, setMethod] = useState<ConnectionState["source"]>(!c.localAvailable && c.status !== "unsupported" ? "account" : c.source);
   const [expanded, setExpanded] = useState(false);
@@ -278,6 +278,8 @@ export function Settings({ state, action, saveOrder }: { state: ViewState; actio
     </div></section>
     <section hidden={category !== "General"}><h2>General</h2><div className="settings-group">
       {["launchAtLogin", "quotaAlertsEnabled", "updateCheckEnabled"].map(k => toggle(k, labels[k]))}
+      {toggle("updateAutoInstall", labels.updateAutoInstall, undefined, values.updateCheckEnabled !== true || state.snapshot.demo)}
+      <p className="secondary connection-help">Installs a verified update while MeterUsage isn't open on screen, then relaunches. A dismissed version is skipped.</p>
       <UpdateNotice state={state} action={action} />
       <label className="setting"><span>Refresh interval</span><select value={Number(values.refreshIntervalSeconds)} onChange={e => set("refreshIntervalSeconds", Number(e.target.value))}>{[30, 60, 120, 300, 900].map(x => <option key={x} value={x}>{x < 60 ? `${x}s` : `${x / 60}m`}</option>)}</select></label>
     </div></section>

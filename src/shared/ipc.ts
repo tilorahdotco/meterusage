@@ -42,6 +42,6 @@ export type Request =
 export type Reply = { ok: true; state?: ViewState } | { ok: false; error: string };
 export interface Bridge { request(request: Request): Promise<Reply>; subscribe(observer: (state: ViewState) => void): () => void }
 declare global { interface Window { meterusage?: Bridge } }
-export const editableBooleans = ["launchAtLogin", "showHeatmap", "showClaudeHeatmap", "showCodexHeatmap", "quotaAlertsEnabled", "sideNotchPanelEnabled", "menuBarCompactEnabled", "onboardingCompleted", "updateCheckEnabled", "showPacingBurnRate", "showActivityTelemetry", "showDailyActivityChart", "showSideNotchResetButton"];
+export const editableBooleans = ["launchAtLogin", "showHeatmap", "showClaudeHeatmap", "showCodexHeatmap", "quotaAlertsEnabled", "sideNotchPanelEnabled", "menuBarCompactEnabled", "onboardingCompleted", "updateCheckEnabled", "updateAutoInstall", "showPacingBurnRate", "showActivityTelemetry", "showDailyActivityChart", "showSideNotchResetButton"];
 export const providerKey = (p: Provider) => `showProvider${p[0].toUpperCase()}${p.slice(1)}`;
 export const trayKey = (p: Provider) => `menuBarProvider${p[0].toUpperCase()}${p.slice(1)}`;
