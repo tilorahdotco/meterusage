@@ -59,6 +59,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Typecheck
         run: pnpm typecheck
+      - name: DPAPI probe (temporary diagnostic)
+        continue-on-error: true
+        run: node Scripts/electron/dpapi-probe.cjs
       - name: Test (Windows-safe subset)
         run: pnpm test:windows
       - name: Full test suite (informational)
