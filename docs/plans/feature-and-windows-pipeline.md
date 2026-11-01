@@ -24,7 +24,8 @@ establish Windows behavior.
 1. Platform foundation and a CI job that packages and smoke-tests the unsigned
    build. Implemented.
 2. Windows updater: installer asset, GitHub SHA-256 digest verification and the
-   existing automatic-install deferral.
+   existing automatic-install deferral. Implemented under
+   [ADR 0039](../adr/0039-windows-updater.md); CI exercises the installer handoff.
 3. Windows desktop account connections (DPAPI, read-only `node:sqlite`, Windows
    paths) with synthetic fixtures; marked unverified against real accounts.
 4. Unsigned GitHub pre-release and user docs, after the CI smoke run passes.

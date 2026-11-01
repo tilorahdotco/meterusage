@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, screen, nativeTheme, dialog, clipboard, Notification, ShareMenu, session, powerMonitor, shell } from "electron";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -110,7 +110,7 @@ async function start(launch: Launch) {
     const release = updater.autoInstallRelease(notInUse(), app.isPackaged && !launch.demo && !launch.candidate);
     if (!release || autoInstalling) return;
     autoInstalling = true;
-    try { await updater.installAutomatically(resolve(app.getPath("exe"), "../../.."), structuredClone(release), notInUse); app.quit(); }
+    try { await updater.installAutomatically(appLocation(), structuredClone(release), notInUse); app.quit(); }
     catch { /* Deferred installs return to idle and retry later; failures keep the manual Install update path. */ }
     finally { autoInstalling = false; }
   }
@@ -413,8 +413,8 @@ async function start(launch: Launch) {
         if (launch.demo || launch.candidate || !app.isPackaged || !updater.visible) throw new Error("Update installation unavailable");
         const confirmedRelease = structuredClone(updater.visible);
         confirmingUpdate = true;
-        const accepted = await dialog.showMessageBox(source, { type: "question", title: "Install MeterUsage update?", message: `Install MeterUsage ${confirmedRelease.version}?`, detail: "The app will quit, verify the downloaded bundle, replace this app and relaunch.", buttons: ["Cancel", "Install update"], defaultId: 0, cancelId: 0 }).finally(() => { confirmingUpdate = false; });
-        if (accepted.response === 1) { await updater.install(resolve(app.getPath("exe"), "../../.."), confirmedRelease); app.quit(); }
+        const accepted = await dialog.showMessageBox(source, { type: "question", title: "Install MeterUsage update?", message: `Install MeterUsage ${confirmedRelease.version}?`, detail: windowsShell ? "MeterUsage will quit, run the verified installer and relaunch." : "The app will quit, verify the downloaded bundle, replace this app and relaunch.", buttons: ["Cancel", "Install update"], defaultId: 0, cancelId: 0 }).finally(() => { confirmingUpdate = false; });
+        if (accepted.response === 1) { await updater.install(appLocation(), confirmedRelease); app.quit(); }
         break;
       }
     }
@@ -444,6 +444,8 @@ async function start(launch: Launch) {
     coordinator.stop(); updater.reset(); stopHoverCheck(); clearInterval(clockTimer); if (drag) { clearInterval(drag.timer); clearTimeout(drag.timeout); } folding.cancel();
     void connections.stop().finally(() => {
       if (shareDirectory) rmSync(shareDirectory, { recursive: true, force: true }); for (const directory of sharedDirectories) rmSync(directory, { recursive: true, force: true }); tray.destroy();
+      // A verified Windows installer waits until cleanup finishes, then replaces and relaunches the app.
+      updater.launchPendingInstaller();
       quitReady = true; app.quit();
     });
   });
@@ -467,3 +469,5 @@ function trayIcon() {
   for (const scaleFactor of [1, 1.25, 1.5, 2]) { const size = Math.round(16 * scaleFactor); icon.addRepresentation({ scaleFactor, width: size, height: size, buffer: source.resize({ width: size, height: size, quality: "best" }).toPNG() }); }
   return icon;
 }
+/** The installed app: the .app bundle on macOS, the install folder holding MeterUsage.exe on Windows. */
+function appLocation() { return windowsShell ? dirname(app.getPath("exe")) : resolve(app.getPath("exe"), "../../.."); }

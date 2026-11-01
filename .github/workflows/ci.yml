@@ -71,6 +71,9 @@ jobs:
       - name: Smoke test packaged app
         shell: pwsh
         run: ./Scripts/electron/windows-smoke.ps1
+      - name: Smoke test installer, update handoff and uninstall
+        shell: pwsh
+        run: ./Scripts/electron/windows-install-smoke.ps1
       - name: Upload smoke artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

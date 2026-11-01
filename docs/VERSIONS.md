@@ -44,6 +44,13 @@ newest release with a verified `MeterUsage-<version>.zip` or
 so beta users are offered the stable release that follows. Beta 4 and earlier
 predate this and need one manual install.
 
+Windows builds select only `MeterUsage-<version>-win-x64.exe` and macOS
+builds never select it, so each platform skips releases without its asset. The
+Windows updater verifies the GitHub SHA-256 digest and the installer's
+structure; it has no code signature to check. It installs only from an NSIS
+install folder, starting the installer silently after MeterUsage quits. See
+[ADR 0039](adr/0039-windows-updater.md).
+
 Beta 11 adds **Install updates
 automatically** (off by default). It installs an offered, undismissed release
 without the confirmation dialog while MeterUsage is not in use, using the same

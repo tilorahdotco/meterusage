@@ -342,7 +342,11 @@ app documents. Source controls and tests do not replace native runtime proof.
   It has no usage data or account identifier. GitHub sees the network address
   and User-Agent. Disable it in Settings. An explicit Install action downloads
   the selected release ZIP and requires its SHA-256, bundle identity/version
-  and code signature to verify. Automatic checks do not install an update.
+  and code signature to verify. Automatic checks do not install an update
+  unless **Install updates automatically** is on. Windows builds download only
+  the `-win-x64.exe` installer, require its SHA-256 digest and NSIS structure
+  (there is no code signature), and run it silently after MeterUsage quits. See
+  [ADR 0039](adr/0039-windows-updater.md).
 - Explicit Codex reset redemption calls
   `account/rateLimitResetCredit/consume` after native user confirmation for that
   account and credit. Cancel makes no consume call. Tests use synthetic credits
