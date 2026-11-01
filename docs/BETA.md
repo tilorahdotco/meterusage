@@ -32,8 +32,9 @@ manually once. Beta 5 through 10 can discover newer releases, but their installe
 may reject macOS temporary-directory aliases. Install beta.11 or later manually
 once to receive the updater fix. Every Electron build before beta 12 accepts updates
 only from `pekth/meterusage`. The repository moved to the tilorahdotco
-organization on 2026-11-01, so those builds won't be offered later releases;
-install beta 12 or later manually once. `Scripts/make-app.sh` now prepares the pinned Electron beta with
+organization on 2026-11-01. Builds that updated to beta 12 before the move
+keep updating; a build still on an earlier beta won't be offered later
+releases, so install beta 12 or later manually once. `Scripts/make-app.sh` now prepares the pinned Electron beta with
 checksum/signature verification, destination staging and no compiler fallback.
 It preserves the published signature. Preparing output does not install it.
 

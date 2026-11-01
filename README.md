@@ -25,7 +25,7 @@ finds the Codex sign-in helper in `ChatGPT.app` installs and reports refused
 Claude Desktop Keychain reads. Beta 10 adds the dollars left to the OpenAI API card, from OpenAI's unofficial credit
 grants report or an estimate from a prepaid amount you enter. See
 [API billing](docs/API_USAGE_BETA.md#openai-remaining-balance). The repository moved to the tilorahdotco organization
-on 2026-11-01. Beta 12 and later accept updates from it; earlier builds need beta 12 installed manually.
+on 2026-11-01. Beta 12 and later accept updates from it. Apps that updated to beta 12 before the move keep updating; an app still on an earlier beta needs beta 12 or later installed manually.
 
 Stable acceptance remains open. Historical Swift releases and source are
 [recovery references](docs/swift/README.md), with no separate offered edition.

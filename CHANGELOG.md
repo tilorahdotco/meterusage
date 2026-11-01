@@ -31,7 +31,8 @@ follows [Semantic Versioning](https://semver.org/).
   redirects after a transfer. No other owner is accepted.
 - Look up releases at `tilorahdotco/meterusage` after the repository transfer,
   and point the prebuilt download, `Scripts/make-app.sh` and documentation
-  links there. Betas 1–11 need beta 12 or later installed manually.
+  links there. Apps that updated to beta 12 before the transfer keep updating;
+  an app still on an earlier beta needs beta 12 or later installed manually.
 
 ### Fixed
 

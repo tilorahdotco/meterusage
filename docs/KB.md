@@ -49,7 +49,9 @@ Release documentation refresh: 2026-11-01 for build 82.
   (`releaseOwners` in `src/main/updater.ts`); GitHub reports them under
   `tilorahdotco`. Current source looks up releases at `tilorahdotco`. Beta 12
   and Swift still call the `pekth` API endpoints, which GitHub redirects.
-  Electron betas 1–11 accept only `pekth` assets, so they need beta 12 or later
+  Electron betas 1–11 accept only `pekth` assets. Builds that updated to beta 12
+  before the transfer (as an installed beta 11 did automatically on 2026-11-01)
+  keep updating; a build still on an earlier beta needs beta 12 or later
   installed manually. Swift checks no owner. Never create or fork `meterusage`
   under `pekth`, because that ends the redirect.
 - Swift and stable Electron updaters use GitHub's latest-release endpoint.
