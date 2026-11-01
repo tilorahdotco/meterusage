@@ -119,7 +119,7 @@ it.each([
     refresh = refresh; forgetQuota = forgetQuota;
     start = start; stop = vi.fn(); publish = vi.fn(); subscribe = vi.fn(() => vi.fn()); snapshot = () => ({ appearance: {}, quotas: { codex: { status: "value", value: { provider: "codex", windows: [{ label: "5-hour", usedPercent: 10 }] } } }, archived: {}, notchSlots: [{ provider: "codex", slotID: "" }, { provider: "claude", slotID: "" }] }); refreshIfStale = vi.fn();
   } }));
-  vi.doMock("../src/main/updater", () => ({ Updater: class { reset = vi.fn(); autoInstallRelease = vi.fn(() => undefined); } }));
+  vi.doMock("../src/main/updater", () => ({ Updater: class { reset = vi.fn(); autoInstallRelease = vi.fn(() => undefined); launchPendingInstaller = vi.fn(() => false); } }));
   vi.doMock("../src/domain/overview", () => ({ trayTooltip: () => "Synthetic usage" }));
   try {
     Object.defineProperty(process, "platform", { value: "darwin" });
@@ -742,7 +742,7 @@ it.each([
   vi.doMock("../src/main/connections", () => ({ DesktopConnections: class {
     state = []; configured = () => false; recover = async () => {}; stop = stop;
   } }));
-  vi.doMock("../src/main/updater", () => ({ Updater: class { reset = vi.fn(); checkIfDue = updaterCheck; autoInstallRelease = vi.fn(() => undefined); } }));
+  vi.doMock("../src/main/updater", () => ({ Updater: class { reset = vi.fn(); checkIfDue = updaterCheck; autoInstallRelease = vi.fn(() => undefined); launchPendingInstaller = vi.fn(() => false); } }));
   try {
     Object.defineProperty(process, "platform", { value: "darwin" });
     Object.defineProperty(process, "resourcesPath", { value: root, configurable: true });
