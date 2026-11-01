@@ -78,7 +78,8 @@ platform rules:
   Settings has no default Electron menu bar. Notifications use the AppUserModelID
   `dev.meterusage.app`.
 - **Updates.** Until the Windows updater lands, Windows builds make no release
-  check and offer no installation.
+  check and offer no installation. [ADR 0039](0039-windows-updater.md)
+  replaces this with a digest-verified installer updater.
 
 ## What CI proves and what it does not
 
