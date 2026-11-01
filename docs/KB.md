@@ -43,13 +43,15 @@ Release documentation refresh: 2026-11-01 for build 82.
   bundle ID and default data/preferences prevent safe normal-profile coexistence.
   Use only documented isolated QA profiles. Default distribution changes do not
   alter data, identity, workflows, releases or stable acceptance requirements.
-- The updater accepts release assets only under `github.com/tilorahdotco/meterusage`
-  or `github.com/pekth/meterusage` (`releaseOwners` in `src/main/updater.ts`). This
-  bridges the planned transfer to the tilorahdotco organization. Release endpoints
-  stay on `pekth`, which GitHub redirects after a transfer. Every earlier Electron
-  build (betas 1–11) accepts only `pekth` assets; Swift checks no owner. Never
-  create or fork `meterusage` under `pekth` after the transfer, because that ends
-  the redirect. A follow-up release should move the endpoints to `tilorahdotco`.
+- The repository was transferred from `pekth` to `tilorahdotco` on 2026-11-01
+  (same repository ID). The updater accepts release assets only under
+  `github.com/tilorahdotco/meterusage` or `github.com/pekth/meterusage`
+  (`releaseOwners` in `src/main/updater.ts`); GitHub reports them under
+  `tilorahdotco`. Current source looks up releases at `tilorahdotco`. Beta 12
+  and Swift still call the `pekth` API endpoints, which GitHub redirects.
+  Electron betas 1–11 accept only `pekth` assets, so they need beta 12 or later
+  installed manually. Swift checks no owner. Never create or fork `meterusage`
+  under `pekth`, because that ends the redirect.
 - Swift and stable Electron updaters use GitHub's latest-release endpoint.
   Electron beta builds (version `-beta.N`) read the release list and accept
   `-mac-arm64` assets, so beta 5 onward offers newer betas or a newer stable
@@ -73,7 +75,9 @@ Release documentation refresh: 2026-11-01 for build 82.
   and share windows hidden, side notch collapsed, no share, reset or update
   confirmation, sign-in or API billing fetch running. This is rechecked after
   download and before the installer starts; if it fails, the install returns to
-  idle and retries later. Native install acceptance is pending. See
+  idle and retries later. On 2026-11-01 an installed beta 11 with the setting on
+  replaced itself with beta 12 and relaunched; broader native install acceptance
+  is pending. See
   [ADR 0037](adr/0037-opt-in-automatic-updates.md).
 - Installed beta 5 recorded discovery of beta 6 on 2026-10-22. Automated
   installation and relaunch were not completed; native UI control was unavailable.

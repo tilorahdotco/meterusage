@@ -45,7 +45,7 @@ if [ "$#" -eq 0 ]; then
     # Pin the reviewed release and digest together; never fall back to a build.
     RELEASE_VERSION="0.3.0-beta.12"
     RELEASE_SHA256="dd85fd5fd4b03ac69d3440fb902d4efc4e59ad5ce08edb1f814ccd54bbd8cfb8"
-    RELEASE_URL="https://github.com/pekth/meterusage/releases/download/v${RELEASE_VERSION}/MeterUsage-${RELEASE_VERSION}-mac-arm64.zip"
+    RELEASE_URL="https://github.com/tilorahdotco/meterusage/releases/download/v${RELEASE_VERSION}/MeterUsage-${RELEASE_VERSION}-mac-arm64.zip"
     TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/meterusage-download.XXXXXX")"
     STAGING_DIR=""
     trap 'rm -rf "${TEMP_DIR}" "${STAGING_DIR:-}"' EXIT

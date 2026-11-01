@@ -115,15 +115,18 @@ describe("repository transfer to tilorahdotco", () => {
     expect(parseReleases(JSON.stringify([{ tag_name: `v${v}`, draft: false, assets: [asset("tilorahdotco")] }])).asset.url).toContain("/tilorahdotco/meterusage/");
     expect(() => parseReleases(JSON.stringify([{ tag_name: `v${v}`, draft: false, assets: [asset("someone-else")] }]))).toThrow();
   });
-  it.each(["https://api.github.com/repositories/1318093547/releases?per_page=20", "/repositories/1318093547/releases?per_page=20"])("follows the post-transfer API redirect to %s", async location => {
+  it.each(["https://api.github.com/repositories/1318093547/releases?per_page=20", "/repositories/1318093547/releases?per_page=20"])("follows a GitHub API redirect to %s", async location => {
     const seen: string[] = [];
     const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async input => {
       const url = String(input); seen.push(url);
-      return url.includes("/repos/pekth/") ? new Response(null, { status: 301, headers: { location } }) : new Response("[]", { status: 200 });
+      return url === releasesEndpoint ? new Response(null, { status: 301, headers: { location } }) : new Response("[]", { status: 200 });
     });
     try { expect((await fetchUpdate(releasesEndpoint, 1048576)).toString()).toBe("[]"); }
     finally { fetcher.mockRestore(); }
     expect(seen).toEqual([releasesEndpoint, "https://api.github.com/repositories/1318093547/releases?per_page=20"]);
+  });
+  it("looks up releases at the tilorahdotco repository", () => {
+    for (const endpoint of [releaseEndpoint, releasesEndpoint]) expect(endpoint.startsWith("https://api.github.com/repos/tilorahdotco/meterusage/releases")).toBe(true);
   });
   it.each(["someone-else", "tilorahdotco.evil", "PEKTH"])("rejects assets under %s", owner => {
     expect(() => parseRelease(forOwner(owner))).toThrow("Invalid update asset");
