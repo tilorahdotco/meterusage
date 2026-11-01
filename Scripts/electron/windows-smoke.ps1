@@ -37,7 +37,7 @@ function Invoke-Gui([string]$Name, [string]$ProfileDir, [int]$MinimumWindows) {
     Start-Sleep -Seconds 5
     if ($p.HasExited) { throw "$Name exited after its windows appeared" }
   } finally {
-    & taskkill.exe /pid $p.Id /t /f | Out-Null
+    & taskkill.exe /pid $p.Id /t /f 2>&1 | Out-Null; $global:LASTEXITCODE = 0
     $p.WaitForExit(10000) | Out-Null
   }
 }
@@ -68,3 +68,5 @@ foreach ($provider in "Codex", "Claude", "OpenRouter", "OpenCodeGo", "Grok", "An
 $prefs | ConvertTo-Json | Set-Content -Encoding utf8NoBOM (Join-Path $gui "preferences.json")
 Invoke-Gui "gui-relaunch" $gui 2
 Write-Host "Windows smoke passed"
+# The Actions pwsh wrapper exits with the last native exit code.
+exit 0
