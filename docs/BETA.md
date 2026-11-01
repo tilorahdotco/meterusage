@@ -1,14 +1,14 @@
 # Electron public beta
 
-MeterUsage **0.3.0-beta.11, build 81** is the sole offered app and default
+MeterUsage **0.3.0-beta.12, build 82** is the sole offered app and default
 download. It remains a beta. The ZIP supports Apple silicon and macOS 13 or
 later and is Developer ID signed, notarized and stapled. Historical Swift
 source/releases remain available for recovery; stable acceptance is still open.
 
 ## Install
 
-1. Download [the beta ZIP](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.11/MeterUsage-0.3.0-beta.11-mac-arm64.zip)
-   and [SHA256SUMS](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.11/SHA256SUMS).
+1. Download [the beta ZIP](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.12/MeterUsage-0.3.0-beta.12-mac-arm64.zip)
+   and [SHA256SUMS](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.12/SHA256SUMS).
 2. Quit MeterUsage and keep a copy of your existing app and its saved data for
    rollback. The beta shares the app identity and data locations with Swift.
 3. Unzip the download, move `MeterUsage.app` to Applications, and open it.
@@ -29,8 +29,8 @@ Settings > General (off by default). When on, a newer version that hasn't been
 dismissed installs through the same checks without the dialog, only while you
 aren't using MeterUsage. Beta 4 and earlier cannot see betas; install the current beta
 manually once. Beta 5 through 10 can discover newer releases, but their installer
-may reject macOS temporary-directory aliases. Install beta.11 manually once to
-receive the updater fix. `Scripts/make-app.sh` now prepares the pinned Electron beta with
+may reject macOS temporary-directory aliases. Install beta.11 or later manually
+once to receive the updater fix. `Scripts/make-app.sh` now prepares the pinned Electron beta with
 checksum/signature verification, destination staging and no compiler fallback.
 It preserves the published signature. Preparing output does not install it.
 
@@ -43,7 +43,7 @@ shasum -a 256 -c SHA256SUMS
 Expected ZIP SHA-256:
 
 ```text
-5f097d1a0dc7826c13d32fbf5abc03d0d98f41c66a914d9e4089762474d9232b
+dd85fd5fd4b03ac69d3440fb902d4efc4e59ad5ce08edb1f814ccd54bbd8cfb8
 ```
 
 ## Provider coverage
@@ -85,8 +85,8 @@ Expected ZIP SHA-256:
   preserved and newly pasted keys are not saved. OpenRouter keeps its existing
   balance and aggregate activity source. Read [API setup and limits](API_USAGE_BETA.md).
 
-See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/docs/electron/README.md#source-choices),
-[desktop connections](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/docs/PRIVACY.md).
+See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/docs/electron/README.md#source-choices),
+[desktop connections](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/docs/PRIVACY.md).
 
 ## Known limits
 
@@ -116,16 +116,23 @@ See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/doc
 
 Use Settings > Diagnostics for sanitized diagnostics and **Send report**.
 The app limits report attempts to one every ten minutes, including relaunches.
-Review the [report contents and privacy limits](https://github.com/pekth/meterusage/blob/v0.3.0-beta.11/docs/REPORTING.md) before sending.
+Review the [report contents and privacy limits](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/docs/REPORTING.md) before sending.
 Never include tokens, passwords or raw account files in an issue.
 
 ## Build and screenshot identity
 
-The signed artifact uses executable inputs matching source
-`7b813734881beda757ec7757d8c63d8e3eb25c80`, which includes opt-in automatic
-updates (#91) and fixes update staging through macOS temporary aliases. Source manifests retain `0.2.41`; packaging sets
-`0.3.0-beta.11`, build 81. Screenshots are from build 61 and do not show
-later controls, including the automatic-update setting.
+The signed artifact was built from `git archive` of main
+`44bf89d4802f52e1165fd0c1293406e8801a655d`, which adds the update-owner bridge
+(#93) to beta.11 ahead of moving the repository to the tilorahdotco
+organization. Source manifests retain `0.2.41`; packaging sets
+`0.3.0-beta.12`, build 82. Screenshots are from build 61 and do not show later
+controls, including the automatic-update setting.
+
+Beta.12 source passed typecheck, 909 synthetic tests and production build, and
+hosted CI (`typescript` and macOS `swift build`/`swift test`) on that commit.
+Apple accepted notarization; stapling, Gatekeeper (`Notarized Developer ID`),
+bundle version and the uploaded ZIP's SHA-256 were verified separately.
+The paragraph below describes beta.11's validation.
 
 Source validation passed typecheck, 902 synthetic tests and production build.
 Hosted CI for the automatic-update feature (#91) passed the Electron checks,
