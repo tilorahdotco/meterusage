@@ -24,13 +24,17 @@ export function newer(candidate: string, current: string) {
 }
 type RawRelease = { tag_name?: unknown; draft?: unknown; assets?: { name?: unknown; browser_download_url?: unknown; digest?: unknown }[] };
 const releaseShape = { tag_name: true, draft: true, assets: { '*': { name: true, browser_download_url: true, digest: true } } } as const;
+// The repository moves from pekth to tilorahdotco by a GitHub transfer. The API endpoints above redirect after
+// the move, but asset URLs report the new owner, so accept exactly these two repositories and nothing else.
+const releaseOwners = ["tilorahdotco", "pekth"] as const;
 function releaseFrom(data: RawRelease): Release {
   if (typeof data.tag_name !== "string" || !versionPattern.test(data.tag_name) || data.draft === true) throw new Error("Invalid release");
   const version = data.tag_name.replace(/^v/i, "");
   // Stable Swift assets are MeterUsage-<v>.zip; Electron betas add -mac-arm64.
   for (const expected of [`MeterUsage-${version}.zip`, `MeterUsage-${version}-mac-arm64.zip`]) {
-    const asset = data.assets?.find(a => a.name === expected), url = `https://github.com/pekth/meterusage/releases/download/${data.tag_name}/${expected}`;
-    if (asset && asset.browser_download_url === url && typeof asset.digest === "string" && /^sha256:[a-f\d]{64}$/i.test(asset.digest)) return { version, tag: data.tag_name, asset: { url, digest: asset.digest.toLowerCase() } };
+    const asset = data.assets?.find(a => a.name === expected);
+    const url = releaseOwners.map(owner => `https://github.com/${owner}/meterusage/releases/download/${data.tag_name}/${expected}`).find(candidate => asset?.browser_download_url === candidate);
+    if (asset && url && typeof asset.digest === "string" && /^sha256:[a-f\d]{64}$/i.test(asset.digest)) return { version, tag: data.tag_name, asset: { url, digest: asset.digest.toLowerCase() } };
   }
   throw new Error("Invalid update asset");
 }

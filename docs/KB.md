@@ -43,6 +43,13 @@ Release documentation refresh: 2026-11-01 for build 81.
   bundle ID and default data/preferences prevent safe normal-profile coexistence.
   Use only documented isolated QA profiles. Default distribution changes do not
   alter data, identity, workflows, releases or stable acceptance requirements.
+- The updater accepts release assets only under `github.com/tilorahdotco/meterusage`
+  or `github.com/pekth/meterusage` (`releaseOwners` in `src/main/updater.ts`). This
+  bridges the planned transfer to the tilorahdotco organization. Release endpoints
+  stay on `pekth`, which GitHub redirects after a transfer. Every earlier Electron
+  build (betas 1–11) accepts only `pekth` assets; Swift checks no owner. Never
+  create or fork `meterusage` under `pekth` after the transfer, because that ends
+  the redirect. A follow-up release should move the endpoints to `tilorahdotco`.
 - Swift and stable Electron updaters use GitHub's latest-release endpoint.
   Electron beta builds (version `-beta.N`) read the release list and accept
   `-mac-arm64` assets, so beta 5 onward offers newer betas or a newer stable

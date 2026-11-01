@@ -23,6 +23,13 @@ follows [Semantic Versioning](https://semver.org/).
   unavailable, MeterUsage estimates it from the prepaid credit and top-up date
   you enter in Settings → API connections.
 
+### Changed
+
+- Accept update downloads from `tilorahdotco/meterusage` as well as
+  `pekth/meterusage`, ahead of transferring the repository to the tilorahdotco
+  organization. Release lookups keep using the current endpoints, which GitHub
+  redirects after a transfer. No other owner is accepted.
+
 ### Fixed
 
 - Resolve the macOS temporary directory before validating staged update links.
