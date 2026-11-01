@@ -1,7 +1,7 @@
 import { createReadStream, readFileSync, statSync, existsSync } from "node:fs";
 import { readdir, open } from "node:fs/promises";
 import { createInterface } from "node:readline";
-import { basename, join } from "node:path";
+import { basename, join, sep } from "node:path";
 import { type Activity, type Session, type Daily, type Tokens, type Provider, tokens, totalTokens, addTokens, utcDay, Unavailable } from "../../domain/models";
 import { telemetry } from "../../domain/telemetry";
 import { estimate } from "../../domain/pricing";
@@ -81,7 +81,7 @@ export class ClaudeActivitySource {
     this.loaded = true;
     const sessions: Session[] = [], daily = new Map<number, Daily>(); let dirty = false;
     for (const path of await filesIn(this.root, ".jsonl", true, signal)) {
-      const relative = path.slice(this.root.length + 1).split("/"); if (relative.length !== 2) continue;
+      const relative = path.slice(this.root.length + 1).split(sep); if (relative.length !== 2) continue;
       try {
         const stat = statSync(path), key = opaqueID(path), previous = this.cache[key];
         signal?.throwIfAborted();

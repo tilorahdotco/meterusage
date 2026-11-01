@@ -180,9 +180,17 @@ async function start(launch: Launch) {
   let flyoutBottom = false;
   function showFlyout() {
     let bounds = tray.getBounds();
-    // A Windows icon in the overflow area can report empty bounds; the click point is beside it.
-    if (windowsShell && (bounds.width === 0 || bounds.height === 0)) bounds = { ...screen.getCursorScreenPoint(), width: 1, height: 1 };
+    if (windowsShell && (bounds.width === 0 || bounds.height === 0)) {
+      // Windows 11 starts new tray icons in the overflow area, which reports empty bounds. A click on the
+      // taskbar is beside the icon; otherwise use the default notification-area corner.
+      const cursor = screen.getCursorScreenPoint(), area = screen.getDisplayNearestPoint(cursor).workArea;
+      const onTaskbar = cursor.x < area.x || cursor.y < area.y || cursor.x >= area.x + area.width || cursor.y >= area.y + area.height;
+      bounds = onTaskbar ? { ...cursor, width: 1, height: 1 } : { x: area.x + area.width - 1, y: area.y + area.height, width: 1, height: 1 };
+    }
     const w = create("flyout"), work = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y }).workArea, origin = flyoutOrigin(bounds, work, w.getBounds());
+    // The tray corner is also the side notch's default edge; keep the flyout beside a visible notch on Windows.
+    const strip = windows.get("notch"), stripBounds = windowsShell && strip && !strip.isDestroyed() && strip.isVisible() ? strip.getBounds() : undefined;
+    if (stripBounds && origin.x < stripBounds.x + stripBounds.width && origin.x + w.getBounds().width > stripBounds.x) origin.x = Math.max(work.x, stripBounds.x - w.getBounds().width);
     flyoutBottom = origin.bottom; w.setPosition(origin.x, origin.y);
     sizeFlyout(); w.show(); w.focus(); void coordinator.refreshIfStale();
   }

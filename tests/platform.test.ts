@@ -9,6 +9,7 @@ import { cliEnvironment, cliPath, runCommand } from "../src/main/providers/trans
 import { runtimeCandidates } from "../src/main/providers/antigravity";
 import { apiBillingPath, readApiBilling, writeApiBilling } from "../src/main/providers/api-billing";
 import { flyoutOrigin } from "../src/domain/notch";
+import { ClaudeActivitySource } from "../src/main/providers/activity";
 import type { ApiBillingSnapshot } from "../src/domain/api-billing";
 
 const roots: string[] = [];
@@ -109,6 +110,12 @@ describe.runIf(process.platform === "win32")("Windows runtime", () => {
     writeApiBilling(root, snapshot);
     expect(apiBillingPath(root, "openai")).toBe(join(root, "AppData", "Roaming", "MeterUsage", "api-usage", "openai.json"));
     expect(readApiBilling(root, "openai", now + 60000)).toEqual({ status: "value", value: snapshot, stale: false });
+  });
+  it("reads Claude transcripts under backslash-separated project folders", async () => {
+    const root = temp(), project = join(root, "C--Users-testuser-fixture-project"); mkdirSync(project);
+    writeFileSync(join(project, "session.jsonl"), JSON.stringify({ type: "assistant", timestamp: new Date().toISOString(), message: { model: "claude-sonnet-4-6", usage: { output_tokens: 7 } } }) + "\n");
+    const activity = await new ClaudeActivitySource(root).scan();
+    expect(activity.sessions).toHaveLength(1); expect(activity.sessions[0].tokens.output).toBe(7);
   });
   it("finds an npm .cmd shim and runs it without a console window or shell", async () => {
     const root = temp(), npm = join(root, "AppData", "Roaming", "npm"); mkdirSync(npm, { recursive: true });

@@ -67,8 +67,9 @@ platform rules:
 
 ## What CI proves and what it does not
 
-The Windows job runs typecheck, a curated set of Windows-safe tests (including
-real NTFS, `cmd.exe` shim and process-tree checks), the production build, an
+The Windows job runs typecheck, the test suite minus files whose fixtures are
+POSIX-only (including real NTFS, `cmd.exe` shim, process-tree and Claude
+transcript-path checks), the production build, an
 unsigned `electron-builder --win` package, and a smoke run of the packaged
 `MeterUsage.exe`. In the smoke run:
 
