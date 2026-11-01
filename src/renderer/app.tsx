@@ -159,7 +159,7 @@ function UnifiedStrip({ state }: { state: ViewState }) {
   if (totals.todayTokens === undefined && !nudge) return null;
   return <section className="provider-card activity-summary"><h2>AI activity on this Mac</h2>{totals.todayTokens !== undefined && <dl className="metrics"><div><dt>Tokens today</dt><dd>{n(totals.todayTokens)}</dd></div><div><dt>Last 7 days</dt><dd>{n(totals.weekTokens!)}</dd></div><div><dt>Estimated cost today</dt><dd>{money(totals.todayCost!)}</dd></div></dl>}{nudge && <p className="stale">{nudge}</p>}</section>;
 }
-const labels: Record<string, string> = { launchAtLogin: "Launch at login", quotaAlertsEnabled: "Quota alerts", updateCheckEnabled: "Check for updates", sideNotchPanelEnabled: "Show side notch", menuBarCompactEnabled: "Compact menu bar", showHeatmap: "Daily heatmaps", showClaudeHeatmap: "Claude heatmap", showCodexHeatmap: "Codex heatmap", showPacingBurnRate: "Pacing and burn rate", showActivityTelemetry: "Activity statistics", showDailyActivityChart: "Daily activity chart", showSideNotchResetButton: "Codex limit resets in the side notch" };
+const labels: Record<string, string> = { launchAtLogin: "Launch at login", quotaAlertsEnabled: "Quota alerts", updateCheckEnabled: "Check for updates", updateAutoInstall: "Install updates automatically", sideNotchPanelEnabled: "Show side notch", menuBarCompactEnabled: "Compact menu bar", showHeatmap: "Daily heatmaps", showClaudeHeatmap: "Claude heatmap", showCodexHeatmap: "Codex heatmap", showPacingBurnRate: "Pacing and burn rate", showActivityTelemetry: "Activity statistics", showDailyActivityChart: "Daily activity chart", showSideNotchResetButton: "Codex limit resets in the side notch" };
 function ConnectionRow({ connection: c, state, action }: { connection: ConnectionState; state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const [method, setMethod] = useState<ConnectionState["source"]>(!c.localAvailable && c.status !== "unsupported" ? "account" : c.source);
   const [expanded, setExpanded] = useState(false);
@@ -259,7 +259,7 @@ export function Settings({ state, action, saveOrder }: { state: ViewState; actio
   const values = state.settings.values;
   const reportCoolingDown = (state.issueReport?.retryAt ?? 0) > state.snapshot.clock;
   const set = (key: string, value: string | boolean | number) => void action({ action: "setPreference", key, value });
-  const toggle = (key: string, text: string, ariaLabel?: string, disabled = false) => <label className="setting" key={key}><span>{text}</span><input type="checkbox" aria-label={ariaLabel} checked={values[key] === true} disabled={disabled || (key === "launchAtLogin" && state.snapshot.demo)} onChange={e => set(key, e.target.checked)} /></label>;
+  const toggle = (key: string, text: string, ariaLabel?: string, disabled = false, describedBy?: string) => <label className="setting" key={key}><span>{text}</span><input type="checkbox" aria-label={ariaLabel} aria-describedby={describedBy} checked={values[key] === true} disabled={disabled || (key === "launchAtLogin" && state.snapshot.demo)} onChange={e => set(key, e.target.checked)} /></label>;
   return <main className="settings">
     <header className="settings-header"><h1>Settings</h1><p className="secondary">Accounts, appearance and usage preferences.</p></header>
     <div className="settings-workspace"><nav className="settings-nav" aria-label="Settings categories">{categories.map(name => <button key={name} aria-current={category === name ? "page" : undefined} onClick={() => setCategory(name)}>{name}</button>)}</nav><div className="settings-content">
@@ -278,6 +278,8 @@ export function Settings({ state, action, saveOrder }: { state: ViewState; actio
     </div></section>
     <section hidden={category !== "General"}><h2>General</h2><div className="settings-group">
       {["launchAtLogin", "quotaAlertsEnabled", "updateCheckEnabled"].map(k => toggle(k, labels[k]))}
+      {toggle("updateAutoInstall", labels.updateAutoInstall, undefined, values.updateCheckEnabled !== true || state.snapshot.demo, "auto-install-help")}
+      <p id="auto-install-help" className="secondary connection-help">Installs a verified update while you aren't using MeterUsage, then relaunches. A dismissed version is skipped.</p>
       <UpdateNotice state={state} action={action} />
       <label className="setting"><span>Refresh interval</span><select value={Number(values.refreshIntervalSeconds)} onChange={e => set("refreshIntervalSeconds", Number(e.target.value))}>{[30, 60, 120, 300, 900].map(x => <option key={x} value={x}>{x < 60 ? `${x}s` : `${x / 60}m`}</option>)}</select></label>
     </div></section>

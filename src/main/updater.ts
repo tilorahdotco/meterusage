@@ -124,24 +124,40 @@ export class Updater {
     })().catch(() => { /* A release lookup failure stays separate from usage. */ }).finally(() => { if (this.check === pending) { this.check = undefined; this.checkController = undefined; } });
     this.check = pending; return pending;
   }
+  /** The release to install without a prompt, only when opted in, idle, packaged and not previously failed or dismissed. */
+  autoInstallRelease(idle: boolean, packaged: boolean) {
+    return this.prefs.values.updateAutoInstall === true && idle && packaged && this.installState === "idle" ? this.visible : undefined;
+  }
   reset() { this.generation++; this.checkController?.abort(); this.installController?.abort(); this.checkController = undefined; this.check = undefined; this.available = undefined; this.changed(); }
   async dismiss() { if (this.available) await this.prefs.set("updateDismissedVersion", this.available.version); this.changed(); }
-  async install(current: string, release: Release | undefined, command: Command = runCommand) {
+  installAutomatically(current: string, release: Release, notInUse: () => boolean, command: Command = runCommand) {
+    return this.install(current, release, command, () => this.prefs.values.updateAutoInstall === true && this.visible?.version === release.version && notInUse());
+  }
+  /**
+   * `allowed` is rechecked after download and immediately before the installer starts; when it turns false the
+   * install is cancelled back to "idle" (not "failed") so an automatic install can retry at the next quiet moment.
+   */
+  async install(current: string, release: Release | undefined, command: Command = runCommand, allowed: () => boolean = () => true) {
     if (this.prefs.launch.demo || this.prefs.launch.candidate || this.prefs.values.updateCheckEnabled !== true || basename(current) !== "MeterUsage.app" || !release || ["downloading", "installing"].includes(this.installState)) throw new Error("Update installation unavailable");
     const generation = this.generation, controller = new AbortController(); this.installController = controller;
+    let deferred = false;
     const guard = () => { controller.signal.throwIfAborted(); if (generation !== this.generation || this.prefs.values.updateCheckEnabled !== true) throw new Error("Update cancelled"); };
+    const proceed = () => { guard(); if (!allowed()) { deferred = true; throw new Error("Update deferred"); } };
     this.installState = "downloading"; this.changed();
     let stage: string | undefined, helper: string | undefined;
     try {
-      const bytes = await this.download(release.asset.url, 512 * 1048576, controller.signal); guard();
+      const bytes = await this.download(release.asset.url, 512 * 1048576, controller.signal); proceed();
       const staged = await stageUpdate(release, bytes, command, controller.signal);
       stage = dirname(staged); guard(); helper = await mkdtemp(join(tmpdir(), "MeterUsageUpdateInstall-"));
       const script = join(helper, "install.zsh"); await writeFile(script, installScript(current, staged, process.pid), { mode: 0o700 });
-      guard(); const child = spawn("/bin/zsh", [script], { detached: true, stdio: "ignore" });
+      proceed(); const child = spawn("/bin/zsh", [script], { detached: true, stdio: "ignore" });
       await new Promise<void>((resolve, reject) => { child.once("spawn", resolve); child.once("error", reject); });
       try { guard(); } catch (error) { child.kill(); throw error; } child.unref();
       this.installState = "installing"; this.changed();
-    } catch { if (stage) await rm(stage, { recursive: true, force: true }); if (helper) await rm(helper, { recursive: true, force: true }); this.installState = "failed"; this.changed(); throw new Error("Could not install update"); }
+    } catch {
+      if (stage) await rm(stage, { recursive: true, force: true }); if (helper) await rm(helper, { recursive: true, force: true });
+      this.installState = deferred ? "idle" : "failed"; this.changed(); throw new Error(deferred ? "Update deferred" : "Could not install update");
+    }
     finally { if (this.installController === controller) this.installController = undefined; }
   }
 }

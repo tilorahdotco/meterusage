@@ -24,24 +24,24 @@ const kinds: Record<string, Kind> = {
   sideNotchPanelCorner: "string", updateLastCheckDate: "date", reportNextAllowedAt: "date", updateDismissedVersion: "string", updateAnnouncedVersion: "string",
   desktopCodexConnection: "string", desktopCodexCleanup: "string", desktopClaudeIdentity: "string", desktopAntigravityIdentity: "string", desktopGrokIdentity: "string", desktopGrokSource: "string",
   [prepaidPreferenceKeys.amount]: "number", [prepaidPreferenceKeys.since]: "string",
-  ...Object.fromEntries(["launchAtLogin", "showHeatmap", "showClaudeHeatmap", "showCodexHeatmap", "quotaAlertsEnabled", "sideNotchPanelEnabled", "sideNotchPanelPinned", "menuBarCompactEnabled", "onboardingCompleted", "updateCheckEnabled", "showPacingBurnRate", "showActivityTelemetry", "showDailyActivityChart", "showSideNotchResetButton", ...providers.flatMap(p => [providerPreference(p), trayPreference(p)])].map(k => [k, "boolean" as const])),
+  ...Object.fromEntries(["launchAtLogin", "showHeatmap", "showClaudeHeatmap", "showCodexHeatmap", "quotaAlertsEnabled", "sideNotchPanelEnabled", "sideNotchPanelPinned", "menuBarCompactEnabled", "onboardingCompleted", "updateCheckEnabled", "updateAutoInstall", "showPacingBurnRate", "showActivityTelemetry", "showDailyActivityChart", "showSideNotchResetButton", ...providers.flatMap(p => [providerPreference(p), trayPreference(p)])].map(k => [k, "boolean" as const])),
 };
 export const initialPreferences: Record<string, PreferenceValue> = {
   refreshIntervalSeconds: 60, appearanceTheme: "system", accentTheme: "blue", panelSize: PanelSize.Medium, managedAccounts: [], providerOrder: [...providers], sideNotchPanelCorner: "",
   launchAtLogin: false, showHeatmap: true, showClaudeHeatmap: true, showCodexHeatmap: true, quotaAlertsEnabled: false,
   sideNotchPanelEnabled: false, sideNotchPanelPinned: false, menuBarCompactEnabled: true, onboardingCompleted: false,
-  updateCheckEnabled: true, showPacingBurnRate: true, showActivityTelemetry: true, showDailyActivityChart: true, showSideNotchResetButton: true,
+  updateCheckEnabled: true, updateAutoInstall: false, showPacingBurnRate: true, showActivityTelemetry: true, showDailyActivityChart: true, showSideNotchResetButton: true,
   updateDismissedVersion: "", updateAnnouncedVersion: "",
   desktopCodexConnection: "", desktopCodexCleanup: "", desktopClaudeIdentity: "", desktopAntigravityIdentity: "", desktopGrokIdentity: "", desktopGrokSource: "cursor",
   [prepaidPreferenceKeys.amount]: 0, [prepaidPreferenceKeys.since]: "",
   ...Object.fromEntries(providers.flatMap(p => [[providerPreference(p), ["codex", "openCodeGo", "openRouter"].includes(p)], [trayPreference(p), true]])),
 };
 const codexTestPreferences: Record<string, PreferenceValue> = {
-  launchAtLogin: false, updateCheckEnabled: false, desktopClaudeIdentity: "off", desktopGrokIdentity: "off",
+  launchAtLogin: false, updateCheckEnabled: false, updateAutoInstall: false, desktopClaudeIdentity: "off", desktopGrokIdentity: "off",
   ...Object.fromEntries(providers.filter(p => p !== "codex").map(p => [providerPreference(p), false])),
 };
 const claudeTestPreferences: Record<string, PreferenceValue> = {
-  launchAtLogin: false, updateCheckEnabled: false, desktopCodexConnection: "off", desktopCodexCleanup: "", desktopGrokIdentity: "off",
+  launchAtLogin: false, updateCheckEnabled: false, updateAutoInstall: false, desktopCodexConnection: "off", desktopCodexCleanup: "", desktopGrokIdentity: "off",
   ...Object.fromEntries(providers.filter(p => p !== "claude").map(p => [providerPreference(p), false])),
 };
 export function validAccounts(raw: unknown): raw is ManagedAccount[] {

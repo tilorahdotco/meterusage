@@ -53,6 +53,16 @@ Release documentation refresh: 2026-11-01 for build 80.
   Pending requests/downloads/installs disable both actions; failed offers retain
   retry. Existing projection hides absent/dismissed/disabled/demo offers. Beta.8 ships
   this notice.
+- Current source (not yet in a published beta) adds **Install updates
+  automatically** (`updateAutoInstall`, off by default). It installs an offered,
+  undismissed, newer release without the confirmation dialog through the
+  verified install path. It requires a packaged app and no failed install this
+  session. It also requires that MeterUsage isn't in use: usage panel, Settings
+  and share windows hidden, side notch collapsed, no share, reset or update
+  confirmation, sign-in or API billing fetch running. This is rechecked after
+  download and before the installer starts; if it fails, the install returns to
+  idle and retries later. Native install acceptance is pending. See
+  [ADR 0037](adr/0037-opt-in-automatic-updates.md).
 - Installed beta 5 recorded discovery of beta 6 on 2026-10-22. Automated
   installation and relaunch were not completed; native UI control was unavailable.
 - Swift-to-Electron native upgrade and rollback remain blocked pending a
