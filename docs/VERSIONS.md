@@ -35,9 +35,10 @@ newest release with a verified `MeterUsage-<version>.zip` or
 so beta users are offered the stable release that follows. Beta 4 and earlier
 predate this and need one manual install.
 
-**Install updates automatically** (off by default) installs an offered,
-undismissed release without the confirmation dialog while MeterUsage is not in
-use, using the same verified install path. See
+Current source, not yet in a published beta, adds **Install updates
+automatically** (off by default). It installs an offered, undismissed release
+without the confirmation dialog while MeterUsage is not in use, using the same
+verified install path. See
 [ADR 0037](adr/0037-opt-in-automatic-updates.md).
 
 Beta 8 reuses the projected update offer in Usage and Settings > General,

@@ -14,8 +14,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 - Add **Install updates automatically** in Settings > General, off by default.
   When on, a newer version that hasn't been dismissed installs through the
-  existing verified update path, without the confirmation dialog, while no
-  MeterUsage window is in use, then relaunches.
+  existing verified update path, without the confirmation dialog, only while
+  you aren't using MeterUsage, then relaunches.
 - Show the dollars left on the OpenAI API card beside spend this month. The
   balance comes from OpenAI's unofficial credit grants report. If that report is
   unavailable, MeterUsage estimates it from the prepaid credit and top-up date

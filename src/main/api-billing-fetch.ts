@@ -14,6 +14,7 @@ export const apiBillingFetchErrors = {
 
 export class ApiBillingFetch {
   private readonly busy = new Map<ApiBillingProvider, AbortController>();
+  get running() { return this.busy.size > 0; }
   private stopped = false;
   constructor(private readonly launch: Launch, private readonly refresh: () => Promise<void>, private readonly fetcher: typeof fetch = fetch, private readonly savedKey?: (provider: ApiBillingProvider, signal: AbortSignal) => Promise<string>, private readonly prepaid?: () => ApiBillingPrepaid | undefined) {}
 

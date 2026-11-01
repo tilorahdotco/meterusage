@@ -97,6 +97,19 @@ describe("opt-in automatic install", () => {
     expect(updater.autoInstallRelease(false, true)).toBeUndefined();
     expect(updater.autoInstallRelease(true, false)).toBeUndefined();
   });
+  it("defers back to idle without staging when MeterUsage comes into use during download", async () => {
+    const prefs = await live(); let respond!: (b: Buffer) => void, staged = false, inUse = false;
+    const updater = new Updater(prefs, "0.2.41", () => {}, async () => new Promise<Buffer>(r => { respond = r; }));
+    const release = parseRelease(payload());
+    const installing = updater.install("/tmp/MeterUsage.app", release, async () => { staged = true; return ""; }, () => !inUse);
+    const rejected = expect(installing).rejects.toThrow("Update deferred");
+    expect(updater.installState).toBe("downloading");
+    inUse = true; respond(bytes); await rejected;
+    expect(staged).toBe(false); expect(updater.installState).toBe("idle");
+    // The manual path stays usable and a later quiet moment can retry.
+    await prefs.set("updateAutoInstall", true); updater.available = release;
+    expect(updater.autoInstallRelease(true, true)?.version).toBe("0.2.42");
+  });
   it("skips dismissed versions, disabled checks and a failed or running install", async () => {
     const prefs = await live(), updater = new Updater(prefs, "0.2.41", () => {}, async () => bytes);
     await prefs.set("updateAutoInstall", true); updater.available = parseRelease(payload());

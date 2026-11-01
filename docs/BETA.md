@@ -24,10 +24,10 @@ notice with an inline icon in Usage and Settings > General. Install and Dismiss
 are disabled while a request, download or installation is pending; failed offers
 retain Retry update. **Install update** asks for confirmation, downloads the ZIP, verifies
 its GitHub SHA-256 digest, bundle identity and signature, then replaces the app
-and relaunches. With **Install updates automatically** turned on in
-Settings > General (off by default), a newer version that hasn't been dismissed
-installs through the same checks without the dialog while no MeterUsage window
-is open and the side notch is collapsed. Beta 4 and earlier cannot see betas; install the current beta
+and relaunches. The next beta adds **Install updates automatically** in
+Settings > General (off by default). When on, a newer version that hasn't been
+dismissed installs through the same checks without the dialog, only while you
+aren't using MeterUsage. Beta 4 and earlier cannot see betas; install the current beta
 manually once. `Scripts/make-app.sh` now prepares the pinned Electron beta with
 checksum/signature verification, destination staging and no compiler fallback.
 It preserves the published signature. Preparing output does not install it.

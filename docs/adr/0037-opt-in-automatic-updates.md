@@ -24,8 +24,14 @@ when all of these hold:
 - the app is packaged and not a demo or candidate profile;
 - the release is newer, offered by the existing check and not dismissed;
 - no install is running or has failed in this session;
-- the usage panel, Settings and share windows are hidden, the side notch is
-  collapsed and not being dragged, and no share or reset confirmation is open.
+- MeterUsage is not in use: the usage panel, Settings and share windows are
+  hidden, the side notch is collapsed and not being dragged, no share, reset or
+  update confirmation is open, and no account sign-in or API billing fetch is
+  running.
+
+This check runs before the download, again after it, and immediately before the
+installer starts. If MeterUsage comes into use, the install is cancelled back to
+idle, not failed, and the next quiet refresh retries it.
 
 It uses the existing install path unchanged: the same GitHub SHA-256 digest,
 bundle identity and signature checks, staged replacement and relaunch. A failed
@@ -39,5 +45,9 @@ No new update channel, endpoint, dependency or telemetry is added.
 
 - With the setting on, MeterUsage may quit and relaunch itself between uses.
 - Turning off **Check for updates** also stops automatic installation.
+- As with a manual install, if the installer script fails after MeterUsage has
+  quit (for example a signature or copy failure), the app is not reopened. With
+  automatic installs no one may be present to notice; reopening the original
+  app on failure would need a saved per-version failure marker to avoid a loop.
 - Installation through the in-app updater, manual or automatic, still needs
   native acceptance on a packaged build.

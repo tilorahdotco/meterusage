@@ -92,15 +92,19 @@ async function start(launch: Launch) {
     if (!launch.demo && !launch.candidate && Notification.isSupported()) new Notification({ title: "MeterUsage update available", body: prefs.values.updateAutoInstall === true ? `MeterUsage ${release.version} will install when MeterUsage is not in use.` : `MeterUsage ${release.version} is ready to install.`, silent: true }).show();
   });
   // Opt-in automatic install: only while no MeterUsage window is in use, through the same verified install path.
-  let autoInstalling = false;
-  async function maybeAutoInstall() {
+  let autoInstalling = false, confirmingUpdate = false;
+  // Rechecked before download and again just before the installer starts, so the app never quits mid-use.
+  const notInUse = () => {
     const visible = (name: Surface) => { const w = windows.get(name); return !!w && !w.isDestroyed() && w.isVisible(); };
-    const idle = !visible("flyout") && !visible("settings") && !visible("share") && !notch.expanded && !notch.dragging && !sharing && !confirmingReset;
-    const release = updater.autoInstallRelease(idle, app.isPackaged && !launch.demo && !launch.candidate);
+    return !visible("flyout") && !visible("settings") && !visible("share") && !notch.expanded && !notch.dragging && !sharing && !confirmingReset && !confirmingUpdate
+      && !connections.state.some(c => c.status === "connecting") && !apiBillingFetch.running;
+  };
+  async function maybeAutoInstall() {
+    const release = updater.autoInstallRelease(notInUse(), app.isPackaged && !launch.demo && !launch.candidate);
     if (!release || autoInstalling) return;
     autoInstalling = true;
-    try { await updater.install(resolve(app.getPath("exe"), "../../.."), structuredClone(release)); app.quit(); }
-    catch { /* installState is now "failed"; the manual Install update path stays available. */ }
+    try { await updater.install(resolve(app.getPath("exe"), "../../.."), structuredClone(release), undefined, notInUse); app.quit(); }
+    catch { /* Deferred installs return to idle and retry later; failures keep the manual Install update path. */ }
     finally { autoInstalling = false; }
   }
   let hoverCheck: ReturnType<typeof setInterval> | undefined;
@@ -301,7 +305,6 @@ async function start(launch: Launch) {
         if (r.key === "refreshIntervalSeconds") coordinator.restartTimer();
         nativeTheme.themeSource = prefs.values.appearanceTheme as "system" | "dark" | "light";
         if (r.key === "updateCheckEnabled") { if (r.value) void updater.checkIfDue(); else updater.reset(); }
-        if (r.key === "updateAutoInstall" && r.value) void maybeAutoInstall();
         syncNotch(); coordinator.publish(); if (r.key.startsWith("showProvider")) await coordinator.refresh(); break;
       case "accountAdd": {
         if (surface !== "settings") throw new Error("Open Settings to add an account");
@@ -387,7 +390,8 @@ async function start(launch: Launch) {
       case "updateInstall": {
         if (launch.demo || launch.candidate || !app.isPackaged || !updater.visible) throw new Error("Update installation unavailable");
         const confirmedRelease = structuredClone(updater.visible);
-        const accepted = await dialog.showMessageBox(source, { type: "question", title: "Install MeterUsage update?", message: `Install MeterUsage ${confirmedRelease.version}?`, detail: "The app will quit, verify the downloaded bundle, replace this app and relaunch.", buttons: ["Cancel", "Install update"], defaultId: 0, cancelId: 0 });
+        confirmingUpdate = true;
+        const accepted = await dialog.showMessageBox(source, { type: "question", title: "Install MeterUsage update?", message: `Install MeterUsage ${confirmedRelease.version}?`, detail: "The app will quit, verify the downloaded bundle, replace this app and relaunch.", buttons: ["Cancel", "Install update"], defaultId: 0, cancelId: 0 }).finally(() => { confirmingUpdate = false; });
         if (accepted.response === 1) { await updater.install(resolve(app.getPath("exe"), "../../.."), confirmedRelease); app.quit(); }
         break;
       }
