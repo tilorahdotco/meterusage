@@ -110,6 +110,16 @@ describe("opt-in automatic install", () => {
     await prefs.set("updateAutoInstall", true); updater.available = release;
     expect(updater.autoInstallRelease(true, true)?.version).toBe("0.2.42");
   });
+  it.each(["disable", "dismiss"])("defers an automatic download after %s even when the app is idle again", async change => {
+    const prefs = await live(); let respond!: (b: Buffer) => void, staged = false;
+    const updater = new Updater(prefs, "0.2.41", () => {}, async () => new Promise<Buffer>(r => { respond = r; }));
+    await prefs.set("updateAutoInstall", true); updater.available = parseRelease(payload());
+    const installing = updater.installAutomatically("/tmp/MeterUsage.app", updater.available, () => true, async () => { staged = true; return ""; });
+    const rejected = expect(installing).rejects.toThrow("Update deferred");
+    if (change === "disable") await prefs.set("updateAutoInstall", false); else await updater.dismiss();
+    respond(bytes); await rejected;
+    expect(staged).toBe(false); expect(updater.installState).toBe("idle");
+  });
   it("skips dismissed versions, disabled checks and a failed or running install", async () => {
     const prefs = await live(), updater = new Updater(prefs, "0.2.41", () => {}, async () => bytes);
     await prefs.set("updateAutoInstall", true); updater.available = parseRelease(payload());

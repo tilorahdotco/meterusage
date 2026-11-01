@@ -32,6 +32,8 @@ when all of these hold:
 This check runs before the download, again after it, and immediately before the
 installer starts. If MeterUsage comes into use, the install is cancelled back to
 idle, not failed, and the next quiet refresh retries it.
+Turning automatic installation off or dismissing the offered version during a
+download also prevents that automatic installation from proceeding.
 
 It uses the existing install path unchanged: the same GitHub SHA-256 digest,
 bundle identity and signature checks, staged replacement and relaunch. A failed

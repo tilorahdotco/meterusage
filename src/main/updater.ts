@@ -130,6 +130,9 @@ export class Updater {
   }
   reset() { this.generation++; this.checkController?.abort(); this.installController?.abort(); this.checkController = undefined; this.check = undefined; this.available = undefined; this.changed(); }
   async dismiss() { if (this.available) await this.prefs.set("updateDismissedVersion", this.available.version); this.changed(); }
+  installAutomatically(current: string, release: Release, notInUse: () => boolean, command: Command = runCommand) {
+    return this.install(current, release, command, () => this.prefs.values.updateAutoInstall === true && this.visible?.version === release.version && notInUse());
+  }
   /**
    * `allowed` is rechecked after download and immediately before the installer starts; when it turns false the
    * install is cancelled back to "idle" (not "failed") so an automatic install can retry at the next quiet moment.

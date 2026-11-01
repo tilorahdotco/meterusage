@@ -103,7 +103,7 @@ async function start(launch: Launch) {
     const release = updater.autoInstallRelease(notInUse(), app.isPackaged && !launch.demo && !launch.candidate);
     if (!release || autoInstalling) return;
     autoInstalling = true;
-    try { await updater.install(resolve(app.getPath("exe"), "../../.."), structuredClone(release), undefined, notInUse); app.quit(); }
+    try { await updater.installAutomatically(resolve(app.getPath("exe"), "../../.."), structuredClone(release), notInUse); app.quit(); }
     catch { /* Deferred installs return to idle and retry later; failures keep the manual Install update path. */ }
     finally { autoInstalling = false; }
   }
