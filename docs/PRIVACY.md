@@ -220,6 +220,16 @@ is never treated as a reset. Native metadata confirms the encrypted legacy store
 label. Successful access and server acceptance remain unverified. MeterUsage does not
 initiate an xAI OAuth flow or modify Bot's account state.
 
+If a background refresh's allowance request fails with a network or server
+error, MeterUsage may read Grok Bot's own cached weekly usage for the same
+verified account under [ADR 0036](adr/0036-grok-bot-usage-cache-fallback.md).
+The file name comes from the token subject that already matched the active
+account. The reader refuses symlinks, other owners, extra links and files over
+64 KiB. It decodes only schema, kind, team, read time, percent, reset and
+trial, paid and team-seat flags; plan labels and on-demand spend are skipped.
+Readings older than 7 days, past their reset or for another team are rejected.
+The card shows the cache's read time. Connect and auth failures never use it.
+
 Previously saved Grok Bot connections via Cursor retain the legacy reader under
 [ADR 0027](adr/0027-grok-cursor-closed-reader.md). New connections always select
 Bot Desktop; no failed Bot request falls back to Cursor. Sign in to Cursor, check

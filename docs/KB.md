@@ -461,6 +461,13 @@ to open Settings. No window is shown or focused by preload.
   these shapes; access and live allowance remain separate gates. See
   [ADR 0030](adr/0030-grok-bot-encrypted-compatibility.md).
 
+- On 2026-11-01, Cursor's `GetSandUsageStatus` returned HTTP 500 `internal`
+  for a unified (`isUnified: true`) Grok account. With Grok Bot's client headers
+  it did not answer within 60 seconds. Other Dashboard endpoints answered with
+  the same valid token. Binary protobuf, client headers and a machine checksum
+  did not change the result. Background refreshes now fall back to Grok Bot's
+  cached reading for the verified account, labelled with its read time. See
+  [ADR 0036](adr/0036-grok-bot-usage-cache-fallback.md).
 - Grok Bot Desktop quota burn uses live same-account observations spanning at
   least one minute and no more than five minutes. It reports percentage points
   per hour and can estimate run-out without assuming a quota-cycle duration.

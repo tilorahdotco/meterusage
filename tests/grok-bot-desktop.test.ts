@@ -3,7 +3,7 @@ import { createCipheriv, createHash, pbkdf2Sync } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { grokBotCredential, grokBotQuota, grokBotTransport, readGrokBotCredential, grokBotConnectionErrors, GrokBotFailure, type GrokBotRPC } from "../src/main/providers/grok-bot-desktop";
+import { grokBotCredential, grokBotQuota, grokBotTransport, readGrokBotCredential, readGrokBotUsageCache, grokBotUsageCachePath, grokBotConnectionErrors, GrokBotFailure, type GrokBotRPC } from "../src/main/providers/grok-bot-desktop";
 import { Unavailable } from "../src/domain/models";
 import { DesktopConnections } from "../src/main/connections";
 import { Preferences } from "../src/main/preferences";
@@ -279,4 +279,77 @@ it("discards raw errors and lets failed post-request verification override reque
   const error = new GrokBotFailure("request", "offline");
   expect(error.code).toBe("offline"); expect(error.message).toBe("Offline"); expect(error.stage).toBe("request");
   expect(error).not.toHaveProperty("cause"); expect(JSON.stringify(error)).not.toContain("SKIP");
+});
+
+// Grok Bot's weekly-usage cache fallback (synthetic fixtures only).
+const unbase32 = (name: string) => {
+  let bits = 0, buffer = 0; const out: number[] = [];
+  for (const c of name) { buffer = buffer << 5 | "abcdefghijklmnopqrstuvwxyz234567".indexOf(c); bits += 5; if (bits >= 8) { out.push(buffer >>> bits - 8 & 255); bits -= 8; } }
+  return Buffer.from(out).toString("utf8");
+};
+const cacheValue = (patch: { usage?: Record<string, unknown> | null; readAtMs?: unknown; selectedTeamId?: unknown; kind?: unknown; schemaVersion?: unknown } = {}) => JSON.stringify({
+  schemaVersion: patch.schemaVersion ?? 2,
+  value: { kind: patch.kind ?? "present", selectedTeamId: "selectedTeamId" in patch ? patch.selectedTeamId : null,
+    reading: { usage: patch.usage === null ? null : { percentUsed: 52.5, nextResetMs: now + 3 * 86400000, isSandTrial: false, hasNonZeroIncludedLimit: true, isTeamSeat: false, onDemand: null, grokPlanLabel: "SKIP-PLAN", unifiedPlanName: "SKIP-UNIFIED", ...patch.usage }, readAtMs: "readAtMs" in patch ? patch.readAtMs : now - 3600000 },
+    expiresAtMs: now + 86400000 } });
+function writeCache(home: string, raw: string, account = subject) {
+  const path = grokBotUsageCachePath(home, account); mkdirSync(join(path, ".."), { recursive: true }); writeFileSync(path, raw, { mode: 0o600 }); return path;
+}
+it("derives Grok Bot's cache file name from the verified subject", () => {
+  const path = grokBotUsageCachePath("/home", "github|user_fixture");
+  expect(path.startsWith("/home/Library/Application Support/Grok Bot/sand-client-persistence/")).toBe(true);
+  expect(unbase32(path.split("/").at(-1)!.replace(/\.blob$/, ""))).toBe("sand.client.slice.account.github%7Cuser_fixture.weekly-usage.cache");
+});
+it("reads only bounded usage fields from the matching account cache", () => {
+  const f = fixture(); writeCache(f.home, cacheValue());
+  const q = readGrokBotUsageCache(f.home, subject, undefined, now)!;
+  expect(q).toMatchObject({ provider: "grok", capturedAt: now - 3600000, observedFrom: "grokBotCache", windows: [{ label: "Grok Bot Desktop", usedPercent: 52.5, resetsAt: now + 3 * 86400000 }] });
+  expect(JSON.stringify(q)).not.toMatch(/SKIP/);
+  writeCache(f.home, cacheValue({ usage: { hasNonZeroIncludedLimit: false, isSandTrial: true, nextResetMs: null } }));
+  expect(readGrokBotUsageCache(f.home, subject, undefined, now)?.windows).toEqual([{ label: "Grok Bot Desktop · Trial", usedPercent: 52.5 }]);
+  writeCache(f.home, cacheValue({ selectedTeamId: 7 }));
+  expect(readGrokBotUsageCache(f.home, subject, "7", now)).toBeDefined();
+});
+it.each([
+  ["other account", () => cacheValue(), "auth0|someone-else", undefined],
+  ["team mismatch", () => cacheValue({ selectedTeamId: 7 }), subject, undefined],
+  ["personal cache for a team", () => cacheValue(), subject, "7"],
+  ["older than 7 days", () => cacheValue({ readAtMs: now - 8 * 86400000 }), subject, undefined],
+  ["future read time", () => cacheValue({ readAtMs: now + 120000 }), subject, undefined],
+  ["reset already passed", () => cacheValue({ usage: { nextResetMs: now - 1000 } }), subject, undefined],
+  ["percent above 100", () => cacheValue({ usage: { percentUsed: 101 } }), subject, undefined],
+  ["team seat", () => cacheValue({ usage: { isTeamSeat: true } }), subject, undefined],
+  ["no included limit or trial", () => cacheValue({ usage: { hasNonZeroIncludedLimit: false, isSandTrial: false } }), subject, undefined],
+  ["absent usage", () => cacheValue({ usage: null }), subject, undefined],
+  ["schema version", () => cacheValue({ schemaVersion: 1 }), subject, undefined],
+  ["kind", () => cacheValue({ kind: "absent" }), subject, undefined],
+  ["duplicate keys", () => cacheValue().replace('"schemaVersion":2', '"schemaVersion":2,"schemaVersion":2'), subject, undefined],
+  ["oversized", () => cacheValue() + " ".repeat(65537), subject, undefined],
+] as const)("rejects a cache with %s", (_name, raw, reader, team) => {
+  const f = fixture(); writeCache(f.home, raw());
+  expect(readGrokBotUsageCache(f.home, reader, team, now)).toBeUndefined();
+});
+it("rejects a symlinked cache without reading its target", () => {
+  const f = fixture(), target = join(f.home, "elsewhere.json"); writeFileSync(target, cacheValue(), { mode: 0o600 });
+  const path = grokBotUsageCachePath(f.home, subject); mkdirSync(join(path, ".."), { recursive: true }); symlinkSync(target, path);
+  expect(readGrokBotUsageCache(f.home, subject, undefined, now)).toBeUndefined();
+});
+it.each([["offline", new Unavailable("offline")], ["server failure", new Unavailable("failed")]] as const)("falls back to the account cache on refresh after %s", async (_name, error) => {
+  const f = await setup(); await f.connect(); writeCache(f.home, cacheValue());
+  f.handler(async () => { throw error; });
+  await expect(f.connections.quota("grok")).resolves.toMatchObject({ observedFrom: "grokBotCache", capturedAt: now - 3600000, windows: [{ usedPercent: 52.5 }] });
+});
+it("never uses the cache for auth failures, unsupported replies or connect", async () => {
+  const f = await setup(); await f.connect(); writeCache(f.home, cacheValue());
+  f.handler(async () => { throw new Unavailable("notSignedIn"); });
+  await expect(f.connections.quota("grok")).rejects.toMatchObject({ code: "notSignedIn" });
+  f.handler(async () => "{}");
+  await expect(f.connections.quota("grok")).rejects.toMatchObject({ code: "noData" });
+  await f.connections.disconnect("grok"); f.handler(async () => { throw new Unavailable("failed"); });
+  await expect(f.connect()).rejects.toThrow("Could not connect Grok Bot Desktop"); expect(f.connections.enabled("grok")).toBe(false);
+});
+it("does not fall back when the sign-in store changes during a failed request", async () => {
+  const f = await setup(); await f.connect(); writeCache(f.home, cacheValue());
+  f.handler(async () => { writeFileSync(f.path, store({ "cursor-selected-team-id": encrypted("1") })); throw new Unavailable("failed"); });
+  await expect(f.connections.quota("grok")).rejects.toBeInstanceOf(GrokBotFailure);
 });
