@@ -113,6 +113,8 @@ export class Updater {
   constructor(readonly prefs: Preferences, readonly currentVersion: string, readonly changed: () => void, readonly download = fetchUpdate, readonly announce: (release: Release) => void = () => {}) {}
   get visible() { return !this.prefs.launch.demo && !this.prefs.launch.candidate && this.prefs.values.updateCheckEnabled === true && this.available?.version !== this.prefs.values.updateDismissedVersion ? this.available : undefined; }
   checkIfDue(now = Date.now()) {
+    // Release assets and the verified install path are macOS-only until a Windows installer path exists (ADR 0038).
+    if ((this.prefs.launch.platform ?? process.platform) === "win32") return;
     if (this.prefs.launch.demo || this.prefs.launch.candidate || this.prefs.values.updateCheckEnabled !== true || this.check || now - Number(this.prefs.values.updateLastCheckDate ?? 0) < 3600000) return;
     const generation = this.generation, controller = new AbortController(); this.checkController = controller;
     const pending: Promise<void> = (async () => {

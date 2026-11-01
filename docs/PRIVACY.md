@@ -405,6 +405,22 @@ reader. Codex access and cleanup, other providers, local activity, status feeds
 and reset redemption are blocked. Candidate update, login-item and notification
 guards apply. It adds no credential source, refresh flow or provider request.
 
+## Windows storage and file checks
+
+Windows source builds keep app data in `%APPDATA%\MeterUsage`, using
+`%APPDATA%` only when it lies inside the user profile. Preferences are
+`preferences.json` in that folder, with the same known keys and validation as
+the macOS adapter; an unreadable file is set aside rather than overwritten. API
+billing snapshots use `%APPDATA%\MeterUsage\api-usage`. Windows has no POSIX
+owner or mode bits, so owner-only checks there rely on the per-user ACLs of the
+profile folder. Symlink, file type, link count, size and change-during-read
+checks still apply. Provider CLI subprocesses run without a console window and
+only from drive-letter or UNC paths. An npm `.cmd` shim runs through a fixed
+`cmd.exe` only with arguments that need no escaping. Claude, Grok and
+Antigravity Desktop connections and the saved Admin key action are unavailable
+on Windows; no Keychain helper runs there. MeterUsage adds no new provider
+input, request or credential store on Windows. See [ADR 0038](adr/0038-windows-ci-test-machine.md).
+
 ## Installation and enforcement
 
 `Scripts/make-app.sh` downloads a pinned public ZIP by default, checks SHA-256

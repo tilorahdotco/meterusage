@@ -72,10 +72,12 @@ export class DesktopConnections {
   private claudeController = new AbortController();
   private grokController = new AbortController();
   constructor(readonly launch: Launch, readonly prefs: Preferences, readonly helper: string, readonly changed: () => void, readonly command: Command = runCommand, readonly http: HTTP = httpTransport(), readonly now = Date.now, readonly antigravity: AntigravityRPC = antigravityRPC, readonly grokBot: GrokBotRPC = grokBotTransport()) {}
+  /** Claude, Grok and Antigravity Desktop readers use macOS-only helpers (Keychain, ps, sandbox-exec); Windows readers are not built yet. */
+  private unsupported(provider: ConnectionProvider) { return this.launch.platform === "win32" && provider !== "codex"; }
   get state(): ConnectionState[] {
-    return (["codex", "claude", "antigravity", "grok"] as const).map(provider => ({ provider, status: this.launch.codexTest && provider !== "codex" || this.launch.claudeTest && provider !== "claude" ? "unsupported" : this.pending.has(provider) ? "connecting" : this.enabled(provider) ? "connected" : this.errors.has(provider) ? "failed" : "disconnected", source: this.configured(provider) ? "account" : "cli", ...(provider === "grok" && /^[a-f\d]{64}$/.test(String(this.prefs.values.desktopGrokIdentity)) ? { accountMethod: this.prefs.values.desktopGrokSource === "bot" ? "bot" as const : "cursor" as const } : {}), localAvailable: !this.launch.demo && !this.launch.codexTest && !this.launch.claudeTest }));
+    return (["codex", "claude", "antigravity", "grok"] as const).map(provider => ({ provider, status: this.launch.codexTest && provider !== "codex" || this.launch.claudeTest && provider !== "claude" || this.unsupported(provider) ? "unsupported" : this.pending.has(provider) ? "connecting" : this.enabled(provider) ? "connected" : this.errors.has(provider) ? "failed" : "disconnected", source: this.configured(provider) ? "account" : "cli", ...(provider === "grok" && /^[a-f\d]{64}$/.test(String(this.prefs.values.desktopGrokIdentity)) ? { accountMethod: this.prefs.values.desktopGrokSource === "bot" ? "bot" as const : "cursor" as const } : {}), localAvailable: !this.launch.demo && !this.launch.codexTest && !this.launch.claudeTest }));
   }
-  enabled(provider: ConnectionProvider) { const value = this.prefs.values[this.key(provider)]; return (!this.launch.codexTest || provider === "codex") && (!this.launch.claudeTest || provider === "claude") && !this.stopped && !this.pending.has(provider) && !(provider === "codex" && this.prefs.values.desktopCodexCleanup !== "") && (provider !== "claude" || validClaudeIdentity(value)) && typeof value === "string" && value !== "" && value !== "off"; }
+  enabled(provider: ConnectionProvider) { const value = this.prefs.values[this.key(provider)]; return !this.unsupported(provider) && (!this.launch.codexTest || provider === "codex") && (!this.launch.claudeTest || provider === "claude") && !this.stopped && !this.pending.has(provider) && !(provider === "codex" && this.prefs.values.desktopCodexCleanup !== "") && (provider !== "claude" || validClaudeIdentity(value)) && typeof value === "string" && value !== "" && value !== "off"; }
   configured(provider: ConnectionProvider) { return this.prefs.values[this.key(provider)] !== ""; }
   private key(provider: ConnectionProvider) { return provider === "codex" ? "desktopCodexConnection" : provider === "claude" ? "desktopClaudeIdentity" : provider === "antigravity" ? "desktopAntigravityIdentity" : "desktopGrokIdentity"; }
   private binary() {
@@ -248,6 +250,7 @@ export class DesktopConnections {
     if (this.launch.demo) throw new Error("Connections are disabled in demo mode");
     if (this.launch.codexTest && provider !== "codex") throw new Error("Connection unavailable in Codex test mode");
     if (this.launch.claudeTest && provider !== "claude") throw new Error("Connection unavailable in Claude test mode");
+    if (this.unsupported(provider)) throw new Error("Connection unavailable");
     if (this.pending.has(provider) || this.enabled(provider)) throw new Error("Connection already active");
     if (provider === "codex" && this.prefs.values.desktopCodexCleanup !== "") {
       await this.recover();

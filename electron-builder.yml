@@ -13,9 +13,10 @@ files:
 extraResources:
   - from: dist/api-helper/api-usage-helper.cjs
     to: api-usage-helper.cjs
-  - from: build/desktop-keychain
-    to: desktop-keychain
 mac:
+  extraResources:
+    - from: build/desktop-keychain
+      to: desktop-keychain
   target:
     - target: zip
       arch: [arm64]
@@ -30,3 +31,22 @@ mac:
     LSUIElement: true
     NSAppTransportSecurity:
       NSAllowsArbitraryLoads: false
+# Unsigned Windows builds (ADR 0038). SmartScreen warns until a code-signing
+# certificate exists; nothing here signs or publishes.
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: zip
+      arch: [x64]
+  artifactName: MeterUsage-${version}-win-${arch}.${ext}
+  icon: Resources/AppIcon.png
+  signAndEditExecutable: true
+nsis:
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  shortcutName: MeterUsage
+  deleteAppDataOnUninstall: false

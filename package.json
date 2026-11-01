@@ -16,6 +16,8 @@
     "start": "electron .",
     "json": "node dist/main/cli.cjs json",
     "package:mac": "pnpm export:marks && pnpm build:desktop-helper && pnpm build && electron-builder --mac --publish never",
+    "package:win": "pnpm build && electron-builder --win --x64 --publish never",
+    "test:windows": "vp test run --exclude tests/antigravity-desktop.test.ts --exclude tests/api-billing.test.ts --exclude tests/api-billing-fetch.test.ts --exclude tests/composition.test.ts --exclude tests/connections.test.ts --exclude tests/electron-lifecycle.test.ts --exclude tests/muse-code.test.ts --exclude tests/opencode-local-setup.test.ts --exclude tests/providers.test.ts --exclude tests/updater.test.ts",
     "build:desktop-helper": "mkdir -p build && swiftc -target arm64-apple-macosx13.0 Scripts/electron/desktop-keychain.swift -o build/desktop-keychain",
     "export:marks": "swift Scripts/electron/export-symbols.swift Resources"
   },

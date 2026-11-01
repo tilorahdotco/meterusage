@@ -33,7 +33,7 @@ export class ApiBillingFetch {
       if (this.stopped) throw new Error(apiBillingFetchErrors.unavailable);
       const snapshot = await collectApiBilling(provider, adminKey, Date.now(), (url, init) => { controller.signal.throwIfAborted(); return this.fetcher(url, { ...init, signal: AbortSignal.any([controller.signal, ...(init?.signal ? [init.signal] : [])]) }); }, provider === "openai" ? this.prepaid?.() : undefined);
       if (this.stopped) throw new Error(apiBillingFetchErrors.unavailable);
-      writeApiBilling(this.launch.home, snapshot);
+      writeApiBilling(this.launch.home, snapshot, this.launch.platform, this.launch.env);
       await this.refresh();
     } catch (error) {
       throw new Error(!this.stopped && error instanceof Error && [apiBillingFetchErrors.auth, apiBillingFetchErrors.savedMissing, apiBillingFetchErrors.savedAccess].some(message => message === error.message) ? error.message : apiBillingFetchErrors.unavailable);

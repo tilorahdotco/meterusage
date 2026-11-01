@@ -15,6 +15,8 @@ integration; main validates the sender and request shape.
 Windows implementation, installers, CI, testing and releases are paused because
 there is no test machine. Shared source may stay portable. This supersedes the
 RN/Tauri and Windows-first direction in the earlier pipeline plan.
+[ADR 0038](0038-windows-ci-test-machine.md) amends this hold: Windows resumes
+with a CI runner as the test machine.
 
 ## Compatibility
 

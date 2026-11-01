@@ -13,6 +13,7 @@ import { scanGrok, openRouterUsage, openCodeUsage, parseOpenCodeRows, openCodeQu
 import { demoSources } from "./demo";
 import { museCodeQuota, museCodeRPC } from "./providers/muse-code";
 import type { DesktopConnections } from "./connections";
+import { localRoot, supportRoot } from "./platform";
 export interface Source {
   accountBound?: boolean;
   accountActivity?: (signal?: AbortSignal) => Promise<AccountActivity>;
@@ -59,8 +60,8 @@ export function compose(launch: Launch, prefs: Preferences, options: { command?:
   };
   if (launch.codexTest) return [{ ...connectedCodex(), status: async signal => parseStatus("codex", await http(endpoints.codexStatus, "codex", undefined, signal), now()) }];
   if (launch.demo) return demoSources(now, prefs.accounts);
-  const command = options.command ?? runCommand, env = cliEnvironment(launch.home, launch.env);
-  const runtime = new AntigravityRuntime(runtimeCandidates(env), command, env);
+  const command = options.command ?? runCommand, env = cliEnvironment(launch.home, launch.env, launch.platform);
+  const runtime = new AntigravityRuntime(runtimeCandidates(env, launch.platform), command, env);
   const makeCodex = (slot: Slot, home?: string): Source => {
     const rpc = (signal?: AbortSignal, id?: string) => codexRPC(cliPath("codex", launch.home, env), { env: { ...env, ...(home ? { CODEX_HOME: home } : {}) }, signal }, id);
     return { slot, quota: async signal => parseCodex(await rpc(signal), now()), activity: async signal => scanCodex(join(home ?? join(launch.home, ".codex"), "sessions"), now(), signal), consumeReset: async (id, signal) => {
@@ -128,7 +129,8 @@ export function compose(launch: Launch, prefs: Preferences, options: { command?:
     slot: primary("grok"), quota: async signal => { const key = grokToken(launch); if (!key) throw new Unavailable("dataNotFound", "Grok credentials"); return parseGrok(await http(endpoints.grok, "grok", key, signal), now()); }, usage: async signal => { const configured = text(env.GROK_HOME), root = configured ? isAbsolute(configured) ? configured : join(launch.home, configured) : join(launch.home, ".grok"); return scanGrok(join(root, "sessions"), now(), signal); },
   }, claude];
   for (const p of ["cursor", "copilot", "gemini"] as const) {
-    const root = join(launch.home, `.${p}`), fallback = p === "cursor" ? join(launch.home, "Library/Application Support/Cursor") : join(launch.home, `.config/${p === "copilot" ? "github-copilot" : "gemini"}`);
+    const windows = (launch.platform ?? process.platform) === "win32";
+    const root = join(launch.home, `.${p}`), fallback = p === "cursor" ? join(supportRoot(launch.home, launch.platform, launch.env), "Cursor") : p === "copilot" && windows ? join(localRoot(launch.home, launch.platform, launch.env), "github-copilot") : join(launch.home, `.config/${p === "copilot" ? "github-copilot" : "gemini"}`);
     sources.push({ slot: primary(p), quota: async () => {
       const raw = firstFile([join(root, "quota.json"), join(root, "usage.json"), join(fallback, "quota.json")]);
       if (raw) { try { return parseLocalQuota(p, raw, now()); } catch { /* Match the local presence classification. */ } }

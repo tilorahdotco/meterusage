@@ -21,10 +21,11 @@ import { runJSON } from "./cli";
 import { channel, stateChannel, statusPages, panelScales, PanelSize, type ViewState, type Surface, type Request, type Reply } from "../shared/ipc";
 import { parseRequest, trustedSender, projectSettings, shareSnapshot } from "./ipc";
 import { providers, slotKey } from "../domain/models";
-import { notchFrame, cardOnRight, stripWidth, cardWidth, minimumShareSize } from "../domain/notch";
+import { notchFrame, cardOnRight, stripWidth, cardWidth, minimumShareSize, flyoutOrigin } from "../domain/notch";
 import { trayTooltip } from "../domain/overview";
 
 const shareCardWidth = 250;
+const windowsShell = process.platform === "win32";
 
 const args = process.argv.slice(1);
 const desktopHelper = app.isPackaged ? join(process.resourcesPath, "desktop-keychain") : join(__dirname, "../../build/desktop-keychain");
@@ -35,10 +36,13 @@ async function main() {
   // Validate isolation before Electron creates a session or contacts a singleton socket.
   if (launch.profile) { app.setPath("userData", join(launch.data, "electron")); app.setPath("sessionData", join(launch.data, "electron")); }
   app.setName("MeterUsage");
+  // Windows notifications and taskbar grouping use the installer's AppUserModelID.
+  if (windowsShell) app.setAppUserModelId("dev.meterusage.app");
   if (json) {
-    await runJSON(args, process.env, desktopHelper).then(json => { process.stdout.write(json + "\n"); app.exit(0); }, () => { process.stderr.write("meterusage: could not read report\n"); app.exit(1); });
-  } else if (process.platform !== "darwin") {
-    process.stderr.write("MeterUsage desktop candidates currently support macOS only.\n"); app.exit(1);
+    // Windows pipes write asynchronously; exit only after the redirected report has flushed.
+    await runJSON(args, process.env, desktopHelper).then(json => { if (windowsShell) process.stdout.write(json + "\n", () => app.exit(0)); else { process.stdout.write(json + "\n"); app.exit(0); } }, () => { process.stderr.write("meterusage: could not read report\n"); app.exit(1); });
+  } else if (process.platform !== "darwin" && !windowsShell) {
+    process.stderr.write("MeterUsage desktop candidates currently support macOS and Windows only.\n"); app.exit(1);
   } else {
     let reveal: (() => void) | undefined, requested = false;
     const activate = () => { if (reveal) reveal(); else requested = true; };
@@ -52,6 +56,8 @@ async function main() {
 async function start(launch: Launch) {
   mkdirSync(launch.data, { recursive: true });
   app.dock?.hide();
+  // Windows would otherwise add Electron's default File/Edit/View menu to the framed Settings window.
+  if (windowsShell) Menu.setApplicationMenu(null);
   const prefs = await Preferences.load(launch);
   const http = desktopHTTP(launch, session);
   const documents = new Map<number, string>(), windows = new Map<Surface, BrowserWindow>();
@@ -70,7 +76,7 @@ async function start(launch: Launch) {
     if (!launch.demo && !launch.candidate && Notification.isSupported()) new Notification({ title: alert.title, body: alert.body, silent: !alert.sound }).show();
   }, sources);
   const issueReports = new IssueReports(() => coordinator.diagnostics(app.getVersion()), publish, prefs);
-  const apiBillingFetch = new ApiBillingFetch(launch, () => coordinator.refresh(), fetch, (provider, signal) => runCommand(desktopHelper, [`--api-${provider}`, "--allow-ui"], { signal, timeoutMs: 60000, maxBytes: 8192 }), () => prepaidFrom(prefs.values));
+  const apiBillingFetch = new ApiBillingFetch(launch, () => coordinator.refresh(), fetch, windowsShell ? undefined : (provider, signal) => runCommand(desktopHelper, [`--api-${provider}`, "--allow-ui"], { signal, timeoutMs: 60000, maxBytes: 8192 }), () => prepaidFrom(prefs.values));
   // Invalidate the restored quota archive while retaining this connection's activity.
   for (const p of ["codex", "claude", "antigravity", "grok"] as const) if (connections.configured(p)) coordinator.forgetQuota(p, true);
   const notch = { expanded: false, cardOnRight: false, selected: "codex", dragging: false };
@@ -81,13 +87,14 @@ async function start(launch: Launch) {
   let drag: { cursor: Electron.Point; anchor: Electron.Point; timer: ReturnType<typeof setInterval>; timeout: ReturnType<typeof setTimeout> } | undefined;
   let shareMenu: ShareMenu | undefined, shareDirectory: string | undefined, sharing = false, confirmingReset = false, trayWidth = 0;
   const sharedDirectories = new Set<string>();
-  const icon = nativeImage.createFromPath(join(__dirname, "../renderer/AppIcon.png")).resize({ width: 18, height: 18 }); icon.setTemplateImage(true);
-  const tray = new Tray(icon);
+  const tray = new Tray(trayIcon());
   tray.setToolTip("MeterUsage");
   tray.on("right-click", () => tray.popUpContextMenu(Menu.buildFromTemplate([{ label: "Open MeterUsage", click: () => showUsage() }, { label: "Settings…", click: () => showSettings() }, { type: "separator" }, { label: "Quit MeterUsage", role: "quit" }])));
-  tray.on("click", () => { const w = windows.get("flyout"); w?.isVisible() ? w.hide() : showUsage(); });
+  // On Windows, clicking the tray icon first blurs (and hides) an open flyout; that click must not reopen it.
+  let flyoutBlurredAt = 0;
+  tray.on("click", () => { const w = windows.get("flyout"); if (w?.isVisible()) w.hide(); else if (!windowsShell || Date.now() - flyoutBlurredAt > 300) showUsage(); });
   let shareState: ViewState | undefined, shareHeight = 0, shareReady: ((image: Electron.NativeImage) => void) | undefined, shareFailed: ((error: Error) => void) | undefined;
-  const state = (surface?: Surface): ViewState => surface === "share" && shareState ? shareState : ({ appVersion: app.getVersion(), ...(surface === "settings" ? { issueReport: issueReports.state } : {}), connections: connections.state, snapshot: coordinator.snapshot(), settings: projectSettings(prefs.values, prefs.accounts, launch.home, surface), systemDark: nativeTheme.shouldUseDarkColorsForSystemIntegratedUI, notch: { ...notch, maxHeight: Math.floor((anchor ? screen.getDisplayNearestPoint(anchor) : screen.getPrimaryDisplay()).workArea.height) }, update: updater.visible ? { version: updater.visible.version, state: updater.installState } : undefined });
+  const state = (surface?: Surface): ViewState => surface === "share" && shareState ? shareState : ({ appVersion: app.getVersion(), ...(windowsShell ? { platform: "win32" as const } : {}), ...(surface === "settings" ? { issueReport: issueReports.state } : {}), connections: connections.state, snapshot: coordinator.snapshot(), settings: projectSettings(prefs.values, prefs.accounts, launch.home, surface), systemDark: nativeTheme.shouldUseDarkColorsForSystemIntegratedUI, notch: { ...notch, maxHeight: Math.floor((anchor ? screen.getDisplayNearestPoint(anchor) : screen.getPrimaryDisplay()).workArea.height) }, update: updater.visible ? { version: updater.visible.version, state: updater.installState } : undefined });
   const updater = new Updater(prefs, app.getVersion(), publish, undefined, release => {
     if (!launch.demo && !launch.candidate && Notification.isSupported()) new Notification({ title: "MeterUsage update available", body: prefs.values.updateAutoInstall === true ? `MeterUsage ${release.version} will install when MeterUsage is not in use.` : `MeterUsage ${release.version} is ready to install.`, silent: true }).show();
   });
@@ -136,7 +143,7 @@ async function start(launch: Launch) {
     const existing = windows.get(surface); if (existing && !existing.isDestroyed()) return existing;
     const panel = surface === "notch", trayImage = surface === "tray", shareImage = surface === "share";
     if (surface === "settings") settingsHeight = undefined;
-    const w = new BrowserWindow({ width: shareImage ? shareCardWidth * 2 : trayImage ? 1000 : panel ? stripWidth : surface === "settings" ? 620 : Math.round(420 * panelScale()), height: trayImage ? 22 : panel ? notchHeight : surface === "settings" ? 680 : Math.ceil(flyoutHeight * panelScale()), show: false, frame: surface === "settings", transparent: panel || trayImage || shareImage, resizable: surface === "settings", minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, ...(panel ? { type: "panel", focusable: false, hasShadow: false } : {}), title: surface === "settings" ? "MeterUsage Settings" : "MeterUsage", backgroundColor: panel || trayImage || shareImage ? "#00000000" : "#242428", webPreferences: { preload: join(__dirname, "../preload/preload.cjs"), offscreen: trayImage || shareImage, zoomFactor: shareImage ? 2 : 1, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
+    const w = new BrowserWindow({ width: shareImage ? shareCardWidth * 2 : trayImage ? 1000 : panel ? stripWidth : surface === "settings" ? 620 : Math.round(420 * panelScale()), height: trayImage ? 22 : panel ? notchHeight : surface === "settings" ? 680 : Math.ceil(flyoutHeight * panelScale()), show: false, frame: surface === "settings", transparent: panel || trayImage || shareImage, resizable: surface === "settings", minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, ...(panel ? { ...(windowsShell ? {} : { type: "panel" }), focusable: false, hasShadow: false } : {}), title: surface === "settings" ? "MeterUsage Settings" : "MeterUsage", backgroundColor: panel || trayImage || shareImage ? "#00000000" : "#242428", webPreferences: { preload: join(__dirname, "../preload/preload.cjs"), offscreen: trayImage || shareImage, zoomFactor: shareImage ? 2 : 1, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
     if (trayImage) { w.webContents.setFrameRate(10); w.webContents.on("paint", (_event, _rect, image) => { if (!tray.isDestroyed() && trayWidth > 0) tray.setImage(image); }); }
     if (shareImage) {
       w.webContents.setFrameRate(10);
@@ -165,14 +172,26 @@ async function start(launch: Launch) {
       });
     }
     w.on("closed", () => { documents.delete(webContentsId); if (windows.get(surface) === w) windows.delete(surface); if (panel) { stopHoverCheck(); finishDrag(); } });
-    if (surface === "flyout") w.on("blur", () => { if (!sharing) w.hide(); });
+    if (surface === "flyout") w.on("blur", () => { if (!sharing) { flyoutBlurredAt = Date.now(); w.hide(); } });
     if (panel) { w.setAlwaysOnTop(true, "status"); w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); }
     void w.loadURL(document.href).then(() => { publish(); if (panel) { placeNotch(); w.showInactive(); } });
     return w;
   }
+  let flyoutBottom = false;
   function showFlyout() {
-    const w = create("flyout"), bounds = tray.getBounds(), work = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y }).workArea;
-    w.setPosition(Math.round(Math.min(Math.max(bounds.x + bounds.width / 2 - w.getBounds().width / 2, work.x), work.x + work.width - w.getBounds().width)), work.y);
+    let bounds = tray.getBounds();
+    if (windowsShell && (bounds.width === 0 || bounds.height === 0)) {
+      // Windows 11 starts new tray icons in the overflow area, which reports empty bounds. A click on the
+      // taskbar is beside the icon; otherwise use the default notification-area corner.
+      const cursor = screen.getCursorScreenPoint(), area = screen.getDisplayNearestPoint(cursor).workArea;
+      const onTaskbar = cursor.x < area.x || cursor.y < area.y || cursor.x >= area.x + area.width || cursor.y >= area.y + area.height;
+      bounds = onTaskbar ? { ...cursor, width: 1, height: 1 } : { x: area.x + area.width - 1, y: area.y + area.height, width: 1, height: 1 };
+    }
+    const w = create("flyout"), work = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y }).workArea, origin = flyoutOrigin(bounds, work, w.getBounds());
+    // The tray corner is also the side notch's default edge; keep the flyout beside a visible notch on Windows.
+    const strip = windows.get("notch"), stripBounds = windowsShell && strip && !strip.isDestroyed() && strip.isVisible() ? strip.getBounds() : undefined;
+    if (stripBounds && origin.x < stripBounds.x + stripBounds.width && origin.x + w.getBounds().width > stripBounds.x) origin.x = Math.max(work.x, stripBounds.x - w.getBounds().width);
+    flyoutBottom = origin.bottom; w.setPosition(origin.x, origin.y);
     sizeFlyout(); w.show(); w.focus(); void coordinator.refreshIfStale();
   }
   function showUsage() { if (prefs.values.onboardingCompleted === true) showFlyout(); else showSettings(); }
@@ -180,7 +199,8 @@ async function start(launch: Launch) {
     const w = windows.get("flyout"); if (!w || w.isDestroyed()) return;
     const bounds = w.getBounds(), work = screen.getDisplayMatching(bounds).workArea;
     const width = Math.min(Math.round(420 * panelScale()), work.width), height = Math.min(Math.ceil(flyoutHeight * panelScale()), work.height);
-    w.setBounds({ x: Math.round(Math.min(Math.max(bounds.x, work.x), work.x + work.width - width)), y: Math.round(Math.min(Math.max(bounds.y, work.y), work.y + work.height - height)), width, height }, false);
+    // A bottom taskbar anchors the flyout's lower edge, so content height changes grow it upward.
+    w.setBounds({ x: Math.round(Math.min(Math.max(bounds.x, work.x), work.x + work.width - width)), y: flyoutBottom ? work.y + work.height - height : Math.round(Math.min(Math.max(bounds.y, work.y), work.y + work.height - height)), width, height }, false);
   }
   function sizeSettings() {
     const source = windows.get("settings"); if (!source || source.isDestroyed() || settingsHeight === undefined) return;
@@ -378,6 +398,8 @@ async function start(launch: Launch) {
             create("share");
           });
           windows.get("share")?.close(); shareState = undefined;
+          // Windows has no native share sheet; the rendered card goes to the clipboard instead.
+          if (windowsShell) { clipboard.writeImage(image); sharing = false; folding.changed(); break; }
           shareDirectory = mkdtempSync(join(launch.data, "share-")); const path = join(shareDirectory, "MeterUsage.png"); writeFileSync(path, image.toPNG(), { mode: 0o600 });
           sharedDirectories.add(shareDirectory);
           // ShareMenu reports menu dismissal, not completion of the service.
@@ -426,7 +448,9 @@ async function start(launch: Launch) {
     });
   });
   nativeTheme.themeSource = prefs.values.appearanceTheme as "system" | "dark" | "light";
-  create("tray"); restoreAnchor();
+  // The text tray image needs a wide macOS status item; the Windows notification area is a fixed 16 px square.
+  if (!windowsShell) create("tray");
+  restoreAnchor();
   if (prefs.values.onboardingCompleted === true) create("flyout");
   // Recovery failures remain visible in connection state, with collection disabled.
   await connections.recover().catch(() => {});
@@ -434,4 +458,12 @@ async function start(launch: Launch) {
   syncNotch(); await coordinator.start();
   if (!quitting && (launch.candidate || prefs.values.onboardingCompleted !== true)) showUsage();
   if (!quitting) return () => { if (!quitting) showUsage(); };
+}
+function trayIcon() {
+  const source = nativeImage.createFromPath(join(__dirname, "../renderer/AppIcon.png"));
+  if (!windowsShell) { const icon = source.resize({ width: 18, height: 18 }); icon.setTemplateImage(true); return icon; }
+  // Windows shows the colored app icon; provide the common display scales so it stays sharp.
+  const icon = nativeImage.createEmpty();
+  for (const scaleFactor of [1, 1.25, 1.5, 2]) { const size = Math.round(16 * scaleFactor); icon.addRepresentation({ scaleFactor, width: size, height: size, buffer: source.resize({ width: size, height: size, quality: "best" }).toPNG() }); }
+  return icon;
 }

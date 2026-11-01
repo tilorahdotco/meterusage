@@ -49,6 +49,7 @@ compatibility and acceptance requirements remain in force. The
 | [0033](0033-muse-code-subscription-allowance.md) | Read opt-in Muse Code allowance through official MSP without a model turn; preserve observation age and keep Muse.ai separate. | Source implementation; native/live acceptance pending |
 | [0035](0035-openai-remaining-balance.md) | Show OpenAI remaining balance from undocumented credit grants, falling back to a prepaid-minus-spend estimate; failures never block spend. | Source implementation; real-account acceptance pending |
 | [0037](0037-opt-in-automatic-updates.md) | Add an opt-in setting that installs verified updates without the confirmation dialog while MeterUsage is not in use. | Source implementation; native install acceptance pending |
+| [0038](0038-windows-ci-test-machine.md) | Resume Windows with a CI runner as the test machine; set Windows data, preference, file-trust, CLI and shell rules; list what CI does not prove. | Stage 1 implemented; real-machine acceptance pending |
 
 | [0010](0010-user-triggered-github-diagnostics.md) | Initial GitHub form proposal, withdrawn before implementation because it required login. | Superseded by 0011 |
 | [0011](0011-login-free-linear-reports.md) | Send user-requested diagnostics through a free relay to a private Linear project without user login. | Accepted; report lifetime amended by 0012; relay activated 2026-10-08 |

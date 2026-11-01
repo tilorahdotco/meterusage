@@ -1,5 +1,5 @@
 import { validClaudeIdentity } from "./providers/claude-desktop";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { providers, type Provider, type ManagedAccount } from "../domain/models";
 import { normalizeProviderOrder, validProviderOrder } from "../domain/provider-order";
@@ -74,9 +74,14 @@ export class Preferences {
     const prefs = new Preferences(launch, command, domain);
     if (launch.codexTest) prefs.values.desktopCodexConnection = "off";
     if (launch.claudeTest) { prefs.values.desktopClaudeIdentity = "off"; prefs.values.showProviderClaude = true; }
-    if (launch.demo || launch.codexTest || launch.claudeTest) {
+    if (prefs.jsonStore) {
       const path = join(launch.data, "preferences.json");
-      if (existsSync(path)) { try { const raw = JSON.parse(readFileSync(path, "utf8")); for (const [key, v] of Object.entries(raw)) if (key === "providerOrder") prefs.values[key] = normalizeProviderOrder(v); else if (validate(key, v)) prefs.values[key] = v; } catch { /* Keep known defaults for a damaged candidate file. */ } }
+      let damaged = false;
+      if (existsSync(path)) { try { const text = readFileSync(path, "utf8"); let raw: Record<string, unknown>; try { raw = JSON.parse(text); if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid preferences"); } catch (error) { damaged = true; throw error; } for (const [key, v] of Object.entries(raw)) if (key === "providerOrder") prefs.values[key] = normalizeProviderOrder(v); else if (validate(key, v)) prefs.values[key] = v; } catch {
+        // Keep known defaults for a damaged file. A Windows install sets the file aside so the next save cannot overwrite it.
+        // A read error (an antivirus or sync lock) is not damage; only unparsable content is set aside.
+        if (damaged && !launch.demo && !launch.codexTest && !launch.claudeTest) try { renameSync(path, `${path}.damaged-${Date.now()}`); } catch { /* Defaults still apply. */ }
+      } }
       else if (launch.demo) for (const p of providers) prefs.values[providerPreference(p)] = true;
     } else {
       await Promise.all(Object.keys(kinds).map(async key => {
@@ -101,6 +106,8 @@ export class Preferences {
     if (launch.claudeTest) Object.assign(prefs.values, claudeTestPreferences);
     prefs.values.refreshIntervalSeconds = prefs.refreshInterval; return prefs;
   }
+  /** Isolated profiles and Windows keep preferences in JSON; installed macOS apps keep the shared defaults domain. */
+  get jsonStore() { return this.launch.demo || this.launch.codexTest === true || this.launch.claudeTest === true || (this.launch.platform ?? process.platform) === "win32"; }
   get refreshInterval() { const stored = this.values.refreshIntervalSeconds as number; return Math.max(30, stored > 0 ? stored : 60); }
   get providerOrder() { return normalizeProviderOrder(this.values.providerOrder); }
   get accounts() { return this.values.managedAccounts as ManagedAccount[]; }
@@ -117,7 +124,7 @@ export class Preferences {
     if (this.launch.codexTest && key in codexTestPreferences && value !== codexTestPreferences[key]) throw new Error("Preference unavailable in Codex test mode");
     if (this.launch.claudeTest && key in claudeTestPreferences && value !== claudeTestPreferences[key]) throw new Error("Preference unavailable in Claude test mode");
     if (key === "refreshIntervalSeconds") value = Math.max(30, (value as number) > 0 ? value as number : 60);
-    if (this.launch.demo || this.launch.codexTest || this.launch.claudeTest) {
+    if (this.jsonStore) {
       const next = { ...this.values, [key]: value as PreferenceValue }; atomicJSON(join(this.launch.data, "preferences.json"), next);
     } else {
       const kind = kinds[key]; const typed = kind === "data" ? ["-data", Buffer.from(JSON.stringify(value)).toString("hex")] : kind === "date" ? ["-date", new Date(value as number).toISOString()] : kind === "boolean" ? ["-bool", value ? "true" : "false"] : kind === "number" ? ["-float", String(value)] : ["-string", value as string];

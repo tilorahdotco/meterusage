@@ -1,6 +1,7 @@
 import { accessSync, constants } from "node:fs";
 import { copyFile, mkdtemp, readdir, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { envValue, pathFor, windowsSearchPath, type Platform } from "../platform";
 import { tmpdir } from "node:os";
 import { type Usage, type Tokens, tokens, addTokens, totalTokens, localDay, weekStart, Unavailable } from "../../domain/models";
 import { telemetry } from "../../domain/telemetry";
@@ -79,7 +80,7 @@ export class AntigravityRuntime {
     const available = this.candidates.filter(p => { try { accessSync(p, constants.X_OK); return true; } catch { return false; } });
     for (const p of available) if (await this.probe(p, ["info"], { signal })) return p;
     if (signal?.aborted || (this.recoveryFailedAt !== undefined && now - this.recoveryFailedAt < 60000)) return;
-    const podman = available.find(p => basename(p) === "podman");
+    const podman = available.find(p => /^podman(?:\.exe)?$/i.test(basename(p)));
     if (!podman || !await this.probe(podman, ["machine", "inspect", "podman-machine-default"], { signal })) return;
     if (!await this.probe(podman, ["machine", "start", "podman-machine-default"], { signal }) || !await this.probe(podman, ["info"], { signal })) { this.recoveryFailedAt = now; return; }
     this.recoveryFailedAt = undefined; return podman;
@@ -106,6 +107,11 @@ export class AntigravityRuntime {
     try { return antigravityHistory(await this.run(runtime, ["run", "--rm", "--pull=never", "-v", "antigravity-config:/data:ro", "alpine", "cat", "/data/antigravity-cli/history.jsonl"], { signal }), now); } catch { throw new Unavailable("dataNotFound", "Antigravity usage"); }
   }
 }
-export function runtimeCandidates(env: NodeJS.ProcessEnv): string[] {
+export function runtimeCandidates(env: NodeJS.ProcessEnv, platform: Platform = process.platform): string[] {
+  if (platform === "win32") {
+    const path = pathFor("win32"), programs = envValue(env, "ProgramFiles", "win32") ?? "C:\\Program Files";
+    const searched = windowsSearchPath(env).flatMap(dir => [path.join(dir, "docker.exe"), path.join(dir, "podman.exe")]);
+    return [...new Set([path.join(programs, "Docker", "Docker", "resources", "bin", "docker.exe"), path.join(programs, "RedHat", "Podman", "podman.exe"), ...searched])];
+  }
   return [...new Set(["/opt/homebrew/bin/docker", "/opt/homebrew/bin/podman", "/usr/local/bin/docker", "/usr/local/bin/podman", "/usr/bin/docker", ...(env.PATH ?? "").split(":").flatMap(p => [join(p, "docker"), join(p, "podman")])])];
 }
