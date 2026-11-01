@@ -38,7 +38,8 @@ async function fixture(isolated = false) {
   const home = mkdtempSync(join(tmpdir(), "meterusage-claude-synthetic-")); roots.push(home);
   const root = join(home, "Library/Application Support/Claude"); mkdirSync(root, { recursive: true });
   writeFileSync(join(root, "config.json"), config); writeFileSync(join(root, "Cookies"), "SYNTHETIC_NOT_SQLITE");
-  const launch = launchConfiguration(isolated ? ["--claude-test-profile", join(home, "test-profile")] : [], {}, home);
+  // The Claude Desktop reader is macOS-only; Windows marks the connection unsupported.
+  const launch = launchConfiguration(isolated ? ["--claude-test-profile", join(home, "test-profile")] : [], {}, home, false, "darwin");
   const prefs = await Preferences.load(launch, async () => "");
   let cookies = rows();
   const command = vi.fn<Command>(async (binary, args, options) => {

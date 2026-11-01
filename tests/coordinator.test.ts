@@ -33,7 +33,7 @@ describe("coordinator refresh journey", () => {
     for (const secret of ["demo-second", "private-account-label", "private-token", "/private/provider/path"]) expect(text).not.toContain(secret);
   });
   it.each(["switch", "revoke"])("discards unverified account quota on deadline after a Claude %s", async action => {
-    const { c: initial, root, prefs } = await setup([]), launch = { ...initial.launch, demo: false };
+    const { c: initial, root, prefs } = await setup([]), launch = { ...initial.launch, demo: false, platform: "darwin" as const };
     let identity = "web-v1:" + "a".repeat(64), denied = false, hold = false, release!: () => void, started!: () => void;
     const response = new Promise<void>(resolve => { release = resolve; });
     const ready = new Promise<void>(resolve => { started = resolve; });
@@ -68,7 +68,7 @@ describe("coordinator refresh journey", () => {
   });
 
   it("retains account quota only after an offline request completes Claude identity verification", async () => {
-    const { c: initial, root, prefs } = await setup([]), launch = { ...initial.launch, demo: false };
+    const { c: initial, root, prefs } = await setup([]), launch = { ...initial.launch, demo: false, platform: "darwin" as const };
     const identity = "web-v1:" + "a".repeat(64); let offline = false;
     prefs.values.desktopClaudeIdentity = identity; prefs.values.showProviderClaude = true;
     const credentials = vi.spyOn(claudeDesktop, "readDesktopCredential").mockResolvedValue({ identity, account: "11111111-1111-1111-1111-111111111111", organization: "22222222-2222-2222-2222-222222222222", cookie: "sessionKey=synthetic-session" });
