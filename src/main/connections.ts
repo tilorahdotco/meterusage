@@ -1,4 +1,4 @@
-import { accessSync, constants, mkdirSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Launch } from "./launch";
@@ -6,10 +6,13 @@ import { Preferences } from "./preferences";
 import { ClaudeBrowserVerification, CommandFailure, boundedChild, cliEnvironment, cliPath, codexRPC, endpoints, claudeUsageURL, httpTransport, runCommand, type Command, type HTTP } from "./providers/transport";
 import { object, parseCodex } from "./providers/parsers";
 import { parseCodexAccountUsage } from "./providers/codex-account-usage";
-import { desktopQuota, readDesktopCredential, desktopReadErrors, validClaudeIdentity, verifyDesktopAccount } from "./providers/claude-desktop";
+import { desktopQuota, readDesktopCredential, desktopReadErrors, windowsDesktopReadErrors, validClaudeIdentity, verifyDesktopAccount } from "./providers/claude-desktop";
+import { chromiumKey, decryptChromiumWindows, dpapiUnprotect, type Decrypt, type Unprotect } from "./providers/windows-dpapi";
+import { localRoot, minimalEnvironment, supportRoot } from "./platform";
+import { connectionErrors } from "./connection-errors";
 import { readAntigravityDesktop, antigravityRPC, type AntigravityRPC } from "./providers/antigravity-desktop";
 import { cursorGrokQuota, cursorIdentity, readCursorCredential } from "./providers/cursor-grok";
-import { readGrokBotCredential, grokBotQuota, grokBotTransport, grokBotConnectionErrors, GrokBotFailure, type GrokBotRPC } from "./providers/grok-bot-desktop";
+import { readGrokBotCredential, grokBotQuota, grokBotTransport, grokBotConnectionErrors, grokBotWindowsErrors, GrokBotFailure, type GrokBotRPC } from "./providers/grok-bot-desktop";
 import { selectJSON } from "./select-json";
 import { Unavailable, failed, resetCreditAvailable } from "../domain/models";
 import { providerKey, type ConnectionState, type ConnectionProvider } from "../shared/ipc";
@@ -71,9 +74,20 @@ export class DesktopConnections {
   private cleanupController = new AbortController();
   private claudeController = new AbortController();
   private grokController = new AbortController();
-  constructor(readonly launch: Launch, readonly prefs: Preferences, readonly helper: string, readonly changed: () => void, readonly command: Command = runCommand, readonly http: HTTP = httpTransport(), readonly now = Date.now, readonly antigravity: AntigravityRPC = antigravityRPC, readonly grokBot: GrokBotRPC = grokBotTransport()) {}
-  /** Claude, Grok and Antigravity Desktop readers use macOS-only helpers (Keychain, ps, sandbox-exec); Windows readers are not built yet. */
-  private unsupported(provider: ConnectionProvider) { return this.launch.platform === "win32" && provider !== "codex"; }
+  constructor(readonly launch: Launch, readonly prefs: Preferences, readonly helper: string, readonly changed: () => void, readonly command: Command = runCommand, readonly http: HTTP = httpTransport(), readonly now = Date.now, readonly antigravity: AntigravityRPC = antigravityRPC, readonly grokBot: GrokBotRPC = grokBotTransport(), readonly unprotect: Unprotect = dpapiUnprotect(command, launch.env)) {}
+  private get windows() { return this.launch.platform === "win32"; }
+  /** An Electron app's data folder under roaming AppData, where Windows keeps its Local State key and stores. */
+  private windowsAppData(name: string) {
+    const roaming = join(supportRoot(this.launch.home, "win32", this.launch.env), name);
+    if (existsSync(roaming)) return roaming;
+    // MSIX packages redirect roaming data to Packages\<family>\LocalCache\Roaming; accept exactly one such package.
+    const packages = join(localRoot(this.launch.home, "win32", this.launch.env), "Packages"), family = new RegExp(`^(?:[A-Za-z0-9-]+\\.)*${name.replace(/\s+/g, "")}_[a-z0-9]{13}$`, "i");
+    let found: string[] = [];
+    try { found = readdirSync(packages, { withFileTypes: true }).filter(entry => entry.isDirectory() && family.test(entry.name)).map(entry => join(packages, entry.name, "LocalCache", "Roaming", name)).filter(path => existsSync(path)); } catch { /* No packaged install. */ }
+    return found.length === 1 ? found[0] : roaming;
+  }
+  /** Windows has no reader for saved legacy Grok-via-Cursor connections; new Grok connections use Bot Desktop. */
+  private unsupported(provider: ConnectionProvider) { return this.windows && provider === "grok" && this.prefs.values.desktopGrokIdentity !== "" && this.prefs.values.desktopGrokSource !== "bot"; }
   get state(): ConnectionState[] {
     return (["codex", "claude", "antigravity", "grok"] as const).map(provider => ({ provider, status: this.launch.codexTest && provider !== "codex" || this.launch.claudeTest && provider !== "claude" || this.unsupported(provider) ? "unsupported" : this.pending.has(provider) ? "connecting" : this.enabled(provider) ? "connected" : this.errors.has(provider) ? "failed" : "disconnected", source: this.configured(provider) ? "account" : "cli", ...(provider === "grok" && /^[a-f\d]{64}$/.test(String(this.prefs.values.desktopGrokIdentity)) ? { accountMethod: this.prefs.values.desktopGrokSource === "bot" ? "bot" as const : "cursor" as const } : {}), localAvailable: !this.launch.demo && !this.launch.codexTest && !this.launch.claudeTest }));
   }
@@ -81,6 +95,7 @@ export class DesktopConnections {
   configured(provider: ConnectionProvider) { return this.prefs.values[this.key(provider)] !== ""; }
   private key(provider: ConnectionProvider) { return provider === "codex" ? "desktopCodexConnection" : provider === "claude" ? "desktopClaudeIdentity" : provider === "antigravity" ? "desktopAntigravityIdentity" : "desktopGrokIdentity"; }
   private binary() {
+    if (this.windows) return cliPath("codex", this.launch.home, this.launch.env, "win32");
     // Current Codex downloads install as ChatGPT.app with the helper under codex-cli; older installs keep Codex.app.
     for (const root of ["/Applications", join(this.launch.home, "Applications")]) {
       for (const helper of ["ChatGPT.app/Contents/Resources/codex-cli/bin/codex", "Codex.app/Contents/Resources/codex-cli/bin/codex", "Codex.app/Contents/Resources/codex"]) {
@@ -93,6 +108,8 @@ export class DesktopConnections {
   private env(id: string) {
     const home = join(this.launch.data, "connections", "codex", id);
     mkdirSync(home, { recursive: true, mode: 0o700 });
+    // Windows programs need SystemRoot and the profile folders; credentials stay in Windows Credential Manager (keyring).
+    if (this.windows) return { ...minimalEnvironment(this.launch.env, "win32"), PATH: cliEnvironment(this.launch.home, minimalEnvironment(this.launch.env, "win32"), "win32").PATH, HOME: this.launch.home, CODEX_HOME: home };
     return { HOME: this.launch.home, PATH: cliEnvironment(this.launch.home, { PATH: this.launch.env.PATH }).PATH, CODEX_HOME: home, TMPDIR: this.launch.env.TMPDIR };
   }
   private async claudePassword(allowUI: boolean, signal?: AbortSignal, guard: () => void = () => {}) {
@@ -106,12 +123,26 @@ export class DesktopConnections {
       throw new Unavailable(!allowUI && error instanceof CommandFailure && error.exitCode === 2 ? "keychainDenied" : "notSignedIn", "Claude Desktop");
     }
   }
+  /** The secret for one attempt: the macOS Safe Storage password, or a decryptor holding the Windows Local State key. */
+  private async claudeSecret(allowUI: boolean, signal: AbortSignal, guard: () => void): Promise<{ secret: string | Decrypt; dispose: () => void }> {
+    if (!this.windows) return { secret: await this.claudePassword(allowUI, signal, guard), dispose: () => {} };
+    try {
+      guard(); signal.throwIfAborted();
+      const key = await chromiumKey(join(this.windowsAppData("Claude"), "Local State"), this.unprotect, signal);
+      return { secret: bytes => decryptChromiumWindows(bytes, key), dispose: () => key.fill(0) };
+    } catch { throw new Unavailable("notSignedIn", "Claude Desktop"); }
+  }
   private async claudeQuota(allowUI: boolean, signal: AbortSignal, guard: () => void, expected?: string, reading?: (stage: keyof typeof desktopReadErrors) => void) {
     const check = () => { guard(); signal.throwIfAborted(); };
     check();
-    const password = await this.claudePassword(allowUI, signal, check);
+    const { secret: password, dispose } = await this.claudeSecret(allowUI, signal, check);
+    try { return await this.claudeAttempt(password, signal, check, expected, reading); }
+    finally { dispose(); }
+  }
+  private async claudeAttempt(password: string | Decrypt, signal: AbortSignal, check: () => void, expected?: string, reading?: (stage: keyof typeof desktopReadErrors) => void) {
+    const windows = this.windows ? { root: this.windowsAppData("Claude") } : undefined;
     check();
-    const credential = await readDesktopCredential(this.launch.home, password, this.now(), reading, this.command, signal);
+    const credential = await readDesktopCredential(this.launch.home, password, this.now(), reading, this.command, signal, windows);
     check();
     if (expected && credential.identity !== expected) throw new Unavailable("notSignedIn", "Claude Desktop");
     let raw: string, verified = false;
@@ -134,7 +165,7 @@ export class DesktopConnections {
       try { if (verified) await verify(); }
       finally {
         check();
-        const after = await readDesktopCredential(this.launch.home, password, this.now(), undefined, this.command, signal);
+        const after = await readDesktopCredential(this.launch.home, password, this.now(), undefined, this.command, signal, windows);
         check();
         if (after.identity !== credential.identity || after.cookie !== credential.cookie) throw new Unavailable("notSignedIn", "Claude Desktop");
       }
@@ -175,7 +206,8 @@ export class DesktopConnections {
   private async bot(allowUI: boolean, signal: AbortSignal, guard: () => void, expected?: string) {
     const check = () => { guard(); signal.throwIfAborted(); };
     check();
-    const credential = await readGrokBotCredential(this.launch.home, this.helper, this.command, this.now(), allowUI, signal, check);
+    const windows = this.windows ? { root: this.windowsAppData("Grok Bot"), unprotect: this.unprotect } : undefined;
+    const credential = await readGrokBotCredential(this.launch.home, this.helper, this.command, this.now(), allowUI, signal, check, windows);
     const current = () => { check(); if (credential.expiresAt <= this.now() + 60000) throw new GrokBotFailure("credentials"); };
     current();
     if (expected && credential.identity !== expected) throw new GrokBotFailure("credentials");
@@ -185,7 +217,7 @@ export class DesktopConnections {
     finally {
       try {
         current();
-        const after = await readGrokBotCredential(this.launch.home, this.helper, this.command, this.now(), false, signal, current);
+        const after = await readGrokBotCredential(this.launch.home, this.helper, this.command, this.now(), false, signal, current, windows);
         current();
         if (after.identity !== credential.identity || after.store !== credential.store) throw new GrokBotFailure("verification");
       } catch { throw new GrokBotFailure("verification"); }
@@ -212,7 +244,7 @@ export class DesktopConnections {
       const controller = this.antigravityController;
       const active = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
       if (this.prefs.values.desktopAntigravityIdentity !== profile) throw new Unavailable("notSignedIn", "Antigravity Desktop");
-      const result = await readAntigravityDesktop(this.command, this.antigravity, this.now(), active, profile);
+      const result = await readAntigravityDesktop(this.command, this.antigravity, this.now(), active, profile, this.launch.platform, this.launch.env);
       active.throwIfAborted();
       if (!this.enabled(provider) || this.prefs.values.desktopAntigravityIdentity !== profile) throw new Unavailable("notSignedIn", "Antigravity Desktop");
       return result.quota;
@@ -264,16 +296,17 @@ export class DesktopConnections {
     const previousClaudeVisible = this.prefs.values.showProviderClaude;
     const previousGrokSource = this.prefs.values.desktopGrokSource;
     let grokSourceSaved = false;
-    let grokError = "Could not connect Grok Bot Desktop. Sign in to Grok Bot, check allowance and Keychain access, then reconnect.";
+    const readErrors = this.windows ? windowsDesktopReadErrors : desktopReadErrors, grokErrors = this.windows ? grokBotWindowsErrors : grokBotConnectionErrors;
+    let grokError = this.windows ? connectionErrors.grokWindows : "Could not connect Grok Bot Desktop. Sign in to Grok Bot, check allowance and Keychain access, then reconnect.";
     let claudeError = "Open Claude Desktop and sign in, then try connecting again";
-    let codexError = "Open Codex on this Mac, then try connecting again";
+    let codexError = this.windows ? connectionErrors.codexWindows : "Open Codex on this Mac, then try connecting again";
     try {
       if (!await consent()) return false;
       controller.signal.throwIfAborted();
       if (provider === "codex") {
         let binary: string;
         try { binary = this.binary(); }
-        catch (error) { if (error instanceof Unavailable && error.code === "cliNotFound") codexError = "Codex app not found in Applications. Install or update Codex, then try connecting again"; throw error; }
+        catch (error) { if (error instanceof Unavailable && error.code === "cliNotFound") codexError = this.windows ? connectionErrors.codexMissingWindows : "Codex app not found in Applications. Install or update Codex, then try connecting again"; throw error; }
         const id = randomUUID();
         // An unfinished profile permits cleanup, never collection.
         await this.disable("codex");
@@ -283,23 +316,23 @@ export class DesktopConnections {
         if (!q.windows.length) throw new Unavailable("noData");
         controller.signal.throwIfAborted();
       } else if (provider === "antigravity") {
-        const result = await readAntigravityDesktop(this.command, this.antigravity, this.now(), controller.signal);
+        const result = await readAntigravityDesktop(this.command, this.antigravity, this.now(), controller.signal, undefined, this.launch.platform, this.launch.env);
         controller.signal.throwIfAborted(); savedIdentity = result.identity;
         await this.prefs.set("desktopAntigravityIdentity", result.identity);
         controller.signal.throwIfAborted();
       } else if (provider === "grok") {
         const result = await this.bot(true, controller.signal, () => { if (this.stopped || this.pending.get("grok")?.controller !== controller) throw new Unavailable("notSignedIn", "Grok Bot Desktop"); });
         controller.signal.throwIfAborted(); savedIdentity = result.identity;
-        grokError = grokBotConnectionErrors.preferences;
+        grokError = grokErrors.preferences;
         grokSourceSaved = true; await this.prefs.set("desktopGrokSource", "bot");
         controller.signal.throwIfAborted();
         await this.prefs.set("desktopGrokIdentity", result.identity);
         controller.signal.throwIfAborted();
       } else {
-        claudeError = "Could not access Claude Desktop through macOS Keychain. Check the access prompt, then try connecting again.";
+        claudeError = this.windows ? connectionErrors.claudeWindows : "Could not access Claude Desktop through macOS Keychain. Check the access prompt, then try connecting again.";
         const result = await this.claudeQuota(true, controller.signal, () => {
           if (this.stopped || this.pending.get("claude")?.controller !== controller) throw new Unavailable("notSignedIn", "Claude Desktop");
-        }, undefined, stage => { claudeError = desktopReadErrors[stage]; });
+        }, undefined, stage => { claudeError = readErrors[stage]; });
         claudeError = "Could not save the Claude Desktop connection preferences. Try connecting again.";
         controller.signal.throwIfAborted(); savedIdentity = result.identity;
         await this.prefs.set("desktopClaudeIdentity", result.identity);
@@ -315,8 +348,8 @@ export class DesktopConnections {
       }
       return true;
     } catch (error) {
-      if (provider === "claude" && !controller.signal.aborted && error instanceof ClaudeBrowserVerification) claudeError = desktopReadErrors.challenge;
-      if (provider === "grok" && !controller.signal.aborted && error instanceof GrokBotFailure) grokError = grokBotConnectionErrors[error.stage];
+      if (provider === "claude" && !controller.signal.aborted && error instanceof ClaudeBrowserVerification) claudeError = readErrors.challenge;
+      if (provider === "grok" && !controller.signal.aborted && error instanceof GrokBotFailure) grokError = grokErrors[error.stage];
       if (candidateID) {
         await this.disable("codex", candidateID);
         try { await this.cleanup(candidateID); }

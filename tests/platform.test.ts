@@ -10,6 +10,11 @@ import { runtimeCandidates } from "../src/main/providers/antigravity";
 import { apiBillingPath, readApiBilling, writeApiBilling } from "../src/main/providers/api-billing";
 import { flyoutOrigin } from "../src/domain/notch";
 import { DesktopConnections } from "../src/main/connections";
+import { chromiumKey, dpapiUnprotect, powershell, powershellArgs } from "../src/main/providers/windows-dpapi";
+import { windowsDiscoveryScript } from "../src/main/providers/antigravity-desktop";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
+import { dirname } from "node:path";
 import { ClaudeActivitySource } from "../src/main/providers/activity";
 import type { ApiBillingSnapshot } from "../src/domain/api-billing";
 
@@ -83,14 +88,16 @@ describe("Windows CLI shims", () => {
 });
 
 describe("Windows desktop connections", () => {
-  it("offers only Codex until Windows desktop readers exist", async () => {
+  it("offers every desktop connection except a saved legacy Grok-via-Cursor source", async () => {
     const root = temp(), launch = { home: root, data: root, env: {}, demo: false, candidate: false, platform: "win32" as const };
     const prefs = await Preferences.load(launch, async () => { throw new Error("defaults must not run on Windows"); });
-    await prefs.set("desktopClaudeIdentity", "a".repeat(64)); await prefs.set("desktopGrokIdentity", "b".repeat(64));
     const connections = new DesktopConnections(launch, prefs, join(root, "missing-helper"), () => {}, async () => { throw new Error("no helper may run"); });
-    expect(connections.state.map(c => [c.provider, c.status])).toEqual([["codex", "disconnected"], ["claude", "unsupported"], ["antigravity", "unsupported"], ["grok", "unsupported"]]);
-    expect(connections.enabled("grok")).toBe(false);
-    for (const provider of ["claude", "antigravity", "grok"] as const) await expect(connections.connect(provider, async () => {}, async () => true)).rejects.toThrow("Connection unavailable");
+    expect(connections.state.map(c => [c.provider, c.status])).toEqual([["codex", "disconnected"], ["claude", "disconnected"], ["antigravity", "disconnected"], ["grok", "disconnected"]]);
+    await prefs.set("desktopGrokIdentity", "b".repeat(64));
+    expect(connections.state.find(c => c.provider === "grok")?.status).toBe("unsupported"); expect(connections.enabled("grok")).toBe(false);
+    await expect(connections.connect("grok", async () => {}, async () => true)).rejects.toThrow("Connection unavailable");
+    await prefs.set("desktopGrokSource", "bot");
+    expect(connections.state.find(c => c.provider === "grok")?.status).toBe("connected");
   });
 });
 
@@ -143,6 +150,50 @@ describe.runIf(process.platform === "win32")("Windows runtime", () => {
     expect(JSON.parse(await runCommand(binary, ["app-server", "--listen", "stdio://"], { env: process.env, timeoutMs: 10000 }))).toEqual(["app-server", "--listen", "stdio://"]);
     expect(JSON.parse(await runCommand(binary, ["a&b|c>d"], { env: process.env, timeoutMs: 10000 }))).toEqual(["a&b|c>d"]);
     await expect(runCommand(binary, ["%PATH%"], { env: process.env })).rejects.toThrow("Provider process unavailable");
+  });
+  it("runs an npm-format shim through node directly, so quoted Codex arguments pass unchanged", async () => {
+    const root = temp(), npm = join(root, "AppData", "Roaming", "npm"), pkg = join(npm, "node_modules", "fixture-cli", "bin"); mkdirSync(pkg, { recursive: true });
+    writeFileSync(join(pkg, "cli.js"), "console.log(JSON.stringify(process.argv.slice(2)))\n");
+    writeFileSync(join(npm, "fixture-cli.cmd"), '@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\nIF EXIST "%dp0%\\node.exe" ( SET "_prog=%dp0%\\node.exe" ) ELSE ( SET "_prog=node" )\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\fixture-cli\\bin\\cli.js" %*\r\n');
+    const env = { ...process.env, Path: dirname(process.execPath) }, args = ["-c", 'cli_auth_credentials_store="keyring"', "%PATH%", "a&b"];
+    expect(JSON.parse(await runCommand(join(npm, "fixture-cli.cmd"), args, { env, timeoutMs: 10000 }))).toEqual(args);
+  });
+  it("refuses an npm-style shim whose script leaves node_modules and falls back to the strict cmd.exe rules", async () => {
+    const root = temp(), npm = join(root, "npm"); mkdirSync(join(npm, "node_modules"), { recursive: true });
+    writeFileSync(join(root, "outside.js"), "console.log('must not run')\n");
+    writeFileSync(join(npm, "escape.cmd"), '@"%dp0%\\node.exe" "%dp0%\\node_modules\\..\\..\\outside.js" %*\r\n');
+    await expect(runCommand(join(npm, "escape.cmd"), ['quoted="arg"'], { env: process.env, timeoutMs: 10000 })).rejects.toThrow("Provider process unavailable");
+  });
+  it("runs the fixed Antigravity discovery script and finds no language server on the runner", async () => {
+    const output = await runCommand(powershell(), powershellArgs(windowsDiscoveryScript), { env: process.env, timeoutMs: 60000 });
+    expect(JSON.parse(output.trim() || "[]")).toEqual([]);
+  }, 90000);
+  it("unwraps a real DPAPI-protected Local State key through the PowerShell helper", async () => {
+    const root = temp(), key = randomBytes(32);
+    const protect = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; $d=[Convert]::FromBase64String($env:FIXTURE_KEY); [Console]::Out.Write([Convert]::ToBase64String([System.Security.Cryptography.ProtectedData]::Protect($d,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)))";
+    const wrapped = Buffer.from((await runCommand(powershell(), powershellArgs(protect), { env: { ...process.env, FIXTURE_KEY: key.toString("base64") }, timeoutMs: 60000 })).trim(), "base64");
+    writeFileSync(join(root, "Local State"), JSON.stringify({ os_crypt: { encrypted_key: Buffer.concat([Buffer.from("DPAPI"), wrapped]).toString("base64") } }));
+    expect((await chromiumKey(join(root, "Local State"), dpapiUnprotect(runCommand, process.env))).equals(key)).toBe(true);
+  }, 90000);
+  it("connects Claude Desktop from roaming AppData with the Windows key", async () => {
+    const home = temp(), roaming = join(home, "AppData", "Roaming"), claude = join(roaming, "Claude"); mkdirSync(join(claude, "Network"), { recursive: true });
+    const key = randomBytes(32), wrapped = Buffer.from("synthetic-wrapped-key"), account = "11111111-1111-1111-1111-111111111111", org = "22222222-2222-2222-2222-222222222222", now = Date.now();
+    writeFileSync(join(claude, "Local State"), JSON.stringify({ os_crypt: { encrypted_key: Buffer.concat([Buffer.from("DPAPI"), wrapped]).toString("base64") } }));
+    writeFileSync(join(claude, "config.json"), JSON.stringify({ lastKnownAccountUuid: account }));
+    const seal = (name: string, value: string) => { const nonce = randomBytes(12), c = createCipheriv("aes-256-gcm", key, nonce), body = Buffer.concat([c.update(Buffer.concat([createHash("sha256").update(".claude.ai").digest(), Buffer.from(value)])), c.final()]); return Buffer.concat([Buffer.from("v10"), nonce, body, c.getAuthTag()]); };
+    const db = new DatabaseSync(join(claude, "Network", "Cookies"));
+    db.exec("CREATE TABLE meta(key TEXT, value TEXT); INSERT INTO meta VALUES('version','24'); CREATE TABLE cookies(host_key TEXT, name TEXT, path TEXT, is_secure INTEGER, is_httponly INTEGER, expires_utc INTEGER, encrypted_value BLOB)");
+    const expires = (BigInt(now) + 11644473600000n) * 1000n + 3600000000n;
+    for (const [name, value, httpOnly] of [["sessionKey", "synthetic-session", 1], ["lastActiveOrg", org, 0]] as const) db.prepare("INSERT INTO cookies VALUES ('.claude.ai', ?, '/', 1, ?, ?, ?)").run(name, httpOnly, expires, seal(name, value));
+    db.close();
+    const launch = { home, data: join(roaming, "MeterUsage"), env: { ...process.env, APPDATA: roaming }, demo: false, candidate: false, platform: "win32" as const };
+    const prefs = await Preferences.load(launch);
+    const http = async (url: string) => url.endsWith("/bootstrap") ? JSON.stringify({ account: { uuid: account, memberships: [{ organization: { uuid: org } }] } }) : JSON.stringify({ five_hour: { utilization: 12, resets_at: new Date(now + 3600000).toISOString() } });
+    const unprotect = async (data: Buffer) => { if (!data.equals(wrapped)) throw new Error("fake DPAPI"); return Buffer.from(key); };
+    const connections = new DesktopConnections(launch, prefs, "C:\\missing-helper.exe", () => {}, async () => { throw new Error("no subprocess"); }, http as never, () => now, undefined, undefined, unprotect);
+    expect(await connections.connect("claude", async () => {}, async () => true)).toBe(true);
+    expect(connections.state.find(c => c.provider === "claude")?.status).toBe("connected");
+    expect((await connections.quota("claude")).windows[0]).toMatchObject({ usedPercent: 12 });
   });
   it("ends a shim's whole process tree on timeout", async () => {
     const root = temp(), shim = join(root, "slow.cmd");

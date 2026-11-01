@@ -6,6 +6,8 @@ import { Unavailable, quota, window, type QuotaWindow, type QuotaGroup } from ".
 import { selectJSON } from "../select-json";
 import { object, displayText } from "./parsers";
 import { runCommand, type Command } from "./transport";
+import { powershell, powershellArgs, powershellEnvironment } from "./windows-dpapi";
+import type { Platform } from "../platform";
 
 const unavailable = () => new Unavailable("notSignedIn", "Antigravity Desktop");
 const noData = () => new Unavailable("noData");
@@ -23,8 +25,35 @@ function flag(args: string, name: string) {
   return matches[0]?.[1];
 }
 
+const windowsExecutable = (path: string) => /^[A-Za-z]:\\(?:[^\\\r\n]+\\)*(?:Antigravity|Antigravity IDE)\\(?:[^\\\r\n]+\\)*language_server(?:_[a-zA-Z0-9_-]+)?\.exe$/i.test(path);
+// Fixed script without double quotes (PowerShell 5.1 can strip them from -Command). CIM filters by
+// name and executable path inside PowerShell, and only a process owned by the current user returns its command line and loopback listeners. Nothing is passed in.
+export const windowsDiscoveryScript = "$ErrorActionPreference='Stop'; $me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; [Console]::OutputEncoding=[Text.Encoding]::UTF8; $found=@(Get-CimInstance Win32_Process -Filter 'Name LIKE ''language_server%''' | Where-Object { $_.ExecutablePath -match '\\\\Antigravity( IDE)?\\\\.*\\\\language_server[A-Za-z0-9_-]*\\.exe$' -and (Invoke-CimMethod -InputObject $_ -MethodName GetOwnerSid).Sid -eq $me } | ForEach-Object { [pscustomobject]@{ pid=[int]$_.ProcessId; executable=[string]$_.ExecutablePath; commandLine=[string]$_.CommandLine; ports=@(Get-NetTCPConnection -State Listen -OwningProcess $_.ProcessId -LocalAddress 127.0.0.1 -ErrorAction SilentlyContinue | ForEach-Object { [int]$_.LocalPort }) } }); ConvertTo-Json -InputObject $found -Compress -Depth 3";
+function windowsServer(raw: string): DesktopServer {
+  if (raw.length > 1048576) throw unavailable();
+  const list = selectJSON(raw.trim() || "[]", { "*": { pid: true, executable: true, commandLine: true, ports: { "*": true } } }, undefined, true);
+  if (!Array.isArray(list) || list.length !== 1) throw unavailable();
+  const item = object(list[0]), pid = item.pid, path = item.executable, line = item.commandLine;
+  if (typeof pid !== "number" || !Number.isSafeInteger(pid) || pid <= 0 || typeof path !== "string" || !windowsExecutable(path) || typeof line !== "string" || line.length > 16384) throw unavailable();
+  // Windows command lines start with the executable, usually quoted.
+  const prefix = line.startsWith(`"${path}"`) ? `"${path}"` : line.toLowerCase().startsWith(path.toLowerCase()) ? line.slice(0, path.length) : undefined;
+  if (!prefix || !/^\s/.test(line.slice(prefix.length))) throw unavailable();
+  const args = line.slice(prefix.length), csrf = token(flag(args, "csrf_token"));
+  if (!csrf) throw unavailable();
+  const declaredPort = flag(args, "extension_server_port"), extensionPort = declaredPort === undefined ? undefined : portNumber(declaredPort);
+  const declaredToken = flag(args, "extension_server_csrf_token"), extensionCSRF = token(declaredToken);
+  if (declaredPort !== undefined && extensionPort === undefined || declaredToken !== undefined && !extensionCSRF) throw unavailable();
+  const ports = new Set((Array.isArray(item.ports) ? item.ports : []).map(port => typeof port === "number" ? portNumber(String(port)) : undefined));
+  if (ports.has(undefined) || !ports.size || ports.size > 8) throw unavailable();
+  return { pid, executable: path, csrf, extensionPort, extensionCSRF, ports: [...ports as Set<number>].sort((a, b) => a - b) };
+}
+
 // Enumerate executable names first. Only a matching, same-user PID exposes arguments.
-export async function discoverAntigravity(command: Command = runCommand, signal?: AbortSignal): Promise<DesktopServer> {
+export async function discoverAntigravity(command: Command = runCommand, signal?: AbortSignal, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): Promise<DesktopServer> {
+  if (platform === "win32") {
+    const server = windowsServer(await command(powershell(env), powershellArgs(windowsDiscoveryScript), { env: powershellEnvironment(env), signal, timeoutMs: 15000, maxBytes: 1048576 }));
+    signal?.throwIfAborted(); return server;
+  }
   const options = { signal, timeoutMs: 3000, maxBytes: 1048576 }, uid = userInfo().uid;
   const processes = await command("/bin/ps", ["-axo", "pid=,uid=,comm="], options);
   const candidates = processes.split("\n").flatMap(line => {
@@ -148,14 +177,17 @@ export function antigravityDesktopQuota(raw: string, statusRaw: string, now: num
   return { ...quota("antigravity", windows, now), groups: quotaGroups.reduce((count, group) => count + group.windows.length, 0) === windows.length ? quotaGroups : [], planType: label(object(status.userTier).name) ?? [plan.planDisplayName, plan.displayName, plan.productName, plan.planName, plan.planShortName].map(label).find(Boolean) };
 }
 
-export async function readAntigravityDesktop(command: Command = runCommand, rpc: AntigravityRPC = antigravityRPC, now = Date.now(), signal?: AbortSignal, expectedIdentity?: string) {
-  const bounded = signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000);
+export async function readAntigravityDesktop(command: Command = runCommand, rpc: AntigravityRPC = antigravityRPC, now = Date.now(), signal?: AbortSignal, expectedIdentity?: string, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env) {
+  // Each Windows discovery starts PowerShell, so the whole collection gets a longer bound there.
+  const limit = platform === "win32" ? 60000 : 15000;
+  const bounded = signal ? AbortSignal.any([signal, AbortSignal.timeout(limit)]) : AbortSignal.timeout(limit);
+  const discover = (abort: AbortSignal) => discoverAntigravity(command, abort, platform, env);
   try {
     bounded.throwIfAborted();
-    const server = await discoverAntigravity(command, bounded);
+    const server = await discover(bounded);
     const request = async (endpoint: AntigravityEndpoint, method: Method) => {
       bounded.throwIfAborted();
-      const current = await discoverAntigravity(command, bounded);
+      const current = await discover(bounded);
       if (current.executable !== server.executable || !endpoints(current).some(e => e.pid === endpoint.pid && e.port === endpoint.port && e.scheme === endpoint.scheme && e.csrf === endpoint.csrf)) throw unavailable();
       return rpc(endpoint, method, bounded);
     };
@@ -176,7 +208,7 @@ export async function readAntigravityDesktop(command: Command = runCommand, rpc:
       q = antigravityDesktopQuota("", selected.status, now, true);
     }
     if (antigravityIdentity(await request(selected.endpoint, "GetUserStatus")) !== selected.identity) throw unavailable();
-    const current = await discoverAntigravity(command, bounded);
+    const current = await discover(bounded);
     if (current.pid !== server.pid || current.csrf !== server.csrf || current.executable !== server.executable || !current.ports.includes(selected.endpoint.port)) throw unavailable();
     bounded.throwIfAborted();
     return { identity: selected.identity, quota: q };

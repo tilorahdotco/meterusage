@@ -69,7 +69,9 @@ platform rules:
   readers exist. API billing hides **Use saved key**, a legacy macOS Keychain
   item; the one-time Admin key works. Codex connection is offered. Codex
   passes quoted keyring configuration arguments, so it currently needs a native
-  `codex.exe`; an npm shim cannot run it.
+  `codex.exe`; an npm shim cannot run it. [ADR 0040](0040-windows-desktop-connections.md)
+  adds Windows readers for these connections and runs npm shims through node
+  directly.
 - **Shell.** Windows uses the colored app icon in the notification area, with
   usage in its tooltip. The wide text tray image needs a macOS status item and
   is not rendered on Windows. The flyout anchors to the taskbar edge. Clicking

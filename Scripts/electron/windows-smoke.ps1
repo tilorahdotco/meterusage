@@ -42,6 +42,16 @@ function Invoke-Gui([string]$Name, [string]$ProfileDir, [int]$MinimumWindows) {
   }
 }
 
+# 0. Electron's bundled Node provides node:sqlite, which the Windows desktop readers use.
+$probe = Join-Path $root "sqlite-probe.cjs"
+Set-Content -Encoding utf8NoBOM $probe 'const { DatabaseSync } = require("node:sqlite"); const db = new DatabaseSync(":memory:"); db.exec("CREATE TABLE t(x)"); console.log("packaged node:sqlite ok");'
+$env:ELECTRON_RUN_AS_NODE = "1"
+try {
+  $p = Start-Process -FilePath $Exe -ArgumentList @($probe) -RedirectStandardOutput (Join-Path $Artifacts "sqlite-probe.txt") -NoNewWindow -Wait -PassThru
+} finally { Remove-Item Env:ELECTRON_RUN_AS_NODE }
+if ($p.ExitCode -ne 0 -or -not (Select-String -Quiet -Path (Join-Path $Artifacts "sqlite-probe.txt") -Pattern "packaged node:sqlite ok")) { throw "Packaged node:sqlite probe failed" }
+Get-Content (Join-Path $Artifacts "sqlite-probe.txt") | Write-Host
+
 # 1. Headless JSON: synthetic demo data, then the real (empty) runner profile.
 Invoke-Json "json-demo" @("json", "--demo", "--candidate-profile", (Join-Path $root "json-demo")) 5
 Invoke-Json "json-live" @("json") 0
