@@ -636,6 +636,14 @@ it("preserves action alerts and dated archive reasons across the shared cards", 
   }
 });
 
+it("keeps Grok Bot cache provenance on an archived cached reading", () => {
+  const view = state();
+  view.snapshot.archived.grok = { ...quota("grok", [w], now - 60000), observedFrom: "grokBotCache" };
+  view.snapshot.quotas.grok = { status: "missing", code: "offline", reason: "Synthetic offline reason" };
+  view.snapshot.notchSlots = [primary("grok")];
+  expect(renderApp(view, "notch")).toContain(`<p class="stale quota-stale">Last known · ${new Date(now - 60000).toLocaleString()} · Grok Bot&#x27;s cached reading<br/>Synthetic offline reason</p>`);
+});
+
 it("shows reporting progress, confirmed references and safe failures in Diagnostics", () => {
   const view = state();
   expect(renderApp(view, "settings")).toContain('>Send report</button>');
