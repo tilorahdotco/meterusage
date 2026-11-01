@@ -52,7 +52,7 @@ follows [Semantic Versioning](https://semver.org/).
 ### Electron beta distribution
 
 - Offer Electron beta as the sole/default app. Pin `Scripts/make-app.sh` to
-  0.3.0-beta.10's Apple silicon ZIP and verified SHA-256. Preserve its published
+  0.3.0-beta.12's Apple silicon ZIP and verified SHA-256. Preserve its published
   signature, staged failure safety and no compiler fallback. Retain historical
   Swift source/releases and explicit legacy `--build-from-source` recovery.
 - Share one update notice with an inline icon between Usage and Settings >

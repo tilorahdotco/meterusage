@@ -88,9 +88,9 @@ run_case() {
         fi
     fi
     if [ "$expected" -eq 0 ]; then
-        grep -qx 'https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.11/MeterUsage-0.3.0-beta.11-mac-arm64.zip' "${WORK}/url-args" || { echo 'FAIL: default Electron beta asset URL' >&2; exit 1; }
-        grep -q '^5f097d1a0dc7826c13d32fbf5abc03d0d98f41c66a914d9e4089762474d9232b  ' "${WORK}/digest-input" || { echo 'FAIL: default Electron beta digest' >&2; exit 1; }
-        grep -q 'MeterUsage 0.3.0-beta.11' "${WORK}/output"
+        grep -qx 'https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.12/MeterUsage-0.3.0-beta.12-mac-arm64.zip' "${WORK}/url-args" || { echo 'FAIL: default Electron beta asset URL' >&2; exit 1; }
+        grep -q '^dd85fd5fd4b03ac69d3440fb902d4efc4e59ad5ce08edb1f814ccd54bbd8cfb8  ' "${WORK}/digest-input" || { echo 'FAIL: default Electron beta digest' >&2; exit 1; }
+        grep -q 'MeterUsage 0.3.0-beta.12' "${WORK}/output"
         test "$(grep -c '^--verify$' "${WORK}/sign-args")" -eq 2
         if grep -Eq '^--(force|sign)$' "${WORK}/sign-args"; then echo 'FAIL: default path changed the published signature' >&2; exit 1; fi
         test -x "${WORK}/repo/dist/MeterUsage.app/Contents/MacOS/meterusage"
