@@ -295,12 +295,14 @@ const cacheValue = (patch: { usage?: Record<string, unknown> | null; readAtMs?: 
 function writeCache(home: string, raw: string, account = subject) {
   const path = grokBotUsageCachePath(home, account); mkdirSync(join(path, ".."), { recursive: true }); writeFileSync(path, raw, { mode: 0o600 }); return path;
 }
-it("derives Grok Bot's cache file name from the verified subject", () => {
+// Grok Bot's usage cache is a macOS file layout; the fallback is disabled on Windows.
+const macCache = it.skipIf(process.platform === "win32");
+macCache("derives Grok Bot's cache file name from the verified subject", () => {
   const path = grokBotUsageCachePath("/home", "github|user_fixture");
   expect(path.startsWith("/home/Library/Application Support/Grok Bot/sand-client-persistence/")).toBe(true);
   expect(unbase32(path.split("/").at(-1)!.replace(/\.blob$/, ""))).toBe("sand.client.slice.account.github%7Cuser_fixture.weekly-usage.cache");
 });
-it("reads only bounded usage fields from the matching account cache", () => {
+macCache("reads only bounded usage fields from the matching account cache", () => {
   const f = fixture(); writeCache(f.home, cacheValue());
   const q = readGrokBotUsageCache(f.home, subject, undefined, now)!;
   expect(q).toMatchObject({ provider: "grok", capturedAt: now - 3600000, observedFrom: "grokBotCache", windows: [{ label: "Grok Bot Desktop", usedPercent: 52.5, resetsAt: now + 3 * 86400000 }] });
@@ -342,7 +344,7 @@ it("rejects a symlinked cache without reading its target", () => {
   const path = grokBotUsageCachePath(f.home, subject); mkdirSync(join(path, ".."), { recursive: true }); symlinkSync(target, path);
   expect(readGrokBotUsageCache(f.home, subject, undefined, now)).toBeUndefined();
 });
-it.each([["offline", new Unavailable("offline")], ["server failure", new Unavailable("failed")]] as const)("falls back to the account cache on refresh after %s", async (_name, error) => {
+macCache.each([["offline", new Unavailable("offline")], ["server failure", new Unavailable("failed")]] as const)("falls back to the account cache on refresh after %s", async (_name, error) => {
   const f = await setup(); await f.connect(); writeCache(f.home, cacheValue());
   f.handler(async () => { throw error; });
   await expect(f.connections.quota("grok")).resolves.toMatchObject({ observedFrom: "grokBotCache", capturedAt: now - 3600000, windows: [{ usedPercent: 52.5 }] });
