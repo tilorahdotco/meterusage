@@ -104,6 +104,16 @@ describe("verified explicit updates", () => {
     respond(bytes); await rejected; expect(staged).toBe(false); expect(updater.installState).toBe("failed");
   });
 
+describe("repository transfer to tilorahdotco", () => {
+  const forOwner = (owner: string) => payload(`https://github.com/${owner}/meterusage/releases/download/v0.2.42/MeterUsage-0.2.42.zip`);
+  it("accepts assets reported under either the old or the new owner and keeps the reported URL", () => {
+    expect(parseRelease(forOwner("pekth")).asset.url).toBe("https://github.com/pekth/meterusage/releases/download/v0.2.42/MeterUsage-0.2.42.zip");
+    expect(parseRelease(forOwner("tilorahdotco")).asset.url).toBe("https://github.com/tilorahdotco/meterusage/releases/download/v0.2.42/MeterUsage-0.2.42.zip");
+  });
+  it.each(["someone-else", "tilorahdotco.evil", "PEKTH"])("rejects assets under %s", owner => {
+    expect(() => parseRelease(forOwner(owner))).toThrow("Invalid update asset");
+  });
+});
 describe("opt-in automatic install", () => {
   const live = async () => { const root = temp(); return Preferences.load({ demo: false, candidate: false, home: root, data: root, env: {} }, async (_binary, args) => { if (args[0] !== "write") throw new Error("absent fixture defaults"); return ""; }, "fixture.meterusage"); };
   it("is off by default and offers a release only when opted in, idle and packaged", async () => {

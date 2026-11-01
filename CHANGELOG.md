@@ -10,6 +10,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Accept update downloads from `tilorahdotco/meterusage` as well as
+  `pekth/meterusage`, ahead of transferring the repository to the tilorahdotco
+  organization. Release lookups keep using the current endpoints, which GitHub
+  redirects after a transfer. No other owner is accepted.
+
 ### Added
 
 - Add **Install updates automatically** in Settings > General, off by default.

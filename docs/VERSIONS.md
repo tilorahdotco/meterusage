@@ -27,6 +27,11 @@ Stable acceptance and Swift source retirement remain separate work under
 
 ## Update channels
 
+The repository is moving from `pekth/meterusage` to `tilorahdotco/meterusage` by
+a GitHub transfer. Builds from this change onward accept release assets under
+either owner, and nothing else. Betas 9–11 accept only `pekth` assets, so they
+need this bridge release before the transfer to keep updating automatically.
+
 Swift and stable Electron builds read GitHub's `/releases/latest`, which never
 returns prereleases, and expect `MeterUsage-<version>.zip`. Electron builds whose
 version ends in `-beta.N` read the release list instead, skip drafts and pick the
