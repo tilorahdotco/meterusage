@@ -6,8 +6,8 @@ import { Unavailable, quota, window, type QuotaWindow, type QuotaGroup } from ".
 import { selectJSON } from "../select-json";
 import { object, displayText } from "./parsers";
 import { runCommand, type Command } from "./transport";
-import { powershell, powershellArgs } from "./windows-secrets";
-import type { Platform } from "../platform";
+import { powershell, powershellArgs } from "./windows-dpapi";
+import { minimalEnvironment, type Platform } from "../platform";
 
 const unavailable = () => new Unavailable("notSignedIn", "Antigravity Desktop");
 const noData = () => new Unavailable("noData");
@@ -28,7 +28,7 @@ function flag(args: string, name: string) {
 const windowsExecutable = (path: string) => /^[A-Za-z]:\\(?:[^\\\r\n]+\\)*(?:Antigravity|Antigravity IDE)\\(?:[^\\\r\n]+\\)*language_server(?:_[a-zA-Z0-9_-]+)?\.exe$/i.test(path);
 // Fixed script without double quotes (PowerShell 5.1 can strip them from -Command). CIM filters by
 // name and executable path inside PowerShell, and only a process owned by the current user returns its command line and loopback listeners. Nothing is passed in.
-export const windowsDiscoveryScript = "$ErrorActionPreference='Stop'; $me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $found=@(Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'language_server*' -and $_.ExecutablePath -match '\\\\Antigravity( IDE)?\\\\.*\\\\language_server[A-Za-z0-9_-]*\\.exe$' -and (Invoke-CimMethod -InputObject $_ -MethodName GetOwnerSid).Sid -eq $me } | ForEach-Object { [pscustomobject]@{ pid=[int]$_.ProcessId; executable=[string]$_.ExecutablePath; commandLine=[string]$_.CommandLine; ports=@(Get-NetTCPConnection -State Listen -OwningProcess $_.ProcessId -LocalAddress 127.0.0.1 -ErrorAction SilentlyContinue | ForEach-Object { [int]$_.LocalPort }) } }); ConvertTo-Json -InputObject $found -Compress -Depth 3";
+export const windowsDiscoveryScript = "$ErrorActionPreference='Stop'; $me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; [Console]::OutputEncoding=[Text.Encoding]::UTF8; $found=@(Get-CimInstance Win32_Process -Filter 'Name LIKE ''language_server%''' | Where-Object { $_.ExecutablePath -match '\\\\Antigravity( IDE)?\\\\.*\\\\language_server[A-Za-z0-9_-]*\\.exe$' -and (Invoke-CimMethod -InputObject $_ -MethodName GetOwnerSid).Sid -eq $me } | ForEach-Object { [pscustomobject]@{ pid=[int]$_.ProcessId; executable=[string]$_.ExecutablePath; commandLine=[string]$_.CommandLine; ports=@(Get-NetTCPConnection -State Listen -OwningProcess $_.ProcessId -LocalAddress 127.0.0.1 -ErrorAction SilentlyContinue | ForEach-Object { [int]$_.LocalPort }) } }); ConvertTo-Json -InputObject $found -Compress -Depth 3";
 function windowsServer(raw: string): DesktopServer {
   if (raw.length > 1048576) throw unavailable();
   const list = selectJSON(raw.trim() || "[]", { "*": { pid: true, executable: true, commandLine: true, ports: { "*": true } } }, undefined, true);
@@ -51,7 +51,7 @@ function windowsServer(raw: string): DesktopServer {
 // Enumerate executable names first. Only a matching, same-user PID exposes arguments.
 export async function discoverAntigravity(command: Command = runCommand, signal?: AbortSignal, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): Promise<DesktopServer> {
   if (platform === "win32") {
-    const server = windowsServer(await command(powershell(env), powershellArgs(windowsDiscoveryScript), { env, signal, timeoutMs: 15000, maxBytes: 1048576 }));
+    const server = windowsServer(await command(powershell(env), powershellArgs(windowsDiscoveryScript), { env: minimalEnvironment(env, "win32"), signal, timeoutMs: 15000, maxBytes: 1048576 }));
     signal?.throwIfAborted(); return server;
   }
   const options = { signal, timeoutMs: 3000, maxBytes: 1048576 }, uid = userInfo().uid;

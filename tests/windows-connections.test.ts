@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { chromiumKey, decryptChromiumWindows, dpapiUnprotect, powershell, unprotectScript, type Unprotect } from "../src/main/providers/windows-secrets";
+import { chromiumKey, decryptChromiumWindows, dpapiUnprotect, powershell, unprotectScript, type Unprotect } from "../src/main/providers/windows-dpapi";
 import { claudeIdentity, readDesktopCredential } from "../src/main/providers/claude-desktop";
 import { readGrokBotCredential, GrokBotFailure } from "../src/main/providers/grok-bot-desktop";
 import { discoverAntigravity, windowsDiscoveryScript } from "../src/main/providers/antigravity-desktop";

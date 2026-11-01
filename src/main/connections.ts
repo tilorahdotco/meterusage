@@ -1,4 +1,4 @@
-import { accessSync, constants, mkdirSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Launch } from "./launch";
@@ -7,8 +7,8 @@ import { ClaudeBrowserVerification, CommandFailure, boundedChild, cliEnvironment
 import { object, parseCodex } from "./providers/parsers";
 import { parseCodexAccountUsage } from "./providers/codex-account-usage";
 import { desktopQuota, readDesktopCredential, desktopReadErrors, windowsDesktopReadErrors, validClaudeIdentity, verifyDesktopAccount } from "./providers/claude-desktop";
-import { chromiumKey, decryptChromiumWindows, dpapiUnprotect, type Decrypt, type Unprotect } from "./providers/windows-secrets";
-import { minimalEnvironment, supportRoot } from "./platform";
+import { chromiumKey, decryptChromiumWindows, dpapiUnprotect, type Decrypt, type Unprotect } from "./providers/windows-dpapi";
+import { localRoot, minimalEnvironment, supportRoot } from "./platform";
 import { connectionErrors } from "./connection-errors";
 import { readAntigravityDesktop, antigravityRPC, type AntigravityRPC } from "./providers/antigravity-desktop";
 import { cursorGrokQuota, cursorIdentity, readCursorCredential } from "./providers/cursor-grok";
@@ -77,7 +77,15 @@ export class DesktopConnections {
   constructor(readonly launch: Launch, readonly prefs: Preferences, readonly helper: string, readonly changed: () => void, readonly command: Command = runCommand, readonly http: HTTP = httpTransport(), readonly now = Date.now, readonly antigravity: AntigravityRPC = antigravityRPC, readonly grokBot: GrokBotRPC = grokBotTransport(), readonly unprotect: Unprotect = dpapiUnprotect(command, launch.env)) {}
   private get windows() { return this.launch.platform === "win32"; }
   /** An Electron app's data folder under roaming AppData, where Windows keeps its Local State key and stores. */
-  private windowsAppData(name: string) { return join(supportRoot(this.launch.home, "win32", this.launch.env), name); }
+  private windowsAppData(name: string) {
+    const roaming = join(supportRoot(this.launch.home, "win32", this.launch.env), name);
+    if (existsSync(roaming)) return roaming;
+    // MSIX packages redirect roaming data to Packages\<family>\LocalCache\Roaming; accept exactly one such package.
+    const packages = join(localRoot(this.launch.home, "win32", this.launch.env), "Packages"), family = new RegExp(`^(?:[A-Za-z0-9-]+\\.)*${name.replace(/\s+/g, "")}_[a-z0-9]{13}$`, "i");
+    let found: string[] = [];
+    try { found = readdirSync(packages, { withFileTypes: true }).filter(entry => entry.isDirectory() && family.test(entry.name)).map(entry => join(packages, entry.name, "LocalCache", "Roaming", name)).filter(path => existsSync(path)); } catch { /* No packaged install. */ }
+    return found.length === 1 ? found[0] : roaming;
+  }
   /** Windows has no reader for saved legacy Grok-via-Cursor connections; new Grok connections use Bot Desktop. */
   private unsupported(provider: ConnectionProvider) { return this.windows && provider === "grok" && this.prefs.values.desktopGrokIdentity !== "" && this.prefs.values.desktopGrokSource !== "bot"; }
   get state(): ConnectionState[] {

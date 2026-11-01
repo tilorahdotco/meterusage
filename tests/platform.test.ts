@@ -10,7 +10,8 @@ import { runtimeCandidates } from "../src/main/providers/antigravity";
 import { apiBillingPath, readApiBilling, writeApiBilling } from "../src/main/providers/api-billing";
 import { flyoutOrigin } from "../src/domain/notch";
 import { DesktopConnections } from "../src/main/connections";
-import { chromiumKey, dpapiUnprotect, powershell, powershellArgs } from "../src/main/providers/windows-secrets";
+import { chromiumKey, dpapiUnprotect, powershell, powershellArgs } from "../src/main/providers/windows-dpapi";
+import { windowsDiscoveryScript } from "../src/main/providers/antigravity-desktop";
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { dirname } from "node:path";
@@ -156,6 +157,16 @@ describe.runIf(process.platform === "win32")("Windows runtime", () => {
     writeFileSync(join(npm, "fixture-cli.cmd"), '@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\nIF EXIST "%dp0%\\node.exe" ( SET "_prog=%dp0%\\node.exe" ) ELSE ( SET "_prog=node" )\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\fixture-cli\\bin\\cli.js" %*\r\n');
     const env = { ...process.env, Path: dirname(process.execPath) }, args = ["-c", 'cli_auth_credentials_store="keyring"', "%PATH%", "a&b"];
     expect(JSON.parse(await runCommand(join(npm, "fixture-cli.cmd"), args, { env, timeoutMs: 10000 }))).toEqual(args);
+  });
+  it("refuses an npm-style shim whose script leaves node_modules and falls back to the strict cmd.exe rules", async () => {
+    const root = temp(), npm = join(root, "npm"); mkdirSync(join(npm, "node_modules"), { recursive: true });
+    writeFileSync(join(root, "outside.js"), "console.log('must not run')\n");
+    writeFileSync(join(npm, "escape.cmd"), '@"%dp0%\\node.exe" "%dp0%\\node_modules\\..\\..\\outside.js" %*\r\n');
+    await expect(runCommand(join(npm, "escape.cmd"), ['quoted="arg"'], { env: process.env, timeoutMs: 10000 })).rejects.toThrow("Provider process unavailable");
+  });
+  it("runs the fixed Antigravity discovery script and finds no language server on the runner", async () => {
+    const output = await runCommand(powershell(), powershellArgs(windowsDiscoveryScript), { env: process.env, timeoutMs: 60000 });
+    expect(JSON.parse(output.trim() || "[]")).toEqual([]);
   });
   it("unwraps a real DPAPI-protected Local State key through the PowerShell helper", async () => {
     const root = temp(), key = randomBytes(32);

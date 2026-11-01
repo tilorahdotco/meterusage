@@ -5,7 +5,7 @@ import { runCommand, type Command } from "./transport";
 import { selectJSON } from "../select-json";
 import { date, object, text } from "./parsers";
 import { Unavailable, quota, window } from "../../domain/models";
-import { readStableFile, type Decrypt } from "./windows-secrets";
+import { readStableFile, type Decrypt } from "./windows-dpapi";
 import { pathToFileURL } from "node:url";
 
 const uuid = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;

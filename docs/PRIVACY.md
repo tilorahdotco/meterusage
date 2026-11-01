@@ -430,7 +430,10 @@ there:
 - Claude's two fixed cookies are read through read-only, immutable SQLite.
 - Antigravity's server is found by a fixed CIM query that returns only the
   current user's matching language server.
-- The same fields, requests, bounds and verification apply as on macOS.
+- The same fields, requests and before/after verification apply as on macOS.
+  Windows shows no Keychain-style prompt: DPAPI unlocks only for the signed-in
+  user. Antigravity collection allows 60 seconds instead of 15, because each
+  discovery starts PowerShell.
 - The saved Admin key action stays macOS-only. MeterUsage adds no new provider
 input, request or credential store on Windows. See [ADR 0038](adr/0038-windows-ci-test-machine.md).
 

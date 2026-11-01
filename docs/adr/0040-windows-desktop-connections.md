@@ -35,6 +35,11 @@ before/after verification apply on Windows. Only the platform readers change:
   attempt and is zeroed afterwards; copies in strings are subject to garbage
   collection. Windows shows no prompt: DPAPI unlocks only for the signed-in
   user.
+- **App data folders.** Each app's folder is `%APPDATA%\<name>`. If that folder
+  is missing, MeterUsage accepts exactly one MSIX package folder,
+  `%LOCALAPPDATA%\Packages\<family>_<publisher id>\LocalCache\Roaming\<name>`,
+  whose family name ends in the app name. PowerShell runs with a minimal
+  environment so user module paths cannot replace the fixed cmdlets.
 - **Claude Desktop.** The reader uses `%APPDATA%\Claude`: `config.json` for
   `lastKnownAccountUuid`, and `Cookies` or `Network\Cookies` for the same two
   fixed cookies. Electron's `node:sqlite` opens each store read-only with
@@ -84,6 +89,11 @@ On the Windows CI runner, tests also cover:
 - an npm-format shim passing quoted and `%` arguments unchanged;
 - a full Claude Desktop Connect and allowance read from roaming AppData, with a
   synthetic key and synthetic server responses.
+- the real Antigravity discovery script (it must run and find no server);
+- refusal of an npm-style shim whose script leaves `node_modules`.
+
+The packaged smoke run checks that the packaged Electron's Node provides
+`node:sqlite`.
 
 Not proven: real Claude Desktop, Grok Bot Desktop or Antigravity installs on
 Windows, including their actual folder names and Local State format;

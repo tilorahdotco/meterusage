@@ -6,7 +6,7 @@ import { object } from "./parsers";
 import { decryptDesktop } from "./claude-desktop";
 import { type Command } from "./transport";
 import { Unavailable, failed, quota, window } from "../../domain/models";
-import { chromiumKey, decryptChromiumWindows, type Decrypt, type Unprotect } from "./windows-secrets";
+import { chromiumKey, decryptChromiumWindows, type Decrypt, type Unprotect } from "./windows-dpapi";
 
 export const grokBotConnectionErrors = {
   store: "Could not connect Grok Bot Desktop: could not read a stable sign-in store.",
