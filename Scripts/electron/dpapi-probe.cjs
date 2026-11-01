@@ -19,9 +19,15 @@ function run(name, script, env) {
 }
 (async () => {
   const key = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
-  const a = await run("protect-full-env", protect, { ...process.env, FIXTURE_KEY: key }); console.log(JSON.stringify(a));
-  const wrapped = a.stdout && Buffer.from(a.stdout.length >= 80 ? "" : "", "base64");
   const full = await new Promise(r => { const c = spawn(ps, args(protect), { env: { ...process.env, FIXTURE_KEY: key }, windowsHide: true }); const o = []; c.stdout.on("data", d => o.push(d)); c.on("close", () => r(Buffer.concat(o).toString().trim())); c.stdin.end(); });
-  console.log(JSON.stringify(await run("unprotect-minimal-env", unprotect, { ...minimal(), METERUSAGE_DPAPI_INPUT: full })));
-  console.log(JSON.stringify(await run("unprotect-full-env", unprotect, { ...process.env, METERUSAGE_DPAPI_INPUT: full })));
+  const system = `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\Modules`;
+  const pick = names => Object.fromEntries(names.flatMap(n => { const k = Object.keys(process.env).find(x => x.toUpperCase() === n.toUpperCase()); return k ? [[n, process.env[k]]] : []; }));
+  const variants = {
+    "minimal+PSModulePath-system": { PSModulePath: system },
+    "minimal+ProgramFiles": pick(["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "ProgramData", "CommonProgramFiles"]),
+    "minimal+PSModulePath+ProgramFiles": { PSModulePath: system, ...pick(["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "ProgramData", "CommonProgramFiles"]) },
+    "minimal+USERNAME+COMPUTERNAME": pick(["USERNAME", "USERDOMAIN", "COMPUTERNAME", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE", "OS"]),
+  };
+  for (const [name, extra] of Object.entries(variants)) console.log(JSON.stringify(await run(name, unprotect, { ...minimal(), ...extra, METERUSAGE_DPAPI_INPUT: full })));
+  console.log(JSON.stringify({ name: "envkeys", events: Object.keys(process.env).sort() }));
 })();
