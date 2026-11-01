@@ -5,6 +5,24 @@ including first-run setup. This is candidate source behavior, not support in the
 published Swift app. Native sign-in, Keychain permission, packaging and live
 provider acceptance remain unverified.
 
+## Windows
+
+Windows builds offer the same connections under
+[ADR 0040](adr/0040-windows-desktop-connections.md). They are unverified against
+real Windows installs and accounts.
+
+- **Claude Desktop and Grok Bot Desktop.** Sign in to the desktop app first.
+  MeterUsage unlocks the app's Windows-protected key (`Local State` in
+  `%APPDATA%\Claude` or `%APPDATA%\Grok Bot`) for your Windows account. There
+  is no Keychain-style prompt. If Connect says Claude Desktop holds its cookie
+  store, quit Claude Desktop and connect again.
+- **Antigravity Desktop.** Keep one signed-in Antigravity window open.
+  MeterUsage finds its language server with a fixed PowerShell query.
+- **Codex.** Install the Codex CLI (for example with npm). Codex sign-in uses
+  Windows Credential Manager through the CLI's keyring store.
+- **API billing.** Use a one-time Admin key; **Use saved key** is macOS-only.
+- Saved Grok-via-Cursor connections are macOS-only.
+
 ## Setup
 
 Before setup is complete, launch or app activation opens Settings. Choose a

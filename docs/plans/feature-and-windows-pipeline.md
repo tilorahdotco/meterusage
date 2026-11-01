@@ -28,6 +28,7 @@ establish Windows behavior.
    [ADR 0039](../adr/0039-windows-updater.md); CI checks the installer flags and relaunch.
 3. Windows desktop account connections (DPAPI, read-only `node:sqlite`, Windows
    paths) with synthetic fixtures; marked unverified against real accounts.
+   Implemented under [ADR 0040](../adr/0040-windows-desktop-connections.md).
 4. Unsigned GitHub pre-release and user docs, after the CI smoke run passes.
    GitHub's `latest` stays on the stable release.
 

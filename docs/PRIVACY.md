@@ -421,8 +421,17 @@ profile folder. Symlink, file type, link count, size and change-during-read
 checks still apply. Provider CLI subprocesses run without a console window and
 only from drive-letter or UNC paths. An npm `.cmd` shim runs through a fixed
 `cmd.exe` only with arguments that need no escaping. Claude, Grok and
-Antigravity Desktop connections and the saved Admin key action are unavailable
-on Windows; no Keychain helper runs there. MeterUsage adds no new provider
+Antigravity Desktop connections use Windows readers under
+[ADR 0040](adr/0040-windows-desktop-connections.md), so no Keychain helper runs
+there:
+- Claude Desktop and Grok Bot Desktop keys come from each app's `Local State`,
+  unwrapped by a fixed PowerShell DPAPI call with data on stdin only, and are
+  zeroed after the attempt.
+- Claude's two fixed cookies are read through read-only, immutable SQLite.
+- Antigravity's server is found by a fixed CIM query that returns only the
+  current user's matching language server.
+- The same fields, requests, bounds and verification apply as on macOS.
+- The saved Admin key action stays macOS-only. MeterUsage adds no new provider
 input, request or credential store on Windows. See [ADR 0038](adr/0038-windows-ci-test-machine.md).
 
 ## Installation and enforcement
