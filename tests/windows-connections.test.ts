@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { chromiumKey, decryptChromiumWindows, dpapiUnprotect, powershell, unprotectScript, type Unprotect } from "../src/main/providers/windows-dpapi";
+import { chromiumKey, decryptChromiumWindows, dpapiUnprotect, powershell, unprotectInput, unprotectScript, type Unprotect } from "../src/main/providers/windows-dpapi";
 import { claudeIdentity, readDesktopCredential } from "../src/main/providers/claude-desktop";
 import { readGrokBotCredential, GrokBotFailure } from "../src/main/providers/grok-bot-desktop";
 import { discoverAntigravity, windowsDiscoveryScript } from "../src/main/providers/antigravity-desktop";
@@ -35,13 +35,13 @@ describe("Windows Chromium secrets", () => {
     for (const raw of [localState(Buffer.concat([Buffer.from("APPB"), wrapped])), JSON.stringify({ os_crypt: {} }), "{damaged"]) { writeFileSync(path, raw); await expect(chromiumKey(path, fakeUnprotect)).rejects.toThrow(); }
     writeFileSync(path, localState()); await expect(chromiumKey(path, async () => Buffer.alloc(16))).rejects.toThrow("Windows protected data unavailable");
   });
-  it("runs the fixed PowerShell DPAPI script with the blob on stdin, never in arguments", async () => {
+  it("runs the fixed PowerShell DPAPI script with the wrapped blob in its environment, never in arguments", async () => {
     const command = vi.fn<Command>(async () => Buffer.from(key).toString("base64") + "\r\n");
     expect((await dpapiUnprotect(command, { SystemRoot: "C:\\Windows" })(wrapped)).equals(key)).toBe(true);
     const [binary, args, options] = command.mock.calls[0];
     expect(binary).toBe("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"); expect(powershell({})).toBe(binary);
     expect(args).toEqual(["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", unprotectScript]);
-    expect(options?.input).toBe(wrapped.toString("base64")); expect(args.join(" ")).not.toContain(wrapped.toString("base64"));
+    expect(options?.env?.[unprotectInput]).toBe(wrapped.toString("base64")); expect(options?.env?.SystemRoot).toBe("C:\\Windows"); expect(args.join(" ")).not.toContain(wrapped.toString("base64"));
     await expect(dpapiUnprotect(async () => "not base64!")(wrapped)).rejects.toThrow();
   });
 });

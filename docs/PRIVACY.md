@@ -425,7 +425,8 @@ Antigravity Desktop connections use Windows readers under
 [ADR 0040](adr/0040-windows-desktop-connections.md), so no Keychain helper runs
 there:
 - Claude Desktop and Grok Bot Desktop keys come from each app's `Local State`,
-  unwrapped by a fixed PowerShell DPAPI call with data on stdin only, and are
+  unwrapped by a fixed PowerShell DPAPI call that receives the still-protected
+  blob in its own environment and returns the key on stdout, and are
   zeroed after the attempt.
 - Claude's two fixed cookies are read through read-only, immutable SQLite.
 - Antigravity's server is found by a fixed CIM query that returns only the

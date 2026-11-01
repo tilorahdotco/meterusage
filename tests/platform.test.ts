@@ -170,8 +170,8 @@ describe.runIf(process.platform === "win32")("Windows runtime", () => {
   }, 90000);
   it("unwraps a real DPAPI-protected Local State key through the PowerShell helper", async () => {
     const root = temp(), key = randomBytes(32);
-    const protect = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; $d=[Convert]::FromBase64String([Console]::In.ReadToEnd().Trim()); [Console]::Out.Write([Convert]::ToBase64String([System.Security.Cryptography.ProtectedData]::Protect($d,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)))";
-    const wrapped = Buffer.from((await runCommand(powershell(), powershellArgs(protect), { env: process.env, timeoutMs: 30000, input: key.toString("base64") })).trim(), "base64");
+    const protect = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; $d=[Convert]::FromBase64String($env:FIXTURE_KEY); [Console]::Out.Write([Convert]::ToBase64String([System.Security.Cryptography.ProtectedData]::Protect($d,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)))";
+    const wrapped = Buffer.from((await runCommand(powershell(), powershellArgs(protect), { env: { ...process.env, FIXTURE_KEY: key.toString("base64") }, timeoutMs: 60000 })).trim(), "base64");
     writeFileSync(join(root, "Local State"), JSON.stringify({ os_crypt: { encrypted_key: Buffer.concat([Buffer.from("DPAPI"), wrapped]).toString("base64") } }));
     expect((await chromiumKey(join(root, "Local State"), dpapiUnprotect(runCommand, process.env))).equals(key)).toBe(true);
   }, 90000);

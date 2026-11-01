@@ -29,8 +29,11 @@ before/after verification apply on Windows. Only the platform readers change:
 
 - **Key unwrap.** A fixed PowerShell script calls
   `ProtectedData.Unprotect(..., CurrentUser)` through the fixed
-  `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`. The wrapped
-  key goes in on stdin and the key comes back on stdout; neither appears in the
+  `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`. The wrapped,
+  still DPAPI-protected key is passed in that child's environment only, because
+  `powershell.exe -Command` does not reliably give the script redirected stdin.
+  Only the same Windows user can unwrap it, and they can already read it from
+  `Local State`. The key comes back on stdout. Neither appears in the
   arguments. The key must be 32 bytes. It stays in main-process memory for one
   attempt and is zeroed afterwards; copies in strings are subject to garbage
   collection. Windows shows no prompt: DPAPI unlocks only for the signed-in
@@ -77,7 +80,7 @@ Synthetic tests on every platform cover:
 
 - the AES-GCM decryptor, including tampered, `v20` and wrong-key values;
 - `DPAPI` prefix and key-length checks;
-- the PowerShell call shape, with data on stdin only;
+- the PowerShell call shape, with the wrapped blob in the child environment and never in arguments;
 - the Claude reader on a real SQLite file, including the wrong key, conflicting
   sessions and an unreadable store;
 - the Grok reader with Local State and its failure stages;

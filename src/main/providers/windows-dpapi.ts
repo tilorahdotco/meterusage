@@ -18,13 +18,16 @@ export const powershell = (env: NodeJS.ProcessEnv = process.env) => {
   return `${root && /^[A-Za-z]:\\[^"%!]*$/.test(root) ? root : "C:\\Windows"}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
 };
 export const powershellArgs = (script: string) => ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script];
-// Fixed script. Protected bytes arrive on stdin and plaintext leaves on stdout; neither appears in arguments.
-export const unprotectScript = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; $d=[Convert]::FromBase64String([Console]::In.ReadToEnd().Trim()); $p=[System.Security.Cryptography.ProtectedData]::Unprotect($d,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Out.Write([Convert]::ToBase64String($p))";
+// Fixed script. powershell.exe -Command does not reliably pass redirected stdin to the script, so the
+// wrapped (still DPAPI-protected) blob arrives in this child's environment only; the key leaves on stdout.
+// Neither appears in arguments.
+export const unprotectInput = "METERUSAGE_DPAPI_INPUT";
+export const unprotectScript = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; $d=[Convert]::FromBase64String($env:METERUSAGE_DPAPI_INPUT); $p=[System.Security.Cryptography.ProtectedData]::Unprotect($d,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Out.Write([Convert]::ToBase64String($p))";
 export function dpapiUnprotect(command: Command = runCommand, env: NodeJS.ProcessEnv = process.env): Unprotect {
   return async (data, signal) => {
     if (data.length < 1 || data.length > 65536) throw invalid();
     // A minimal environment keeps user module paths from shadowing the fixed cmdlets.
-    const output = (await command(powershell(env), powershellArgs(unprotectScript), { env: minimalEnvironment(env, "win32"), signal, timeoutMs: 15000, maxBytes: 8192, input: data.toString("base64") })).trim();
+    const output = (await command(powershell(env), powershellArgs(unprotectScript), { env: { ...minimalEnvironment(env, "win32"), [unprotectInput]: data.toString("base64") }, signal, timeoutMs: 30000, maxBytes: 8192 })).trim();
     if (!/^[A-Za-z0-9+/]+={0,2}$/.test(output)) throw invalid();
     return Buffer.from(output, "base64");
   };
