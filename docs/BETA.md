@@ -30,7 +30,9 @@ dismissed installs through the same checks without the dialog, only while you
 aren't using MeterUsage. Beta 4 and earlier cannot see betas; install the current beta
 manually once. Beta 5 through 10 can discover newer releases, but their installer
 may reject macOS temporary-directory aliases. Install beta.11 or later manually
-once to receive the updater fix. `Scripts/make-app.sh` now prepares the pinned Electron beta with
+once to receive the updater fix. Every build before beta 12 accepts updates only
+from `pekth/meterusage`; install beta 12 before the repository moves to the
+tilorahdotco organization, or later betas won't be offered. `Scripts/make-app.sh` now prepares the pinned Electron beta with
 checksum/signature verification, destination staging and no compiler fallback.
 It preserves the published signature. Preparing output does not install it.
 

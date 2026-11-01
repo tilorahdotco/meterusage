@@ -24,7 +24,7 @@ Downloads and installation show busy states; failures offer retry. Beta 9
 finds the Codex sign-in helper in `ChatGPT.app` installs and reports refused
 Claude Desktop Keychain reads. Beta 10 adds the dollars left to the OpenAI API card, from OpenAI's unofficial credit
 grants report or an estimate from a prepaid amount you enter. See
-[API billing](docs/API_USAGE_BETA.md#openai-remaining-balance). Beta 12 accepts updates from the repository's new
+[API billing](docs/API_USAGE_BETA.md#openai-remaining-balance). Beta 12 accepts updates from the repository's future
 home in the tilorahdotco organization; update to it before the move.
 
 Stable acceptance remains open. Historical Swift releases and source are
