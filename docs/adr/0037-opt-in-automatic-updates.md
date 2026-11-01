@@ -1,6 +1,6 @@
 # ADR 0037: Opt-in automatic update installation
 
-- Status: Source implementation; native install acceptance pending
+- Status: Included in beta.11; native install acceptance pending
 - Date: 2026-11-01
 - Amends: [ADR 0034](0034-electron-beta-default.md) ("Keep … explicit installation
   confirmation" and "Add no … configuration"): confirmation stays the default;

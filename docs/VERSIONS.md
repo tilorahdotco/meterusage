@@ -1,6 +1,6 @@
 # MeterUsage versions
 
-Electron **0.3.0-beta.10, build 80** is the sole offered distribution and default
+Electron **0.3.0-beta.11, build 81** is the sole offered distribution and default
 installer download. It remains a beta, with stable acceptance open. New features
 target Electron. Historical Swift 0.2.41 releases and retained `Sources/` remain
 recovery/reference material, including explicit `--build-from-source` builds.
@@ -35,7 +35,7 @@ newest release with a verified `MeterUsage-<version>.zip` or
 so beta users are offered the stable release that follows. Beta 4 and earlier
 predate this and need one manual install.
 
-Current source, not yet in a published beta, adds **Install updates
+Beta 11 adds **Install updates
 automatically** (off by default). It installs an offered, undismissed release
 without the confirmation dialog while MeterUsage is not in use, using the same
 verified install path. See
