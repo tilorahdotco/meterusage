@@ -1,14 +1,14 @@
 # Electron public beta
 
-MeterUsage **0.3.0-beta.8, build 78** is the sole offered app and default
+MeterUsage **0.3.0-beta.10, build 80** is the sole offered app and default
 download. It remains a beta. The ZIP supports Apple silicon and macOS 13 or
 later and is Developer ID signed, notarized and stapled. Historical Swift
 source/releases remain available for recovery; stable acceptance is still open.
 
 ## Install
 
-1. Download [the beta ZIP](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.8/MeterUsage-0.3.0-beta.8-mac-arm64.zip)
-   and [SHA256SUMS](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.8/SHA256SUMS).
+1. Download [the beta ZIP](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.10/MeterUsage-0.3.0-beta.10-mac-arm64.zip)
+   and [SHA256SUMS](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.10/SHA256SUMS).
 2. Quit MeterUsage and keep a copy of your existing app and its saved data for
    rollback. The beta shares the app identity and data locations with Swift.
 3. Unzip the download, move `MeterUsage.app` to Applications, and open it.
@@ -38,7 +38,7 @@ shasum -a 256 -c SHA256SUMS
 Expected ZIP SHA-256:
 
 ```text
-c0f28a79dd59eef82c9eb251a83f7c377b6da4d46bf40f61e4304ee0447c9f00
+08ffe8d126c649ca0bb7d92ee906fab9163177b91bef949e592f4bc086174fba
 ```
 
 ## Provider coverage
@@ -80,8 +80,8 @@ c0f28a79dd59eef82c9eb251a83f7c377b6da4d46bf40f61e4304ee0447c9f00
   preserved and newly pasted keys are not saved. OpenRouter keeps its existing
   balance and aggregate activity source. Read [API setup and limits](API_USAGE_BETA.md).
 
-See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.8/docs/electron/README.md#source-choices),
-[desktop connections](https://github.com/pekth/meterusage/blob/v0.3.0-beta.8/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/pekth/meterusage/blob/v0.3.0-beta.8/docs/PRIVACY.md).
+See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/docs/electron/README.md#source-choices),
+[desktop connections](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/docs/PRIVACY.md).
 
 ## Known limits
 
@@ -111,25 +111,25 @@ See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.8/docs
 
 Use Settings > Diagnostics for sanitized diagnostics and **Send report**.
 The app limits report attempts to one every ten minutes, including relaunches.
-Review the [report contents and privacy limits](https://github.com/pekth/meterusage/blob/v0.3.0-beta.8/docs/REPORTING.md) before sending.
+Review the [report contents and privacy limits](https://github.com/pekth/meterusage/blob/v0.3.0-beta.10/docs/REPORTING.md) before sending.
 Never include tokens, passwords or raw account files in an issue.
 
 ## Build and screenshot identity
 
-The signed artifact was built from a source tree identical to main
-`dd2ed5f4bd94d7d521b762eace9d988c10fc963f`, which adds the shared update notice
-(#80) and the reset-time fix (#81) to beta.7. Source manifests retain `0.2.41`;
-packaging sets `0.3.0-beta.8`, build 78. Screenshots are from build 61 and do
-not show the Quota activity heatmap or the reset line beside pace estimates.
+The signed artifact was built from `git archive` of main
+`2d39e0a02ba6850d048262679251660ab6f04783`, which adds the OpenAI API remaining
+balance (#88) and centered notch provider marks (#85) to beta.9. Source
+manifests retain `0.2.41`; packaging sets `0.3.0-beta.10`, build 80. Screenshots
+are from build 61 and do not show the Quota activity heatmap, the reset line
+beside pace estimates or the OpenAI balance line.
 
-Source validation recorded typecheck and 869 of 870 TypeScript tests; the
-remaining `notch-shell` packaging test times out identically on the parent
-commit. Hosted CI passed for #81. Apple accepted notarization; stapling,
+Hosted CI (typecheck, 896 TypeScript tests, build, `swift build` and
+`swift test`) passed on that commit. Apple accepted notarization; stapling,
 Gatekeeper (`Notarized Developer ID`), bundle version and the uploaded ZIP's
 SHA-256 were verified separately. Installation from the published ZIP was
 verified on one Mac; installation and relaunch through the in-app updater
-remain unverified. The new artifact does
-not close the native acceptance gaps above.
+remain unverified. The new artifact does not close the native acceptance gaps
+above.
 
 The [screenshot gallery](SCREENSHOTS.md) uses invented demo data and the actual
 release renderer. It replaces old product captures without exposing real accounts.
