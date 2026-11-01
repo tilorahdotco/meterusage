@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync, realpathSync, symlinkSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { Updater, parseRelease, parseReleases, newer, verifyDigest, stageUpdate, releaseEndpoint, releasesEndpoint } from "../src/main/updater";
+import { Updater, fetchUpdate, parseRelease, parseReleases, newer, verifyDigest, stageUpdate, releaseEndpoint, releasesEndpoint } from "../src/main/updater";
 import { launchConfiguration } from "../src/main/launch";
 import { Preferences } from "../src/main/preferences";
 const bytes = Buffer.from("synthetic update bytes"), digest = "sha256:" + createHash("sha256").update(bytes).digest("hex");
@@ -109,6 +109,21 @@ describe("repository transfer to tilorahdotco", () => {
   it("accepts assets reported under either the old or the new owner and keeps the reported URL", () => {
     expect(parseRelease(forOwner("pekth")).asset.url).toBe("https://github.com/pekth/meterusage/releases/download/v0.2.42/MeterUsage-0.2.42.zip");
     expect(parseRelease(forOwner("tilorahdotco")).asset.url).toBe("https://github.com/tilorahdotco/meterusage/releases/download/v0.2.42/MeterUsage-0.2.42.zip");
+  });
+  it("picks a tilorahdotco beta asset from the release list", () => {
+    const v = "0.3.0-beta.12", asset = (owner: string) => ({ name: `MeterUsage-${v}-mac-arm64.zip`, browser_download_url: `https://github.com/${owner}/meterusage/releases/download/v${v}/MeterUsage-${v}-mac-arm64.zip`, digest });
+    expect(parseReleases(JSON.stringify([{ tag_name: `v${v}`, draft: false, assets: [asset("tilorahdotco")] }])).asset.url).toContain("/tilorahdotco/meterusage/");
+    expect(() => parseReleases(JSON.stringify([{ tag_name: `v${v}`, draft: false, assets: [asset("someone-else")] }]))).toThrow();
+  });
+  it.each(["https://api.github.com/repositories/1318093547/releases?per_page=20", "/repositories/1318093547/releases?per_page=20"])("follows the post-transfer API redirect to %s", async location => {
+    const seen: string[] = [];
+    const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async input => {
+      const url = String(input); seen.push(url);
+      return url.includes("/repos/pekth/") ? new Response(null, { status: 301, headers: { location } }) : new Response("[]", { status: 200 });
+    });
+    try { expect((await fetchUpdate(releasesEndpoint, 1048576)).toString()).toBe("[]"); }
+    finally { fetcher.mockRestore(); }
+    expect(seen).toEqual([releasesEndpoint, "https://api.github.com/repositories/1318093547/releases?per_page=20"]);
   });
   it.each(["someone-else", "tilorahdotco.evil", "PEKTH"])("rejects assets under %s", owner => {
     expect(() => parseRelease(forOwner(owner))).toThrow("Invalid update asset");
