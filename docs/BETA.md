@@ -128,7 +128,9 @@ updates (#91) and fixes update staging through macOS temporary aliases. Source m
 later controls, including the automatic-update setting.
 
 Source validation passed typecheck, 902 synthetic tests and production build.
-Hosted CI also passed the Electron checks, `swift build` and `swift test`.
+Hosted CI for the automatic-update feature (#91) passed the Electron checks,
+`swift build` and `swift test`. The temporary-path fix passed the local checks
+above.
 Apple accepted notarization; the final ZIP passed native updater staging,
 extracted signature, stapled-ticket and Gatekeeper checks. The extracted
 executable returned schema-1 synthetic demo JSON without stderr, and ran as
