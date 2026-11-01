@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { Unavailable, failed, type Provider } from "../../domain/models";
 import { selectJSON } from "../select-json";
 import { object } from "./parsers";
-import { envValue, pathFor, spawnPlan, supportRoot, systemBinary, withEnvValue, type Platform } from "../platform";
+import { envValue, pathFor, spawnPlan, supportRoot, systemBinary, windowsSearchPath, withEnvValue, type Platform } from "../platform";
 
 export interface CommandOptions { env?: NodeJS.ProcessEnv; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number }
 export type Command = (binary: string, args: string[], options?: CommandOptions) => Promise<string>;
@@ -16,9 +16,9 @@ function windowsUserBins(home: string, env: NodeJS.ProcessEnv, name?: string) {
 }
 export function cliPath(name: string, home: string, env: NodeJS.ProcessEnv, platform: Platform = process.platform): string {
   if (platform === "win32") {
-    const path = pathFor("win32"), dirs = [...windowsUserBins(home, env, name), ...(envValue(env, "PATH", "win32") ?? "").split(";").map(dir => dir.trim().replace(/^"(.*)"$/, "$1")).filter(dir => path.isAbsolute(dir))];
-    // Prefer a native executable anywhere on the search path over an npm .cmd shim.
-    for (const extension of [".exe", ".cmd", ".bat"]) for (const dir of dirs) {
+    const path = pathFor("win32"), dirs = [...windowsUserBins(home, env, name), ...windowsSearchPath(env)];
+    // Windows search order: folder by folder, a native executable before a .cmd/.bat shim in the same folder.
+    for (const dir of dirs) for (const extension of [".exe", ".cmd", ".bat"]) {
       const candidate = path.join(dir, name + extension);
       try { if (statSync(candidate).isFile()) return candidate; } catch { /* Probe the next folder. */ }
     }
@@ -45,7 +45,12 @@ export function boundedChild(binary: string, args: string[], options: CommandOpt
       if (child.exitCode !== null) return;
       // Windows signals end only the direct child; a cmd.exe shim would orphan the provider CLI, so end the tree.
       if (process.platform === "win32" && child.pid !== undefined) {
-        if (!treeKilled) { treeKilled = true; spawn(systemBinary("taskkill.exe"), ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore", windowsHide: true }).on("error", () => child.kill()); }
+        if (treeKilled) return;
+        treeKilled = true;
+        // If taskkill cannot end the tree, end the direct child and release its pipes so the request still settles.
+        const force = () => { child.kill(); child.stdout.destroy(); child.stderr.destroy(); child.stdin.destroy(); };
+        spawn(systemBinary("taskkill.exe"), ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore", windowsHide: true }).on("error", force).on("exit", code => { if (code !== 0) force(); });
+        killTimer = setTimeout(force, 2000);
         return;
       }
       child.kill("SIGTERM"); killTimer ??= setTimeout(() => child.kill("SIGKILL"), 250);

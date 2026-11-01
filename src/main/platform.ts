@@ -66,6 +66,13 @@ export function minimalEnvironment(env: NodeJS.ProcessEnv, platform: Platform = 
   return result;
 }
 
+// win32.isAbsolute("/bin/ps") is true, but Windows resolves it against the current drive (C:\bin\ps.exe),
+// a folder any local account may create. Only drive-letter or UNC paths are trusted.
+export const windowsRooted = (path: string) => /^(?:[A-Za-z]:\\|\\\\[^\\])/.test(path);
+/** PATH folders in Windows search order: trimmed, unquoted and rooted. */
+export function windowsSearchPath(env: NodeJS.ProcessEnv): string[] {
+  return (envValue(env, "PATH", "win32") ?? "").split(";").map(dir => dir.trim().replace(/^"(.*)"$/, "$1")).filter(windowsRooted);
+}
 /** Fixed Windows system binaries; never resolved through PATH. */
 export function systemBinary(name: "cmd.exe" | "taskkill.exe", env: NodeJS.ProcessEnv = process.env): string {
   const root = envValue(env, "SystemRoot", "win32");
@@ -78,8 +85,10 @@ export function systemBinary(name: "cmd.exe" | "taskkill.exe", env: NodeJS.Proce
 const unsafeShimText = /["%!^\r\n\0]/;
 export interface SpawnPlan { file: string; args: string[]; verbatim: boolean }
 export function spawnPlan(binary: string, args: string[], platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): SpawnPlan {
-  if (platform !== "win32" || !/\.(?:cmd|bat)$/i.test(binary)) return { file: binary, args, verbatim: false };
-  if (!win32.isAbsolute(binary) || unsafeShimText.test(binary) || args.some(arg => unsafeShimText.test(arg) || arg.endsWith("\\"))) throw new Error("Provider process unavailable");
+  if (platform !== "win32") return { file: binary, args, verbatim: false };
+  if (!windowsRooted(binary)) throw new Error("Provider process unavailable");
+  if (!/\.(?:cmd|bat)$/i.test(binary)) return { file: binary, args, verbatim: false };
+  if (unsafeShimText.test(binary) || args.some(arg => unsafeShimText.test(arg) || arg.endsWith("\\"))) throw new Error("Provider process unavailable");
   // /s keeps everything between the outer quotes verbatim; each argument stays quoted for the shim's %*.
   return { file: systemBinary("cmd.exe", env), args: ["/d", "/s", "/c", `"${[binary, ...args].map(arg => `"${arg}"`).join(" ")}"`], verbatim: true };
 }

@@ -38,23 +38,38 @@ platform rules:
 - **Preferences.** Windows has no `defaults` domain. Installed Windows apps keep
   known keys in `preferences.json` through the same validated, atomic writer
   that demo and test profiles use. A file that cannot be parsed is renamed to
-  `preferences.json.damaged-<time>` and defaults apply.
+  `preferences.json.damaged-<time>` and defaults apply; a read error such as an
+  antivirus lock is not treated as damage. Atomic JSON replacement retries a
+  briefly locked rename and never leaves its temporary file.
 - **File trust.** Windows `stat` has no owner, and its mode bits only reflect the
   read-only attribute, so POSIX owner and `0o077`/`0o022` checks would reject
   every file. On Windows the per-user ACLs that the profile folder passes down
   are the trust boundary. Symlink, file type, link count, size and
   change-during-read checks still apply. Windows has no `O_NOFOLLOW`, so the API
-  billing reader rejects a link with `lstat` before opening the file.
+  billing reader rejects a link with `lstat` before opening the file and then
+  requires the opened file to have the same file ID.
 - **CLI discovery and spawning.** MeterUsage searches the npm global folder,
   `~/.cargo/bin`, `~/.bun/bin` (OpenCode only), `~/.local/bin` and `PATH`, which
-  is split on `;` and matched without regard to case. It prefers a native
-  `.exe` anywhere on that path over a `.cmd`/`.bat` shim. Node refuses to spawn
+  is split on `;`, unquoted and matched without regard to case. Like Windows,
+  it searches folder by folder, preferring `.exe` over a `.cmd`/`.bat` shim in
+  the same folder. On Windows every spawned binary and searched folder must be a
+  drive-letter or UNC path: a macOS path such as `/bin/ps` would otherwise
+  resolve to `C:\bin\ps.exe`, a folder any local account can create. Node refuses to spawn
   shims without a shell, so a shim runs through the fixed
   `%SystemRoot%\System32\cmd.exe /d /s /c` only when the shim path and every
   argument contain no `"`, `%`, `!`, `^` or line breaks and no argument ends in
   a backslash. Any other argument fails with a fixed error. Every spawn hides
   its console window. Timeouts and cancellation end the whole process tree with
-  `taskkill /t /f`, so a shim cannot leave its CLI running.
+  `taskkill /t /f`, so a shim cannot leave its CLI running. If `taskkill`
+  fails, MeterUsage ends the direct child and releases its pipes so the request
+  still settles.
+- **Desktop connections.** Claude Desktop, Grok Bot Desktop and Antigravity
+  Desktop connections use macOS-only helpers (Keychain, `ps`, `sandbox-exec`).
+  Windows shows them as unsupported and refuses to connect until Windows
+  readers exist. API billing hides **Use saved key**, a legacy macOS Keychain
+  item; the one-time Admin key works. Codex connection is offered. Codex
+  passes quoted keyring configuration arguments, so it currently needs a native
+  `codex.exe`; an npm shim cannot run it.
 - **Shell.** Windows uses the colored app icon in the notification area, with
   usage in its tooltip. The wide text tray image needs a macOS status item and
   is not rendered on Windows. The flyout anchors to the taskbar edge. Clicking
@@ -68,8 +83,8 @@ platform rules:
 ## What CI proves and what it does not
 
 The Windows job runs typecheck, the test suite minus files whose fixtures are
-POSIX-only (including real NTFS, `cmd.exe` shim, process-tree and Claude
-transcript-path checks), the production build, an
+POSIX-only, Windows-only tests (real NTFS, `cmd.exe` shim, process-tree and
+Claude transcript-path checks), the production build, an
 unsigned `electron-builder --win` package, and a smoke run of the packaged
 `MeterUsage.exe`. In the smoke run:
 

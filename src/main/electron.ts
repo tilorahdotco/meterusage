@@ -39,8 +39,8 @@ async function main() {
   // Windows notifications and taskbar grouping use the installer's AppUserModelID.
   if (windowsShell) app.setAppUserModelId("dev.meterusage.app");
   if (json) {
-    // Exit only after a redirected Windows pipe has flushed the report.
-    await runJSON(args, process.env, desktopHelper).then(json => { process.stdout.write(json + "\n", () => app.exit(0)); }, () => { process.stderr.write("meterusage: could not read report\n"); app.exit(1); });
+    // Windows pipes write asynchronously; exit only after the redirected report has flushed.
+    await runJSON(args, process.env, desktopHelper).then(json => { if (windowsShell) process.stdout.write(json + "\n", () => app.exit(0)); else { process.stdout.write(json + "\n"); app.exit(0); } }, () => { process.stderr.write("meterusage: could not read report\n"); app.exit(1); });
   } else if (process.platform !== "darwin" && !windowsShell) {
     process.stderr.write("MeterUsage desktop candidates currently support macOS and Windows only.\n"); app.exit(1);
   } else {
@@ -76,7 +76,7 @@ async function start(launch: Launch) {
     if (!launch.demo && !launch.candidate && Notification.isSupported()) new Notification({ title: alert.title, body: alert.body, silent: !alert.sound }).show();
   }, sources);
   const issueReports = new IssueReports(() => coordinator.diagnostics(app.getVersion()), publish, prefs);
-  const apiBillingFetch = new ApiBillingFetch(launch, () => coordinator.refresh(), fetch, (provider, signal) => runCommand(desktopHelper, [`--api-${provider}`, "--allow-ui"], { signal, timeoutMs: 60000, maxBytes: 8192 }), () => prepaidFrom(prefs.values));
+  const apiBillingFetch = new ApiBillingFetch(launch, () => coordinator.refresh(), fetch, windowsShell ? undefined : (provider, signal) => runCommand(desktopHelper, [`--api-${provider}`, "--allow-ui"], { signal, timeoutMs: 60000, maxBytes: 8192 }), () => prepaidFrom(prefs.values));
   // Invalidate the restored quota archive while retaining this connection's activity.
   for (const p of ["codex", "claude", "antigravity", "grok"] as const) if (connections.configured(p)) coordinator.forgetQuota(p, true);
   const notch = { expanded: false, cardOnRight: false, selected: "codex", dragging: false };

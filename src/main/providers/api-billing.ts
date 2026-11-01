@@ -58,10 +58,12 @@ export function readApiBilling(home: string, provider: ApiBillingProvider, now =
   try {
     privateDirectory(home, platform, env);
     const file = apiBillingPath(home, provider, platform, env);
-    // Windows has no O_NOFOLLOW; reject a link before opening it.
-    if (platform === "win32" && lstatSync(file).isSymbolicLink()) throw invalid();
+    // Windows has no O_NOFOLLOW: reject a link before opening, then require the opened file to be the one checked.
+    const link = platform === "win32" ? lstatSync(file) : undefined;
+    if (link?.isSymbolicLink()) throw invalid();
     fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
     const stat = fstatSync(fd);
+    if (link && (link.ino !== stat.ino || link.dev !== stat.dev)) throw invalid();
     if (!stat.isFile() || !ownedByUser(stat, platform) || modeExposes(stat, 0o077, platform) || stat.nlink !== 1 || stat.size > maxBytes) throw invalid();
     const buffer = Buffer.alloc(maxBytes + 1); let size = 0;
     while (size < buffer.length) { const count = readSync(fd, buffer, size, buffer.length - size, null); if (!count) break; size += count; }

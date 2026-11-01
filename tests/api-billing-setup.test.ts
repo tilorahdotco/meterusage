@@ -46,11 +46,15 @@ describe("one-time API billing setup", () => {
     expect(html.match(/disabled=""/g)).toHaveLength(3);
   });
 
+  it("omits the macOS saved-key action on Windows", () => {
+    vi.mocked(useRef).mockReturnValueOnce({ current: null }).mockReturnValueOnce({ current: false });
+    expect(ApiBillingSetup({ provider: "openai", disabled: false, action: vi.fn(), savedKey: false }).props.children[0]).toBe(false);
+  });
   it("uses the saved-key action without sending or retaining input", async () => {
     const field = { value: "synthetic-unsubmitted" }, pending = { current: false };
     vi.mocked(useRef).mockReturnValueOnce({ current: field }).mockReturnValueOnce(pending);
     const action = vi.fn(async () => {}), form = ApiBillingSetup({ provider: "openai", disabled: false, action });
-    const button = form.props.children[0];
+    const button = form.props.children[0].props.children[0];
     await button.props.onClick();
     expect(field.value).toBe(""); expect(pending.current).toBe(false);
     expect(action).toHaveBeenCalledExactlyOnceWith({ action: "apiBillingFetchSaved", provider: "openai" });

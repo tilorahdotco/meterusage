@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync, mkdirSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { type Daily, type Quota, type Slot, type Tokens, totalTokens, slotKey, quota, window, providers } from "../domain/models";
@@ -7,7 +7,15 @@ export function atomicJSON(path: string, value: unknown) {
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${randomUUID()}.tmp`;
   writeFileSync(tmp, JSON.stringify(value), { mode: 0o600 });
-  renameSync(tmp, path);
+  if (process.platform !== "win32") { renameSync(tmp, path); return; }
+  // Antivirus, indexing and sync tools briefly lock files on Windows; retry, and never leave the temporary file.
+  for (let attempt = 0; ; attempt++) {
+    try { renameSync(tmp, path); return; }
+    catch (error) {
+      if (attempt >= 5 || !["EPERM", "EACCES", "EBUSY"].includes(String((error as NodeJS.ErrnoException).code))) { rmSync(tmp, { force: true }); throw error; }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20 * (attempt + 1));
+    }
+  }
 }
 interface StoredDaily { dayISO: string; tokens: Tokens; estimatedCostUSD: number; sessionCount: number; peakUsedPercent?: number }
 function storedRecord({ dayISO, tokens: { input, output, reasoning, cacheRead, cacheWrite }, estimatedCostUSD, sessionCount, peakUsedPercent }: StoredDaily): StoredDaily {

@@ -9,6 +9,7 @@ import { cliEnvironment, cliPath, runCommand } from "../src/main/providers/trans
 import { runtimeCandidates } from "../src/main/providers/antigravity";
 import { apiBillingPath, readApiBilling, writeApiBilling } from "../src/main/providers/api-billing";
 import { flyoutOrigin } from "../src/domain/notch";
+import { DesktopConnections } from "../src/main/connections";
 import { ClaudeActivitySource } from "../src/main/providers/activity";
 import type { ApiBillingSnapshot } from "../src/domain/api-billing";
 
@@ -72,8 +73,24 @@ describe("Windows CLI shims", () => {
   });
   it("refuses relative shims and an untrusted SystemRoot", () => {
     expect(() => spawnPlan("codex.cmd", [], "win32")).toThrow("Provider process unavailable");
+    // Drive-relative macOS paths would resolve to C:\bin, which any local account can create.
+    for (const binary of ["/bin/ps", "/usr/bin/sandbox-exec", "\\bin\\ps.exe", "C:relative.exe"]) expect(() => spawnPlan(binary, [], "win32")).toThrow("Provider process unavailable");
+    expect(spawnPlan("\\\\server\\share\\codex.exe", [], "win32").file).toBe("\\\\server\\share\\codex.exe");
+    expect(spawnPlan("/bin/ps", ["-axo"], "darwin")).toEqual({ file: "/bin/ps", args: ["-axo"], verbatim: false });
     expect(systemBinary("cmd.exe", { SystemRoot: "C:\\Windows\"&calc" })).toBe("C:\\Windows\\System32\\cmd.exe");
     expect(systemBinary("taskkill.exe", { SYSTEMROOT: "D:\\Win" })).toBe("D:\\Win\\System32\\taskkill.exe");
+  });
+});
+
+describe("Windows desktop connections", () => {
+  it("offers only Codex until Windows desktop readers exist", async () => {
+    const root = temp(), launch = { home: root, data: root, env: {}, demo: false, candidate: false, platform: "win32" as const };
+    const prefs = await Preferences.load(launch, async () => { throw new Error("defaults must not run on Windows"); });
+    await prefs.set("desktopClaudeIdentity", "a".repeat(64)); await prefs.set("desktopGrokIdentity", "b".repeat(64));
+    const connections = new DesktopConnections(launch, prefs, join(root, "missing-helper"), () => {}, async () => { throw new Error("no helper may run"); });
+    expect(connections.state.map(c => [c.provider, c.status])).toEqual([["codex", "disconnected"], ["claude", "unsupported"], ["antigravity", "unsupported"], ["grok", "unsupported"]]);
+    expect(connections.enabled("grok")).toBe(false);
+    for (const provider of ["claude", "antigravity", "grok"] as const) await expect(connections.connect(provider, async () => {}, async () => true)).rejects.toThrow("Connection unavailable");
   });
 });
 

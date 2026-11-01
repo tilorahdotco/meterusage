@@ -1,7 +1,7 @@
 import { accessSync, constants } from "node:fs";
 import { copyFile, mkdtemp, readdir, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { envValue, pathFor, type Platform } from "../platform";
+import { envValue, pathFor, windowsSearchPath, type Platform } from "../platform";
 import { tmpdir } from "node:os";
 import { type Usage, type Tokens, tokens, addTokens, totalTokens, localDay, weekStart, Unavailable } from "../../domain/models";
 import { telemetry } from "../../domain/telemetry";
@@ -110,7 +110,7 @@ export class AntigravityRuntime {
 export function runtimeCandidates(env: NodeJS.ProcessEnv, platform: Platform = process.platform): string[] {
   if (platform === "win32") {
     const path = pathFor("win32"), programs = envValue(env, "ProgramFiles", "win32") ?? "C:\\Program Files";
-    const searched = (envValue(env, "PATH", "win32") ?? "").split(";").filter(dir => path.isAbsolute(dir)).flatMap(dir => [path.join(dir, "docker.exe"), path.join(dir, "podman.exe")]);
+    const searched = windowsSearchPath(env).flatMap(dir => [path.join(dir, "docker.exe"), path.join(dir, "podman.exe")]);
     return [...new Set([path.join(programs, "Docker", "Docker", "resources", "bin", "docker.exe"), path.join(programs, "RedHat", "Podman", "podman.exe"), ...searched])];
   }
   return [...new Set(["/opt/homebrew/bin/docker", "/opt/homebrew/bin/podman", "/usr/local/bin/docker", "/usr/local/bin/podman", "/usr/bin/docker", ...(env.PATH ?? "").split(":").flatMap(p => [join(p, "docker"), join(p, "podman")])])];

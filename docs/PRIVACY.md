@@ -414,10 +414,12 @@ the macOS adapter; an unreadable file is set aside rather than overwritten. API
 billing snapshots use `%APPDATA%\MeterUsage\api-usage`. Windows has no POSIX
 owner or mode bits, so owner-only checks there rely on the per-user ACLs of the
 profile folder. Symlink, file type, link count, size and change-during-read
-checks still apply. Provider CLI subprocesses run without a console window. An
-npm `.cmd` shim runs through a fixed `cmd.exe` only with arguments that need no
-escaping; MeterUsage adds no new provider input, request or credential store on
-Windows. See [ADR 0038](adr/0038-windows-ci-test-machine.md).
+checks still apply. Provider CLI subprocesses run without a console window and
+only from drive-letter or UNC paths. An npm `.cmd` shim runs through a fixed
+`cmd.exe` only with arguments that need no escaping. Claude, Grok and
+Antigravity Desktop connections and the saved Admin key action are unavailable
+on Windows; no Keychain helper runs there. MeterUsage adds no new provider
+input, request or credential store on Windows. See [ADR 0038](adr/0038-windows-ci-test-machine.md).
 
 ## Installation and enforcement
 
