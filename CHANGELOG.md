@@ -33,7 +33,7 @@ follows [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Keep showing Grok Bot Desktop usage when Cursor's usage service fails. A
-  background refresh that gets a server or network error now shows Grok Bot's
+  refresh that gets a server or network error now shows Grok Bot's
   own last reading for the same account, labelled "Observed <time> · Grok Bot's
   cached reading", instead of "Couldn't read Grok usage".
 

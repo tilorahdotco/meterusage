@@ -18,21 +18,25 @@ Grok Bot keeps its own last successful reading in
 
 ## Decision
 
-When a background refresh's allowance request fails with a network or server
-error (`offline` or `failed`), read Grok Bot's cache for the verified account:
+When a refresh's allowance request fails with a network or server error
+(`offline` or `failed`), read Grok Bot's cache for the verified account. Connect
+never does this.
 
 - Derive the file name from the token subject that already matched the active
   account hash. Do not list or read other accounts' files.
-- Open it without following symlinks. Require an owner-only regular file with
-  one link and at most 64 KiB, and reject duplicate JSON keys.
+- Open it without following symlinks. Require a regular file owned by the user,
+  with one link and at most 64 KiB, and reject duplicate JSON keys.
 - Decode only schema version, kind, selected team, read time, percent used,
   next reset and trial, paid and team-seat flags. Plan labels, on-demand
   spend and other fields are skipped.
-- Reject on team mismatch, team seats, a read time older than 7 days or in the
-  future, a percent outside 0–100, a reset already passed, or no paid limit and
-  no trial.
+- Reject on team mismatch, team seats, trials (the cache has no trial expiry),
+  no paid limit, a read time older than 7 days or in the future, a percent
+  outside 0–100, or a reset already passed.
 - Use the cache's read time as the quota's capture time, and mark the reading so
   the card says "Observed <time> · Grok Bot's cached reading".
+- In the coordinator, a cached reading older than the last reading becomes a
+  failure, so history and alerts never move backwards. Cached readings skip
+  quota-burn observation (ADR 0031) and count as failures for request backoff.
 
 Connect still requires a live allowance response. Auth failures (401/403) and
 unsupported replies never use the cache. The store re-verification after a

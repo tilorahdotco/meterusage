@@ -200,3 +200,23 @@ describe("Grok Bot coordinator lifecycle and archive isolation", () => {
     await c.refresh(); clock += minute; await c.refresh(); expect(live().windows[0].pacingBaseline).toBeUndefined();
   });
 });
+
+describe("Grok Bot cached fallback readings", () => {
+  const cached = (used: number, capturedAt: number) => ({ ...reading(used, capturedAt), observedFrom: "grokBotCache" as const });
+  it("never moves history backwards, never feeds burn and keeps backing off", async () => {
+    let clock = at, next: () => Quota = () => reading(20, clock);
+    const { c, live } = await setup({ slot: primary("grok"), accountBound: true, quota: async () => next() }, () => clock);
+    await c.refresh(); clock += minute; next = () => reading(22, clock); await c.refresh();
+    expect(burn(live())?.percentPerHour).toBe(120);
+    // A cached reading taken after the last live one is shown, but carries no burn baseline.
+    clock += minute; const newer = clock - 10000; next = () => cached(23, newer); await c.refresh();
+    expect(live()).toMatchObject({ capturedAt: newer, observedFrom: "grokBotCache" }); expect(burn(live())).toBeUndefined();
+    expect(live().windows[0].pacingBaseline).toBeUndefined();
+    // Backoff applies to scheduled polls: an immediate one does not reread.
+    let reads = 0; next = () => { reads++; return cached(23, newer); }; await c.refresh(true); expect(reads).toBe(0);
+    // After backoff, a cache older than the last reading becomes a failure and the archive keeps the newer value.
+    clock += 31 * minute; next = () => cached(10, at); await c.refresh(true);
+    expect(c.quotas.grok).toMatchObject({ status: "missing", code: "failed" });
+    expect(c.snapshot().archived.grok.windows[0].usedPercent).toBe(23);
+  });
+});

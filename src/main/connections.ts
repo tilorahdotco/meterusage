@@ -224,8 +224,8 @@ export class DesktopConnections {
     }
     if (raw === undefined) {
       // Refresh only: a server or network failure may fall back to Grok Bot's own cached reading for this
-      // verified account. Connect and auth failures (notSignedIn) never use the cache.
-      const cached = !allowUI && requestError?.stage === "request" && (requestError.code === "failed" || requestError.code === "offline")
+      // verified account. Connect and auth failures (notSignedIn) never use the cache. The cache layout is macOS-only.
+      const cached = !allowUI && !windows && requestError?.stage === "request" && (requestError.code === "failed" || requestError.code === "offline")
         ? readGrokBotUsageCache(this.launch.home, credential.subject, credential.team, this.now()) : undefined;
       if (cached) { check(); return { identity: credential.identity, quota: cached }; }
       throw requestError ?? new GrokBotFailure("request", "failed");

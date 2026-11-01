@@ -163,11 +163,11 @@ export function readGrokBotUsageCache(home: string, subject: string, team: strin
     if (typeof readAt !== "number" || !Number.isSafeInteger(readAt) || readAt > now + 60000 || readAt < now - cacheMaxAge) return undefined;
     if (typeof percent !== "number" || !Number.isFinite(percent) || percent < 0 || percent > 100) return undefined;
     if (typeof usage.isSandTrial !== "boolean" || typeof usage.hasNonZeroIncludedLimit !== "boolean" || usage.isTeamSeat === true) return undefined;
-    const paid = usage.hasNonZeroIncludedLimit, trial = !paid && usage.isSandTrial;
-    if (!paid && !trial) return undefined;
+    // The cache cannot prove a trial is still active (no expiry), so only paid allowance is used.
+    if (usage.hasNonZeroIncludedLimit !== true) return undefined;
     // A passed reset makes the reading obsolete; never show it as current usage.
     if (reset !== null && (typeof reset !== "number" || !Number.isSafeInteger(reset) || reset <= readAt || reset <= now)) return undefined;
-    return { ...quota("grok", [window(trial ? "Grok Bot Desktop · Trial" : "Grok Bot Desktop", percent, paid && reset !== null ? reset : undefined)], readAt), observedFrom: "grokBotCache" as const };
+    return { ...quota("grok", [window("Grok Bot Desktop", percent, reset ?? undefined)], readAt), observedFrom: "grokBotCache" as const };
   } catch { return undefined; }
   finally { if (fd !== undefined) closeSync(fd); }
 }

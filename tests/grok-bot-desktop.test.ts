@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { createCipheriv, createHash, pbkdf2Sync } from "node:crypto";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { linkSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { grokBotCredential, grokBotQuota, grokBotTransport, readGrokBotCredential, readGrokBotUsageCache, grokBotUsageCachePath, grokBotConnectionErrors, GrokBotFailure, type GrokBotRPC } from "../src/main/providers/grok-bot-desktop";
@@ -305,8 +305,8 @@ it("reads only bounded usage fields from the matching account cache", () => {
   const q = readGrokBotUsageCache(f.home, subject, undefined, now)!;
   expect(q).toMatchObject({ provider: "grok", capturedAt: now - 3600000, observedFrom: "grokBotCache", windows: [{ label: "Grok Bot Desktop", usedPercent: 52.5, resetsAt: now + 3 * 86400000 }] });
   expect(JSON.stringify(q)).not.toMatch(/SKIP/);
-  writeCache(f.home, cacheValue({ usage: { hasNonZeroIncludedLimit: false, isSandTrial: true, nextResetMs: null } }));
-  expect(readGrokBotUsageCache(f.home, subject, undefined, now)?.windows).toEqual([{ label: "Grok Bot Desktop · Trial", usedPercent: 52.5 }]);
+  writeCache(f.home, cacheValue({ usage: { nextResetMs: null } }));
+  expect(readGrokBotUsageCache(f.home, subject, undefined, now)?.windows).toEqual([{ label: "Grok Bot Desktop", usedPercent: 52.5 }]);
   writeCache(f.home, cacheValue({ selectedTeamId: 7 }));
   expect(readGrokBotUsageCache(f.home, subject, "7", now)).toBeDefined();
 });
@@ -320,6 +320,10 @@ it.each([
   ["percent above 100", () => cacheValue({ usage: { percentUsed: 101 } }), subject, undefined],
   ["team seat", () => cacheValue({ usage: { isTeamSeat: true } }), subject, undefined],
   ["no included limit or trial", () => cacheValue({ usage: { hasNonZeroIncludedLimit: false, isSandTrial: false } }), subject, undefined],
+  ["trial without provable expiry", () => cacheValue({ usage: { hasNonZeroIncludedLimit: false, isSandTrial: true } }), subject, undefined],
+  ["reset before the read time", () => cacheValue({ usage: { nextResetMs: now - 7200000 }, readAtMs: now - 3600000 }), subject, undefined],
+  ["negative read time", () => cacheValue({ readAtMs: -1 }), subject, undefined],
+  ["fractional read time", () => cacheValue({ readAtMs: now - 0.5 }), subject, undefined],
   ["absent usage", () => cacheValue({ usage: null }), subject, undefined],
   ["schema version", () => cacheValue({ schemaVersion: 1 }), subject, undefined],
   ["kind", () => cacheValue({ kind: "absent" }), subject, undefined],
@@ -328,6 +332,10 @@ it.each([
 ] as const)("rejects a cache with %s", (_name, raw, reader, team) => {
   const f = fixture(); writeCache(f.home, raw());
   expect(readGrokBotUsageCache(f.home, reader, team, now)).toBeUndefined();
+});
+it("rejects a hard-linked cache", () => {
+  const f = fixture(), path = writeCache(f.home, cacheValue()); linkSync(path, join(f.home, "second-link"));
+  expect(readGrokBotUsageCache(f.home, subject, undefined, now)).toBeUndefined();
 });
 it("rejects a symlinked cache without reading its target", () => {
   const f = fixture(), target = join(f.home, "elsewhere.json"); writeFileSync(target, cacheValue(), { mode: 0o600 });

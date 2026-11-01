@@ -465,7 +465,7 @@ to open Settings. No window is shown or focused by preload.
   for a unified (`isUnified: true`) Grok account. With Grok Bot's client headers
   it did not answer within 60 seconds. Other Dashboard endpoints answered with
   the same valid token. Binary protobuf, client headers and a machine checksum
-  did not change the result. Background refreshes now fall back to Grok Bot's
+  did not change the result. Refreshes now fall back to Grok Bot's
   cached reading for the verified account, labelled with its read time. See
   [ADR 0036](adr/0036-grok-bot-usage-cache-fallback.md).
 - Grok Bot Desktop quota burn uses live same-account observations spanning at
