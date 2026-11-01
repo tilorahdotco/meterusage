@@ -1,4 +1,5 @@
 import { posix, win32 } from "node:path";
+import { closeSync, constants, fstatSync, openSync, readSync, statSync } from "node:fs";
 import type { Stats } from "node:fs";
 
 // Platform seams for the Electron main process. Each helper takes the platform
@@ -84,10 +85,31 @@ export function systemBinary(name: "cmd.exe" | "taskkill.exe", env: NodeJS.Proce
 // arguments that need no escaping inside double quotes.
 const unsafeShimText = /["%!^\r\n\0]/;
 export interface SpawnPlan { file: string; args: string[]; verbatim: boolean }
-export function spawnPlan(binary: string, args: string[], platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): SpawnPlan {
+// npm writes each global CLI as a .cmd that runs node with one script under its own node_modules.
+// Running that node and script directly keeps arbitrary arguments away from cmd.exe parsing.
+const npmScript = /"%(?:dp0|~dp0)%\\(node_modules\\[^"%\r\n]+\.(?:js|cjs|mjs))"/i;
+export function npmShimTarget(shim: string, env: NodeJS.ProcessEnv = process.env, read: (path: string) => string = readSmallFile): SpawnPlan | undefined {
+  let text: string; try { text = read(shim); } catch { return; }
+  const match = npmScript.exec(text); if (!match) return;
+  const directory = win32.dirname(shim), script = win32.join(directory, match[1]);
+  if (!within(win32.join(directory, "node_modules"), script, "win32") || !isFile(script)) return;
+  const node = [win32.join(directory, "node.exe"), ...windowsSearchPath(env).map(dir => win32.join(dir, "node.exe"))].find(isFile);
+  return node && windowsRooted(node) ? { file: node, args: [script], verbatim: false } : undefined;
+}
+const isFile = (path: string) => { try { return statSync(path).isFile(); } catch { return false; } };
+function readSmallFile(path: string) {
+  const fd = openSync(path, constants.O_RDONLY);
+  try {
+    if (!fstatSync(fd).isFile() || fstatSync(fd).size > 16384) throw new Error("Not a shim");
+    const bytes = Buffer.alloc(16384); return bytes.subarray(0, readSync(fd, bytes, 0, bytes.length, 0)).toString("utf8");
+  } finally { closeSync(fd); }
+}
+export function spawnPlan(binary: string, args: string[], platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env, shimTarget: typeof npmShimTarget = npmShimTarget): SpawnPlan {
   if (platform !== "win32") return { file: binary, args, verbatim: false };
   if (!windowsRooted(binary)) throw new Error("Provider process unavailable");
   if (!/\.(?:cmd|bat)$/i.test(binary)) return { file: binary, args, verbatim: false };
+  const direct = /\.cmd$/i.test(binary) ? shimTarget(binary, env) : undefined;
+  if (direct) return { ...direct, args: [...direct.args, ...args] };
   if (unsafeShimText.test(binary) || args.some(arg => unsafeShimText.test(arg) || arg.endsWith("\\"))) throw new Error("Provider process unavailable");
   // /s keeps everything between the outer quotes verbatim; each argument stays quoted for the shim's %*.
   return { file: systemBinary("cmd.exe", env), args: ["/d", "/s", "/c", `"${[binary, ...args].map(arg => `"${arg}"`).join(" ")}"`], verbatim: true };

@@ -6,6 +6,7 @@ import { object } from "./parsers";
 import { decryptDesktop } from "./claude-desktop";
 import { type Command } from "./transport";
 import { Unavailable, failed, quota, window } from "../../domain/models";
+import { chromiumKey, decryptChromiumWindows, type Decrypt, type Unprotect } from "./windows-secrets";
 
 export const grokBotConnectionErrors = {
   store: "Could not connect Grok Bot Desktop: could not read a stable sign-in store.",
@@ -17,6 +18,12 @@ export const grokBotConnectionErrors = {
   quota: "Could not connect Grok Bot Desktop: the provider did not report a supported allowance.",
   preferences: "Could not connect Grok Bot Desktop: could not save connection preferences.",
 } as const;
+/** Windows wording for the stages that name the macOS Keychain. */
+export const grokBotWindowsErrors = {
+  ...grokBotConnectionErrors,
+  keychain: "Could not connect Grok Bot Desktop: could not unlock its Windows-protected key.",
+  decryption: "Could not connect Grok Bot Desktop: could not decrypt the sign-in cache with its Windows-protected key.",
+} as const;
 export class GrokBotFailure extends Unavailable {
   constructor(readonly stage: keyof typeof grokBotConnectionErrors, code: Unavailable["code"] = "notSignedIn") {
     super(code, "Grok Bot Desktop");
@@ -26,7 +33,7 @@ const unavailable = () => new Unavailable("notSignedIn", "Grok Bot Desktop");
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const scopePattern = /^[a-f0-9]{64}$/;
 const selected = (raw: string, shape: Parameters<typeof selectJSON>[1], onScalar?: (raw: string) => void) => object(selectJSON(raw, shape, onScalar, true));
-function envelope(raw: unknown, scope: string, password: string, allowLegacy = false) {
+function envelope(raw: unknown, scope: string, decrypt: Decrypt, allowLegacy = false) {
   if (typeof raw !== "string" || raw.length > 65536) throw unavailable();
   const match = /^scoped:v1:([a-f0-9]{64}):([A-Za-z0-9+/]+={0,2})$/.exec(raw);
   if (match ? match[1] !== scope : !allowLegacy) throw unavailable();
@@ -36,12 +43,14 @@ function envelope(raw: unknown, scope: string, password: string, allowLegacy = f
   const bytes = Buffer.from(encoded, "base64");
   if (bytes.toString("base64") !== encoded || bytes.subarray(0, 3).toString() !== "v10") throw unavailable();
   let plaintext: Buffer;
-  try { plaintext = decryptDesktop(bytes, password); }
+  try { plaintext = decrypt(bytes); }
   catch { throw new GrokBotFailure("decryption"); }
   try { return plaintext.toString("utf8"); } finally { plaintext.fill(0); }
 }
 // Only the active access-token/team values are decoded. Refresh tokens stay skipped.
-export function grokBotCredential(raw: string, password: string, now: number, onScalar?: (raw: string) => void) {
+/** `secret` is the macOS Safe Storage password or, on Windows, a decryptor bound to the Local State key. */
+export function grokBotCredential(raw: string, secret: string | Decrypt, now: number, onScalar?: (raw: string) => void) {
+  const password: Decrypt = typeof secret === "string" ? bytes => decryptDesktop(bytes, secret) : secret;
   try {
     if (Buffer.byteLength(raw) > 4 * 1048576) throw unavailable();
     const root = selected(raw, { version: true, "cursor-accounts": true }, onScalar);
@@ -70,13 +79,15 @@ function snapshot(path: string) {
     return (index < dirs.length ? [s.dev, s.ino, s.mode, s.uid, s.gid] : [s.dev, s.ino, s.mode, s.uid, s.gid, s.nlink, s.size, s.mtimeNs, s.ctimeNs]).map(String);
   }));
 }
-export async function readGrokBotCredential(home: string, helper: string, command: Command, now: number, allowUI: boolean, signal: AbortSignal, guard: () => void) {
+/** `windows.root` is Grok Bot's app data folder (%APPDATA%\\Grok Bot); its Local State key replaces the Keychain helper. */
+export async function readGrokBotCredential(home: string, helper: string, command: Command, now: number, allowUI: boolean, signal: AbortSignal, guard: () => void, windows?: { root: string; unprotect: Unprotect }) {
   const check = () => { guard(); signal.throwIfAborted(); };
   let stage: keyof typeof grokBotConnectionErrors = "store";
   try {
     check();
-    const path = join(home, "Library/Application Support/Grok Bot/sand-secrets.json"), before = snapshot(path);
-    check(); const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const path = windows ? join(windows.root, "sand-secrets.json") : join(home, "Library/Application Support/Grok Bot/sand-secrets.json"), before = snapshot(path);
+    check(); if (lstatSync(path).isSymbolicLink()) throw unavailable();
+    const fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     let raw: string;
     try {
       const stat = fstatSync(fd, { bigint: true });
@@ -93,8 +104,10 @@ export async function readGrokBotCredential(home: string, helper: string, comman
     check(); if (snapshot(path) !== before) throw unavailable();
     check();
     stage = "keychain";
-    const password = await command(helper, allowUI ? ["--grok-bot", "--allow-ui"] : ["--grok-bot"], { signal, timeoutMs: allowUI ? 60000 : 5000, maxBytes: 4096 });
-    check(); stage = "credentials"; const credential = grokBotCredential(raw, password, now);
+    let key: Buffer | undefined;
+    const secret: string | Decrypt = windows ? (key = await chromiumKey(join(windows.root, "Local State"), windows.unprotect, signal), bytes => decryptChromiumWindows(bytes, key!)) : await command(helper, allowUI ? ["--grok-bot", "--allow-ui"] : ["--grok-bot"], { signal, timeoutMs: allowUI ? 60000 : 5000, maxBytes: 4096 });
+    let credential: ReturnType<typeof grokBotCredential>;
+    try { check(); stage = "credentials"; credential = grokBotCredential(raw, secret, now); } finally { key?.fill(0); }
     stage = "store"; check(); if (snapshot(path) !== before) throw unavailable();
     return { ...credential, store: hash(before + "\0" + raw) };
   } catch (error) { throw error instanceof GrokBotFailure ? error : new GrokBotFailure(stage); }

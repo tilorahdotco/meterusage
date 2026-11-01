@@ -174,9 +174,9 @@ function ConnectionRow({ connection: c, state, action }: { connection: Connectio
       : c.provider === "antigravity" ? `Uses your existing agy CLI for allowance and local activity on ${deviceName(state)}.`
       : c.provider === "grok" ? "Reads your existing Grok CLI allowance and local session counts. Grok website and mobile usage are not supported."
       : `Uses your existing Codex CLI sign-in for allowance and reads token activity on ${deviceName(state)}.`
-    : c.provider === "claude" ? "Uses the account signed in to Claude Desktop. You approve access in macOS; allowance depends on your plan."
+    : c.provider === "claude" ? state.platform === "win32" ? "Uses the account signed in to Claude Desktop, unlocked for your Windows account. Allowance depends on your plan. The Windows reader is unverified." : "Uses the account signed in to Claude Desktop. You approve access in macOS; allowance depends on your plan."
       : c.provider === "antigravity" ? "Uses one running, signed-in Antigravity Desktop app for account allowance. Local CLI activity stays separate."
-      : c.provider === "grok" ? "Sign in through Grok Bot Desktop first, then allow read-only Keychain and allowance access. No CLI or separate MeterUsage xAI sign-in is required. Beta compatibility and shared-pool coverage remain unverified."
+      : c.provider === "grok" ? state.platform === "win32" ? "Sign in through Grok Bot Desktop first, then allow read-only access to its sign-in store and allowance. No CLI or separate MeterUsage xAI sign-in is required. Beta compatibility, shared-pool coverage and the Windows reader remain unverified." : "Sign in through Grok Bot Desktop first, then allow read-only Keychain and allowance access. No CLI or separate MeterUsage xAI sign-in is required. Beta compatibility and shared-pool coverage remain unverified."
       : "Sign in through your browser for account allowance and provider-reported token history. Requires an existing Codex app or CLI.";
   const reading = state.snapshot.quotas[c.provider];
   const status = busy ? "Updating connection…" : c.source === "cli" ? localActive ? "CLI selected. Data appears when available." : "CLI selected. Collection is off."

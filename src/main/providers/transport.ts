@@ -7,7 +7,8 @@ import { selectJSON } from "../select-json";
 import { object } from "./parsers";
 import { envValue, pathFor, spawnPlan, supportRoot, systemBinary, windowsSearchPath, withEnvValue, type Platform } from "../platform";
 
-export interface CommandOptions { env?: NodeJS.ProcessEnv; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number }
+/** `input` is written to stdin and closed; secrets passed to helpers travel this way, never as arguments. */
+export interface CommandOptions { env?: NodeJS.ProcessEnv; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number; input?: string }
 export type Command = (binary: string, args: string[], options?: CommandOptions) => Promise<string>;
 // GUI apps do not inherit shell PATH changes, so common user install folders are probed first.
 function windowsUserBins(home: string, env: NodeJS.ProcessEnv, name?: string) {
@@ -80,7 +81,7 @@ export const runCommand: Command = (binary, args, options = {}) => boundedChild(
   child.stdout.on("data", (chunk: Buffer) => { capturedBytes += chunk.length; if (capturedBytes <= (options.maxBytes ?? 16 * 1048576)) chunks.push(chunk); });
   child.stdout.on("end", () => { ended = true; complete(); });
   child.on("exit", code => { exitCode = code; complete(); });
-  child.stdin.end();
+  child.stdin.end(options.input);
 });
 export async function codexRPC(binary: string, options: CommandOptions, creditID?: string, configuration: string[] = [], operation: "read" | "logout" | "usage" = "read"): Promise<string> {
   return boundedChild(binary, [...configuration, "app-server", "--listen", "stdio://"], options, (child, finish) => {

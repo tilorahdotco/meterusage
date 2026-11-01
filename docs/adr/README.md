@@ -49,6 +49,7 @@ compatibility and acceptance requirements remain in force. The
 | [0033](0033-muse-code-subscription-allowance.md) | Read opt-in Muse Code allowance through official MSP without a model turn; preserve observation age and keep Muse.ai separate. | Source implementation; native/live acceptance pending |
 | [0035](0035-openai-remaining-balance.md) | Show OpenAI remaining balance from undocumented credit grants, falling back to a prepaid-minus-spend estimate; failures never block spend. | Source implementation; real-account acceptance pending |
 | [0037](0037-opt-in-automatic-updates.md) | Add an opt-in setting that installs verified updates without the confirmation dialog while MeterUsage is not in use. | Source implementation; native install acceptance pending |
+| [0040](0040-windows-desktop-connections.md) | Read Windows desktop connections through DPAPI-unwrapped Local State keys, read-only immutable SQLite, a fixed CIM query and direct npm-shim spawning. | Source with synthetic and CI proof; unverified against real installs |
 | [0039](0039-windows-updater.md) | Update Windows builds from the digest-verified unsigned NSIS installer, only from an NSIS install, started silently after quit. | Source implementation; CI installer handoff; real-machine acceptance pending |
 | [0038](0038-windows-ci-test-machine.md) | Resume Windows with a CI runner as the test machine; set Windows data, preference, file-trust, CLI and shell rules; list what CI does not prove. | Stage 1 implemented; real-machine acceptance pending |
 

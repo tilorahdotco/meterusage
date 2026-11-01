@@ -5,6 +5,8 @@ import { runCommand, type Command } from "./transport";
 import { selectJSON } from "../select-json";
 import { date, object, text } from "./parsers";
 import { Unavailable, quota, window } from "../../domain/models";
+import { readStableFile, type Decrypt } from "./windows-secrets";
+import { pathToFileURL } from "node:url";
 
 const uuid = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 const unavailable = () => new Unavailable("notSignedIn", "Claude Desktop");
@@ -18,7 +20,10 @@ export const desktopReadErrors = {
   response: "Claude did not report a supported account allowance.",
   selection: "Claude Desktop's cache has no current session for the active account and organization.",
   ambiguous: "Claude Desktop's cache has conflicting session or organization cookies. MeterUsage cannot safely choose one.",
+  locked: "Could not open Claude Desktop's cookie store while Claude Desktop holds it. Quit Claude Desktop, then try connecting again.",
 } as const;
+/** Windows wording for the stages that name the macOS Keychain. */
+export const windowsDesktopReadErrors = { ...desktopReadErrors, decryption: "Could not decrypt Claude Desktop's session cookies with its Windows-protected key." } as const;
 type ReadStage = (stage: keyof typeof desktopReadErrors) => void;
 export function decryptDesktop(bytes: Uint8Array, password: string): Buffer {
   const input = Buffer.from(bytes);
@@ -36,7 +41,9 @@ export interface DesktopCredential { account: string; organization: string; cook
 // Query only the two fixed cookies. Ciphertext and metadata remain in bounded RAM.
 export const desktopCookieSQL = "SELECT host_key, name, path, is_secure, is_httponly, CAST(expires_utc AS TEXT) AS expires_utc, hex(encrypted_value) AS encrypted_value FROM cookies WHERE name IN ('sessionKey', 'lastActiveOrg') AND host_key IN ('.claude.ai', 'claude.ai') LIMIT 33";
 export const desktopSchemaSQL = "SELECT CAST(value AS TEXT) AS version FROM meta WHERE key = 'version' LIMIT 2";
-export function desktopCredential(config: string, stores: { version: string; cookies: string }[], password: string, now: number, reading?: ReadStage): DesktopCredential {
+/** `secret` is the macOS Safe Storage password or, on Windows, a decryptor bound to the Local State key. */
+export function desktopCredential(config: string, stores: { version: string; cookies: string }[], secret: string | Decrypt, now: number, reading?: ReadStage): DesktopCredential {
+  const decrypt: Decrypt = typeof secret === "string" ? bytes => decryptDesktop(bytes, secret) : secret;
   try {
     reading?.("configuration");
     if (Buffer.byteLength(config) > 2 * 1048576 || !Number.isSafeInteger(now) || stores.length < 1 || stores.length > 2) throw unavailable();
@@ -53,7 +60,8 @@ export function desktopCredential(config: string, stores: { version: string; coo
         const row = object(raw), name = row.name;
         if (name !== "sessionKey" && name !== "lastActiveOrg" || row.host_key !== ".claude.ai" && row.host_key !== "claude.ai" || row.path !== "/" || row.is_secure !== 1 || name === "sessionKey" && row.is_httponly !== 1 || typeof row.expires_utc !== "string" || !/^[1-9]\d{0,18}$/.test(row.expires_utc) || BigInt(row.expires_utc) > 9223372036854775807n || BigInt(row.expires_utc) <= expiry || typeof row.encrypted_value !== "string" || row.encrypted_value.length > 65536 || !/^(?:[a-f\d]{2})+$/i.test(row.encrypted_value)) throw unavailable();
         reading?.("decryption");
-        const plaintext = decryptDesktop(Buffer.from(row.encrypted_value, "hex"), password);
+        let plaintext: Buffer;
+        try { plaintext = decrypt(Buffer.from(row.encrypted_value, "hex")); } catch { throw unavailable(); }
         let value: string;
         try {
           const digest = createHash("sha256").update(row.host_key).digest();
@@ -85,8 +93,43 @@ function configFile(root: string) {
     return bytes.subarray(0, length).toString("utf8");
   } finally { closeSync(fd); }
 }
-export async function readDesktopCredential(home: string, password: string, now: number, reading?: ReadStage, command: Command = runCommand, signal?: AbortSignal): Promise<DesktopCredential> {
+// Windows has no sandbox-exec or sqlite3. Electron's own SQLite opens each store read-only and
+// immutable, so it takes no locks and writes no journal, WAL or shared-memory file beside it.
+async function windowsStores(root: string, signal?: AbortSignal, reading?: ReadStage): Promise<{ version: string; cookies: string }[]> {
+  const { DatabaseSync } = await import("node:sqlite"), stores: { version: string; cookies: string }[] = [];
+  for (const relative of [["Cookies"], ["Network", "Cookies"]]) {
+    const path = join(root, ...relative);
+    if (!existsSync(path)) continue;
+    if (realpathSync(path) !== path || !lstatSync(path).isFile()) throw unavailable();
+    signal?.throwIfAborted();
+    const uri = pathToFileURL(path); uri.searchParams.set("immutable", "1"); uri.searchParams.set("mode", "ro");
+    let db: import("node:sqlite").DatabaseSync;
+    try { db = new DatabaseSync(uri.href, { readOnly: true, allowExtension: false }); db.prepare(desktopSchemaSQL).all(); }
+    catch { reading?.("locked"); throw unavailable(); }
+    try { stores.push({ version: JSON.stringify(db.prepare(desktopSchemaSQL).all()), cookies: JSON.stringify(db.prepare(desktopCookieSQL).all()) }); }
+    finally { db.close(); }
+  }
+  return stores;
+}
+/** `windows.root` is Claude Desktop's app data folder (%APPDATA%\\Claude); without it the macOS store is read. */
+export async function readDesktopCredential(home: string, secret: string | Decrypt, now: number, reading?: ReadStage, command: Command = runCommand, signal?: AbortSignal, windows?: { root: string }): Promise<DesktopCredential> {
+  if (windows) {
+    try {
+      signal?.throwIfAborted(); reading?.("configuration");
+      const root = realpathSync(windows.root), config = () => readStableFile(join(root, "config.json"), 2 * 1048576);
+      const text = config();
+      reading?.("organization");
+      const stores = await windowsStores(root, signal, reading);
+      signal?.throwIfAborted();
+      const result = desktopCredential(text, stores, secret, now, reading);
+      const after = object(selectJSON(config(), { lastKnownAccountUuid: true }, undefined, true)).lastKnownAccountUuid;
+      if (typeof after !== "string" || after.toLowerCase() !== result.account) throw unavailable();
+      return result;
+    } catch { throw unavailable(); }
+  }
+  const password = secret;
   try {
+    if (typeof password !== "string") throw unavailable();
     signal?.throwIfAborted(); reading?.("configuration");
     const root = realpathSync(join(home, "Library/Application Support/Claude"));
     const config = configFile(root), stores: { version: string; cookies: string }[] = [];
