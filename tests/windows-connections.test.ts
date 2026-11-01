@@ -41,7 +41,7 @@ describe("Windows Chromium secrets", () => {
     const [binary, args, options] = command.mock.calls[0];
     expect(binary).toBe("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"); expect(powershell({})).toBe(binary);
     expect(args).toEqual(["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", unprotectScript]);
-    expect(options?.env?.[unprotectInput]).toBe(wrapped.toString("base64")); expect(options?.env?.SystemRoot).toBe("C:\\Windows"); expect(args.join(" ")).not.toContain(wrapped.toString("base64"));
+    expect(options?.env?.[unprotectInput]).toBe(wrapped.toString("base64")); expect(options?.env?.SystemRoot).toBe("C:\\Windows"); expect(options?.env?.PSModulePath).toBe("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules"); expect(args.join(" ")).not.toContain(wrapped.toString("base64"));
     await expect(dpapiUnprotect(async () => "not base64!")(wrapped)).rejects.toThrow();
   });
 });

@@ -41,8 +41,10 @@ before/after verification apply on Windows. Only the platform readers change:
 - **App data folders.** Each app's folder is `%APPDATA%\<name>`. If that folder
   is missing, MeterUsage accepts exactly one MSIX package folder,
   `%LOCALAPPDATA%\Packages\<family>_<publisher id>\LocalCache\Roaming\<name>`,
-  whose family name ends in the app name. PowerShell runs with a minimal
-  environment so user module paths cannot replace the fixed cmdlets.
+  whose family name ends in the app name. PowerShell gets the app's
+  environment with `PSModulePath` limited to the system module folder, so user
+  module paths cannot replace the fixed cmdlets. A stripped environment made
+  PowerShell 5.1 start about 25 seconds slower on the CI runner.
 - **Claude Desktop.** The reader uses `%APPDATA%\Claude`: `config.json` for
   `lastKnownAccountUuid`, and `Cookies` or `Network\Cookies` for the same two
   fixed cookies. Electron's `node:sqlite` opens each store read-only with

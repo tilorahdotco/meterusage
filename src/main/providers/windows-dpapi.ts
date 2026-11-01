@@ -3,7 +3,7 @@ import { createDecipheriv } from "node:crypto";
 import { selectJSON } from "../select-json";
 import { object } from "./parsers";
 import { runCommand, type Command } from "./transport";
-import { envValue, minimalEnvironment } from "../platform";
+import { envValue, withEnvValue } from "../platform";
 
 // Chromium and Electron apps on Windows keep a random AES-256 key in "Local State",
 // wrapped with the user's DPAPI key and prefixed "DPAPI". Values are "v10" + 12-byte
@@ -17,6 +17,13 @@ export const powershell = (env: NodeJS.ProcessEnv = process.env) => {
   const root = envValue(env, "SystemRoot", "win32");
   return `${root && /^[A-Za-z]:\\[^"%!]*$/.test(root) ? root : "C:\\Windows"}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
 };
+/**
+ * The app's environment with PSModulePath limited to the system module folder, so user module paths cannot
+ * replace the fixed cmdlets. A stripped environment made PowerShell 5.1 start about 25 seconds slower on CI.
+ */
+export function powershellEnvironment(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return withEnvValue(env, "PSModulePath", powershell(env).replace(/\\powershell\.exe$/i, "\\Modules"), "win32");
+}
 export const powershellArgs = (script: string) => ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script];
 // Fixed script. powershell.exe -Command does not reliably pass redirected stdin to the script, so the
 // wrapped (still DPAPI-protected) blob arrives in this child's environment only; the key leaves on stdout.
@@ -26,8 +33,7 @@ export const unprotectScript = "$ErrorActionPreference='Stop'; Add-Type -Assembl
 export function dpapiUnprotect(command: Command = runCommand, env: NodeJS.ProcessEnv = process.env): Unprotect {
   return async (data, signal) => {
     if (data.length < 1 || data.length > 65536) throw invalid();
-    // A minimal environment keeps user module paths from shadowing the fixed cmdlets.
-    const output = (await command(powershell(env), powershellArgs(unprotectScript), { env: { ...minimalEnvironment(env, "win32"), [unprotectInput]: data.toString("base64") }, signal, timeoutMs: 30000, maxBytes: 8192 })).trim();
+    const output = (await command(powershell(env), powershellArgs(unprotectScript), { env: { ...powershellEnvironment(env), [unprotectInput]: data.toString("base64") }, signal, timeoutMs: 30000, maxBytes: 8192 })).trim();
     if (!/^[A-Za-z0-9+/]+={0,2}$/.test(output)) throw invalid();
     return Buffer.from(output, "base64");
   };

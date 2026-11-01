@@ -6,8 +6,8 @@ import { Unavailable, quota, window, type QuotaWindow, type QuotaGroup } from ".
 import { selectJSON } from "../select-json";
 import { object, displayText } from "./parsers";
 import { runCommand, type Command } from "./transport";
-import { powershell, powershellArgs } from "./windows-dpapi";
-import { minimalEnvironment, type Platform } from "../platform";
+import { powershell, powershellArgs, powershellEnvironment } from "./windows-dpapi";
+import type { Platform } from "../platform";
 
 const unavailable = () => new Unavailable("notSignedIn", "Antigravity Desktop");
 const noData = () => new Unavailable("noData");
@@ -51,7 +51,7 @@ function windowsServer(raw: string): DesktopServer {
 // Enumerate executable names first. Only a matching, same-user PID exposes arguments.
 export async function discoverAntigravity(command: Command = runCommand, signal?: AbortSignal, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): Promise<DesktopServer> {
   if (platform === "win32") {
-    const server = windowsServer(await command(powershell(env), powershellArgs(windowsDiscoveryScript), { env: minimalEnvironment(env, "win32"), signal, timeoutMs: 15000, maxBytes: 1048576 }));
+    const server = windowsServer(await command(powershell(env), powershellArgs(windowsDiscoveryScript), { env: powershellEnvironment(env), signal, timeoutMs: 15000, maxBytes: 1048576 }));
     signal?.throwIfAborted(); return server;
   }
   const options = { signal, timeoutMs: 3000, maxBytes: 1048576 }, uid = userInfo().uid;
