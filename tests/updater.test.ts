@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach } from "vite-plus/test";
+import { describe, it, expect, afterEach, vi } from "vite-plus/test";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync, realpathSync, symlinkSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { Updater, parseRelease, parseReleases, newer, verifyDigest, stageUpdate, releaseEndpoint, releasesEndpoint } from "../src/main/updater";
@@ -72,6 +72,25 @@ describe("verified explicit updates", () => {
       await expect(stageUpdate(r, bad, async () => { extracted = true; return ""; })).rejects.toThrow("archive");
       expect(extracted).toBe(false);
     }
+  });
+  it("stages internal bundle links when the temporary root is a symlink", async () => {
+    const root = temp(), target = join(root, "actual"), alias = join(root, "alias");
+    mkdirSync(target); symlinkSync(target, alias); vi.stubEnv("TMPDIR", alias);
+    const archive = readFileSync("tests/fixtures/update-safe.zip");
+    const release = parseRelease(payload(undefined, "sha256:" + createHash("sha256").update(archive).digest("hex")));
+    try {
+      const bundle = await stageUpdate(release, archive, async (binary, args) => {
+        if (binary.endsWith("ditto")) {
+          const contents = join(args[3], "MeterUsage.app/Contents");
+          mkdirSync(contents, { recursive: true }); writeFileSync(join(contents, "Info.plist"), "synthetic");
+          symlinkSync("Info.plist", join(contents, "internal-link")); return "";
+        }
+        if (binary.endsWith("PlistBuddy")) return args[1].endsWith("CFBundleIdentifier") ? "dev.meterusage.app" : args[1].endsWith("CFBundleExecutable") ? "meterusage" : release.version;
+        if (binary.endsWith("codesign")) return "";
+        throw new Error("unexpected fixture command");
+      });
+      expect(bundle.startsWith(target + "/")).toBe(true);
+    } finally { vi.unstubAllEnvs(); }
   });
   it("downloads the confirmed release and aborts before staging after disabling updates", async () => {
     const root = temp(), prefs = await Preferences.load({ demo: false, candidate: false, home: root, data: root, env: {} }, async (_binary, args) => { if (args[0] !== "write") throw new Error("fixture absent"); return ""; }, "fixture.meterusage");
