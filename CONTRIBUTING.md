@@ -196,8 +196,9 @@ the `windows` job runs typecheck, `pnpm test:windows`, the build,
 `pnpm exec electron-builder --win --x64 --publish never` and
 `Scripts/electron/windows-smoke.ps1` against the packaged app. Add new
 Windows-safe test files to `test:windows`. CI is not a real-machine acceptance
-run. Maintainers build Windows releases with the manual **Windows release
-build** workflow, which uploads unsigned artifacts and never publishes.
+run. No Windows release has been published yet. Maintainers build Windows
+releases with the manual **Windows release build** workflow, which uploads
+unsigned artifacts and never publishes.
 
 electron-builder resolves `pnpm` from PATH when collecting production
 dependencies. If an existing launcher incorrectly loads a standalone pnpm

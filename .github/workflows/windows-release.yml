@@ -28,10 +28,14 @@ jobs:
       - name: Validate inputs
         shell: pwsh
         run: |
-          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+(-beta\.\d+)?$') { throw "Invalid version" }
-          if ($env:BUILD -notmatch '^[1-9]\d{0,5}$') { throw "Invalid build" }
+          if ($env:GITHUB_REF -ne 'refs/heads/main') { throw "Release builds run only from main" }
+          if ($env:VERSION -cnotmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-beta\.[1-9]\d*)?\z') { throw "Invalid version" }
+          if ($env:BUILD -cnotmatch '^[1-9]\d{0,5}\z') { throw "Invalid build" }
+          "Building MeterUsage $env:VERSION (build $env:BUILD) from commit $env:GITHUB_SHA" | Tee-Object -Append -FilePath $env:GITHUB_STEP_SUMMARY
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
@@ -63,10 +67,11 @@ jobs:
             if (-not (Test-Path $path)) { throw "Missing $name" }
             Copy-Item $path $assets
           }
-          Push-Location $assets
-          Get-ChildItem -File | Sort-Object Name | ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant(), $_.Name } | Set-Content -Encoding ascii SHA256SUMS
-          Get-Content SHA256SUMS
-          Pop-Location
+          # LF line endings, so `shasum -a 256 -c` and `sha256sum -c` both accept the file.
+          $lines = Get-ChildItem -File $assets | Sort-Object Name | ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant(), $_.Name }
+          [IO.File]::WriteAllText((Join-Path $assets "SHA256SUMS"), (($lines -join "`n") + "`n"))
+          $env:GITHUB_SHA | Set-Content -NoNewline -Encoding ascii (Join-Path smoke-artifacts "source-commit.txt")
+          Get-Content (Join-Path $assets "SHA256SUMS")
       - name: Upload smoke artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
