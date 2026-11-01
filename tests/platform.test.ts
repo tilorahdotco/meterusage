@@ -167,14 +167,14 @@ describe.runIf(process.platform === "win32")("Windows runtime", () => {
   it("runs the fixed Antigravity discovery script and finds no language server on the runner", async () => {
     const output = await runCommand(powershell(), powershellArgs(windowsDiscoveryScript), { env: process.env, timeoutMs: 60000 });
     expect(JSON.parse(output.trim() || "[]")).toEqual([]);
-  });
+  }, 90000);
   it("unwraps a real DPAPI-protected Local State key through the PowerShell helper", async () => {
     const root = temp(), key = randomBytes(32);
     const protect = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; $d=[Convert]::FromBase64String([Console]::In.ReadToEnd().Trim()); [Console]::Out.Write([Convert]::ToBase64String([System.Security.Cryptography.ProtectedData]::Protect($d,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)))";
     const wrapped = Buffer.from((await runCommand(powershell(), powershellArgs(protect), { env: process.env, timeoutMs: 30000, input: key.toString("base64") })).trim(), "base64");
     writeFileSync(join(root, "Local State"), JSON.stringify({ os_crypt: { encrypted_key: Buffer.concat([Buffer.from("DPAPI"), wrapped]).toString("base64") } }));
     expect((await chromiumKey(join(root, "Local State"), dpapiUnprotect(runCommand, process.env))).equals(key)).toBe(true);
-  });
+  }, 90000);
   it("connects Claude Desktop from roaming AppData with the Windows key", async () => {
     const home = temp(), roaming = join(home, "AppData", "Roaming"), claude = join(roaming, "Claude"); mkdirSync(join(claude, "Network"), { recursive: true });
     const key = randomBytes(32), wrapped = Buffer.from("synthetic-wrapped-key"), account = "11111111-1111-1111-1111-111111111111", org = "22222222-2222-2222-2222-222222222222", now = Date.now();

@@ -103,9 +103,10 @@ async function windowsStores(root: string, signal?: AbortSignal, reading?: ReadS
     if (realpathSync(path) !== path || !lstatSync(path).isFile()) throw unavailable();
     signal?.throwIfAborted();
     const uri = pathToFileURL(path); uri.searchParams.set("immutable", "1"); uri.searchParams.set("mode", "ro");
-    let db: import("node:sqlite").DatabaseSync;
+    let db: import("node:sqlite").DatabaseSync | undefined;
+    // Close a store that opened but failed its first query; an open handle would keep the file locked on Windows.
     try { db = new DatabaseSync(uri.href, { readOnly: true, allowExtension: false }); db.prepare(desktopSchemaSQL).all(); }
-    catch { reading?.("locked"); throw unavailable(); }
+    catch { try { db?.close(); } catch { /* Already closed. */ } reading?.("locked"); throw unavailable(); }
     try { stores.push({ version: JSON.stringify(db.prepare(desktopSchemaSQL).all()), cookies: JSON.stringify(db.prepare(desktopCookieSQL).all()) }); }
     finally { db.close(); }
   }

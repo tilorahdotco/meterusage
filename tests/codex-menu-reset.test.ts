@@ -21,9 +21,10 @@ const allowance = (status = "available", expiresAt = at + 3600000, used = 80) =>
   rateLimits: { primary: { usedPercent: used, windowDurationMins: 300 } },
   rateLimitResetCredits: { availableCount: status === "available" ? 1 : 0, credits: [{ id: "fixture-credit", title: "Full reset", status, expiresAt }] },
 } });
+// The connected Codex environment asserted below is the macOS shape; Windows uses a minimal Windows environment.
 async function setup(codexTest = false) {
   const root = mkdtempSync(join(tmpdir(), "meterusage-reset-fixture-")); roots.push(root);
-  const launch = launchConfiguration(codexTest ? ["--codex-test-profile", join(root, "profile")] : [], { PATH: root, TMPDIR: root }, root);
+  const launch = launchConfiguration(codexTest ? ["--codex-test-profile", join(root, "profile")] : [], { PATH: root, TMPDIR: root }, root, false, "darwin");
   const prefs = await Preferences.load(launch, async () => ""); prefs.values.desktopCodexConnection = profile;
   vi.spyOn(transport, "cliPath").mockReturnValue("/synthetic/codex");
   let now = at;
