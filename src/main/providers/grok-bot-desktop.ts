@@ -67,7 +67,7 @@ export function grokBotCredential(raw: string, secret: string | Decrypt, now: nu
       team = envelope(values["cursor-selected-team-id"], active, password);
       if (!/^(?:0|[1-9]\d*)$/.test(team) || !Number.isSafeInteger(Number(team))) throw unavailable();
     }
-    return { token, team, identity: hash(`grok-bot-desktop\0${active}\0${team ?? "personal"}`), expiresAt: payload.exp * 1000 };
+    return { token, team, subject: payload.sub, identity: hash(`grok-bot-desktop\0${active}\0${team ?? "personal"}`), expiresAt: payload.exp * 1000 };
   } catch (error) { throw error instanceof GrokBotFailure ? error : new GrokBotFailure("credentials"); }
 }
 function snapshot(path: string) {
@@ -128,6 +128,48 @@ export function grokBotQuota(raw: string, now: number) {
     if ((!paid && !trial) || typeof v.usagePercent !== "number" || !Number.isFinite(v.usagePercent) || v.usagePercent < 0 || v.usagePercent > 100 || reset !== undefined && (!Number.isFinite(reset) || reset <= now)) throw new Error();
     return quota("grok", [window(trial ? "Grok Bot Desktop · Trial" : "Grok Bot Desktop", v.usagePercent, reset)], now);
   } catch { throw new GrokBotFailure("quota", "noData"); }
+}
+const base32 = (value: string) => {
+  let bits = 0, buffer = 0, out = "";
+  for (const byte of Buffer.from(value, "utf8")) {
+    buffer = buffer << 8 | byte; bits += 8;
+    while (bits >= 5) { out += "abcdefghijklmnopqrstuvwxyz234567"[buffer >>> bits - 5 & 31]; bits -= 5; }
+  }
+  return bits ? out + "abcdefghijklmnopqrstuvwxyz234567"[buffer << 5 - bits & 31] : out;
+};
+const cacheMaxAge = 7 * 86400000, cacheMaxBytes = 65536;
+/** Grok Bot's cache file for one account: base32 of its persistence key, derived from the verified token subject. */
+export const grokBotUsageCachePath = (home: string, subject: string) =>
+  join(home, "Library/Application Support/Grok Bot/sand-client-persistence", `${base32(`sand.client.slice.account.${encodeURIComponent(subject)}.weekly-usage.cache`)}.blob`);
+/**
+ * Grok Bot's own last successful weekly-usage reading, used only when the allowance request fails.
+ * Only percent, reset, trial/paid flags, team and read time are decoded; any doubt returns undefined.
+ */
+export function readGrokBotUsageCache(home: string, subject: string, team: string | undefined, now: number) {
+  let fd: number | undefined;
+  try {
+    const path = grokBotUsageCachePath(home, subject);
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.nlink !== 1 || stat.uid !== process.getuid?.() || stat.size <= 0 || stat.size > cacheMaxBytes) return undefined;
+    const bytes = Buffer.alloc(cacheMaxBytes + 1); let length = 0, count: number;
+    do { count = readSync(fd, bytes, length, bytes.length - length, null); length += count; } while (count && length < bytes.length);
+    if (length !== stat.size) return undefined;
+    const root = selected(bytes.subarray(0, length).toString("utf8"), { schemaVersion: true, value: { kind: true, selectedTeamId: true, reading: { readAtMs: true,
+      usage: { percentUsed: true, nextResetMs: true, isSandTrial: true, hasNonZeroIncludedLimit: true, isTeamSeat: true } } } });
+    const value = object(root.value), reading = object(value.reading), usage = object(reading.usage);
+    const readAt = reading.readAtMs, percent = usage.percentUsed, reset = usage.nextResetMs;
+    if (root.schemaVersion !== 2 || value.kind !== "present" || (team === undefined ? value.selectedTeamId !== null : value.selectedTeamId !== Number(team))) return undefined;
+    if (typeof readAt !== "number" || !Number.isSafeInteger(readAt) || readAt > now + 60000 || readAt < now - cacheMaxAge) return undefined;
+    if (typeof percent !== "number" || !Number.isFinite(percent) || percent < 0 || percent > 100) return undefined;
+    if (typeof usage.isSandTrial !== "boolean" || typeof usage.hasNonZeroIncludedLimit !== "boolean" || usage.isTeamSeat === true) return undefined;
+    // The cache cannot prove a trial is still active (no expiry), so only paid allowance is used.
+    if (usage.hasNonZeroIncludedLimit !== true) return undefined;
+    // A passed reset makes the reading obsolete; never show it as current usage.
+    if (reset !== null && (typeof reset !== "number" || !Number.isSafeInteger(reset) || reset <= readAt || reset <= now)) return undefined;
+    return { ...quota("grok", [window("Grok Bot Desktop", percent, reset ?? undefined)], readAt), observedFrom: "grokBotCache" as const };
+  } catch { return undefined; }
+  finally { if (fd !== undefined) closeSync(fd); }
 }
 export type GrokBotRPC = (token: string, team: string | undefined, signal: AbortSignal) => Promise<string>;
 export function grokBotTransport(fetcher: typeof fetch = fetch): GrokBotRPC {

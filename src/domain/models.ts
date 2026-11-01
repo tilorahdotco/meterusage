@@ -22,6 +22,8 @@ export interface Quota {
   canConsumeReset?: boolean;
   provider: Provider; windows: QuotaWindow[]; groups: QuotaGroup[]; credits?: Credits;
   resetCreditCount?: number; resetCredits: ResetCredit[]; planType?: string; resetPacingSince?: number; capturedAt: number;
+  /** Set when the reading is another app's cached observation rather than a live provider response. */
+  observedFrom?: "grokBotCache";
 }
 export const clamp = (n: number, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, n));
 export function window(label: string, usedPercent: number, resetsAt?: number, windowDurationMins?: number): QuotaWindow {

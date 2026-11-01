@@ -388,6 +388,16 @@ Connected quota has no local CLI history attached. Ordinary transport failures
 can retain dated allowance only after the account and store are reverified.
 Source changes clear account-bound quota. Disconnect changes only MeterUsage.
 
+If a refresh's request fails with a network or server error, MeterUsage shows
+Grok Bot's own cached reading for the same paid account, when it is less than
+7 days old, its reset hasn't passed and it isn't older than the last reading
+shown. Cached readings don't feed quota burn, and failed requests keep backing
+off while the cache is shown. The card then says
+"Observed <time> · Grok Bot's cached reading". On 2026-11-01 the endpoint
+returned HTTP 500 for a unified account while its other Dashboard calls worked;
+this fallback covers that case. See
+[ADR 0036](adr/0036-grok-bot-usage-cache-fallback.md).
+
 This private compatibility contract was traced statically from Grok Bot 0.71.2
 and Electron 42.1.0. Native metadata confirms the encrypted legacy store format
 and fixed Keychain label. Successful Keychain access and server acceptance of

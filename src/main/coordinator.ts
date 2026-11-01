@@ -3,7 +3,7 @@ import { readApiBilling } from "./providers/api-billing";
 import { join } from "node:path";
 import { readdir, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { type Loaded, type Quota, type AccountActivity, type Activity, type Usage, type ServiceStatus, type Slot, type Provider, providers, primary, slotKey, lastBurn, totalTokens, utcDay, value, missing, Unavailable, resetCreditAvailable } from "../domain/models";
+import { type Loaded, type Quota, type AccountActivity, type Activity, type Usage, type ServiceStatus, type Slot, type Provider, providers, primary, slotKey, lastBurn, totalTokens, utcDay, value, missing, failed, Unavailable, resetCreditAvailable } from "../domain/models";
 import { orderedSlots } from "../domain/provider-order";
 import { AlertEvaluator, type Alert } from "../domain/alerts";
 import { telemetry } from "../domain/telemetry";
@@ -162,7 +162,7 @@ export class Coordinator {
     const controller = new AbortController(); this.controllers.set(controller, source);
     const timeout = setTimeout(() => controller.abort(), 30000);
     const aborted = new Promise<never>((_resolve, reject) => controller.signal.addEventListener("abort", () => reject(new Error("Source cancelled")), { once: true }));
-    let result: Loaded<T>;
+    let result: Loaded<T>, cachedQuota = false;
     try { result = value(await Promise.race([read(controller.signal), aborted])); }
     catch (e) { result = missing(e, source.slot.provider); }
     finally { clearTimeout(timeout); this.controllers.delete(controller); }
@@ -170,7 +170,13 @@ export class Coordinator {
     if (kind === "quota") {
       const previous = this.archived[key];
       if (previous?.resetPacingSince !== resetAtStart) return;
-      if (result.status === "value" && source.slot.provider === "grok" && source.accountBound && this.preferences.values.desktopGrokSource === "bot") {
+      if (result.status === "value" && (result.value as Quota).observedFrom !== undefined) {
+        // Another app's cached reading: never move history backwards or feed live burn/pacing.
+        const q = result.value as Quota;
+        result = previous && q.capturedAt < previous.capturedAt ? missing(failed(source.slot.provider), source.slot.provider)
+          : value({ ...q, windows: q.windows.map(w => ({ ...w, pacingBaseline: undefined })) } as T);
+        cachedQuota = true;
+      } else if (result.status === "value" && source.slot.provider === "grok" && source.accountBound && this.preferences.values.desktopGrokSource === "bot") {
         const live = this.quotas[key];
         result = value(observeQuota(result.value as Quota, live?.status === "value" ? live.value : undefined, this.now()) as T);
       } else if (result.status === "value" && previous?.resetPacingSince !== undefined) {
@@ -187,7 +193,8 @@ export class Coordinator {
         : { ...result, reason: failure };
     } else target[key] = result;
     if (kind === "quota" && source.accountBound && result.status === "missing" && (controller.signal.aborted || ["notSignedIn", "noData"].includes(result.code))) delete this.archived[key];
-    if (result.status === "missing" && ["failed", "offline"].includes(result.code)) { const failures = (prior?.failures ?? 0) + 1; this.backoffs.set(backoffKey, { failures, next: this.now() + backoffDelay(failures) }); }
+    // A cached fallback means the live request failed, so keep backing off while it is shown.
+    if (cachedQuota || result.status === "missing" && ["failed", "offline"].includes(result.code)) { const failures = (prior?.failures ?? 0) + 1; this.backoffs.set(backoffKey, { failures, next: this.now() + backoffDelay(failures) }); }
     else this.backoffs.delete(backoffKey);
   }
   prepareReset(key: string, creditID: string): { token: string; account: string; title: string } {

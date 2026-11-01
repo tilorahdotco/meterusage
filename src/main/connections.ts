@@ -12,7 +12,7 @@ import { localRoot, minimalEnvironment, supportRoot } from "./platform";
 import { connectionErrors } from "./connection-errors";
 import { readAntigravityDesktop, antigravityRPC, type AntigravityRPC } from "./providers/antigravity-desktop";
 import { cursorGrokQuota, cursorIdentity, readCursorCredential } from "./providers/cursor-grok";
-import { readGrokBotCredential, grokBotQuota, grokBotTransport, grokBotConnectionErrors, grokBotWindowsErrors, GrokBotFailure, type GrokBotRPC } from "./providers/grok-bot-desktop";
+import { readGrokBotCredential, readGrokBotUsageCache, grokBotQuota, grokBotTransport, grokBotConnectionErrors, grokBotWindowsErrors, GrokBotFailure, type GrokBotRPC } from "./providers/grok-bot-desktop";
 import { selectJSON } from "./select-json";
 import { Unavailable, failed, resetCreditAvailable } from "../domain/models";
 import { providerKey, type ConnectionState, type ConnectionProvider } from "../shared/ipc";
@@ -211,9 +211,9 @@ export class DesktopConnections {
     const current = () => { check(); if (credential.expiresAt <= this.now() + 60000) throw new GrokBotFailure("credentials"); };
     current();
     if (expected && credential.identity !== expected) throw new GrokBotFailure("credentials");
-    let raw: string;
+    let raw: string | undefined, requestError: GrokBotFailure | undefined;
     try { current(); raw = await this.grokBot(credential.token, credential.team, signal); }
-    catch (error) { throw error instanceof GrokBotFailure ? error : new GrokBotFailure("request", error instanceof Unavailable ? error.code : "failed"); }
+    catch (error) { requestError = error instanceof GrokBotFailure ? error : new GrokBotFailure("request", error instanceof Unavailable ? error.code : "failed"); }
     finally {
       try {
         current();
@@ -221,6 +221,14 @@ export class DesktopConnections {
         current();
         if (after.identity !== credential.identity || after.store !== credential.store) throw new GrokBotFailure("verification");
       } catch { throw new GrokBotFailure("verification"); }
+    }
+    if (raw === undefined) {
+      // Refresh only: a server or network failure may fall back to Grok Bot's own cached reading for this
+      // verified account. Connect and auth failures (notSignedIn) never use the cache. The cache layout is macOS-only.
+      const cached = !allowUI && !windows && requestError?.stage === "request" && (requestError.code === "failed" || requestError.code === "offline")
+        ? readGrokBotUsageCache(this.launch.home, credential.subject, credential.team, this.now()) : undefined;
+      if (cached) { check(); return { identity: credential.identity, quota: cached }; }
+      throw requestError ?? new GrokBotFailure("request", "failed");
     }
     return { identity: credential.identity, quota: grokBotQuota(raw, this.now()) };
   }

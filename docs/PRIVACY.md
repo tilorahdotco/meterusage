@@ -196,7 +196,8 @@ candidate boundary; it does not change the published Swift release.
 Grok Bot Desktop offers the primary opt-in **Connect Grok Bot Desktop (Beta)**
 flow under [ADR 0028](adr/0028-grok-bot-desktop-reader.md). After consent, the main
 process opens only the fixed `Grok Bot/sand-secrets.json` store under Application
-Support and the helper's fixed `Grok Bot Safe Storage` / `Grok Bot Key` Keychain item.
+Support, the helper's fixed `Grok Bot Safe Storage` / `Grok Bot Key` Keychain item
+and, when a refresh request fails, the same account's usage cache described below.
 Only explicit Connect permits Keychain UI; polling forbids it. The bounded JSON
 reader rejects symlinks, duplicate keys, unsupported versions and changed stores.
 It selects only the active account's encrypted access token and optional team;
@@ -219,6 +220,18 @@ enterprise allowance and contradictory limit flags stay unavailable; trial expir
 is never treated as a reset. Native metadata confirms the encrypted legacy store format and fixed Keychain
 label. Successful access and server acceptance remain unverified. MeterUsage does not
 initiate an xAI OAuth flow or modify Bot's account state.
+
+If a refresh's allowance request fails with a network or server error,
+MeterUsage may read Grok Bot's own cached weekly usage for the same
+verified account under [ADR 0036](adr/0036-grok-bot-usage-cache-fallback.md).
+The file name comes from the token subject that already matched the active
+account. The reader refuses symlinks, files owned by another user, extra links
+and files over 64 KiB. It decodes only schema, kind, team, read time, percent,
+reset and paid, trial and team-seat flags; plan labels and on-demand spend are
+skipped. Trials, team seats, readings older than 7 days or past their reset,
+and other teams are rejected. The card shows the cache's read time. Connect
+and auth failures never use it. Cached readings never feed quota burn and
+never replace a newer reading.
 
 Previously saved Grok Bot connections via Cursor retain the legacy reader under
 [ADR 0027](adr/0027-grok-cursor-closed-reader.md). New connections always select
