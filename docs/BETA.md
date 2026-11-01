@@ -114,7 +114,8 @@ See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/doc
 - Live Codex refresh was observed. Claude paid-account allowance was not
   live-tested. Optional support-report delivery and deployed relay limits
   were not verified end to end.
-- Windows support is paused. Intel Mac binaries are not provided by this beta.
+- This beta has no Windows build. Windows work is in progress on CI under
+  [ADR 0038](adr/0038-windows-ci-test-machine.md). Intel Mac binaries are not provided by this beta.
 
 Use Settings > Diagnostics for sanitized diagnostics and **Send report**.
 The app limits report attempts to one every ten minutes, including relaunches.

@@ -101,8 +101,9 @@ Do not mix unrelated fixes in the same commit.
 <a id="build-and-test"></a>
 ## Legacy Swift build and test
 
-GitHub Actions runs `swift build` and `swift test` on macOS 15, plus Electron
-typecheck, synthetic tests and production bundling on Linux, for pushes to
+GitHub Actions runs `swift build` and `swift test` on macOS 15, Electron
+typecheck, synthetic tests and production bundling on Linux, and an unsigned
+Windows package with a packaged smoke run on Windows, for pushes to
 `main` and pull requests. Repository owners must enable Actions under
 Settings > Actions > General for these checks to run.
 
@@ -190,7 +191,12 @@ packages an Apple silicon ZIP with publication disabled. It does not install
 or replace an app. Locally packaged output is not the verified public beta
 artifact. Historical Swift releases remain recovery material; stable Electron
 publication and acceptance are separate from the default beta download.
-Windows packaging, CI, native testing and release remain paused.
+Windows work runs on CI under [ADR 0038](docs/adr/0038-windows-ci-test-machine.md):
+the `windows` job runs typecheck, `pnpm test:windows`, the build,
+`pnpm exec electron-builder --win --x64 --publish never` and
+`Scripts/electron/windows-smoke.ps1` against the packaged app. Add new
+Windows-safe test files to `test:windows`. CI is not a real-machine acceptance
+run, and no Windows release exists yet.
 
 electron-builder resolves `pnpm` from PATH when collecting production
 dependencies. If an existing launcher incorrectly loads a standalone pnpm

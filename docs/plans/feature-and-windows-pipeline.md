@@ -1,4 +1,4 @@
-# Platform pipeline: macOS Electron, Windows paused
+# Platform pipeline: macOS Electron, Windows on CI
 
 The earlier React Native/Expo spike, Tauri fallback and Windows-first rollout
 are superseded by [ADR 0010](../adr/0010-macos-typescript-electron.md), accepted
@@ -13,9 +13,27 @@ marks, measured burn, pacing/alerts, multiple accounts, JSON/history formats
 and verified prebuilt installation. The retained Swift app is the compatibility
 oracle and rollback path.
 
-Windows implementation, installers, CI, testing and releases are paused until
-a test machine is available. There is no Windows support claim or release
-schedule. Portable shared source does not establish Windows behavior.
+Windows work resumed on 2026-11-01 under [ADR 0038](../adr/0038-windows-ci-test-machine.md),
+by maintainer direction. A GitHub Actions `windows-latest` runner is the test
+machine; there is still no physical Windows PC. Windows support claims are
+limited to what that job records. Portable shared source alone does not
+establish Windows behavior.
+
+## Windows stages
+
+1. Platform foundation and a CI job that packages and smoke-tests the unsigned
+   build. Implemented.
+2. Windows updater: installer asset, GitHub SHA-256 digest verification and the
+   existing automatic-install deferral.
+3. Windows desktop account connections (DPAPI, read-only `node:sqlite`, Windows
+   paths) with synthetic fixtures; marked unverified against real accounts.
+4. Unsigned GitHub pre-release and user docs, after the CI smoke run passes.
+   GitHub's `latest` stays on the stable release.
+
+CI proves typecheck, Windows-safe tests, a production build, packaging and a
+packaged smoke run (headless JSON, a demo GUI that stays up, screenshots). It
+does not prove real accounts, installers or upgrades, SmartScreen, login items,
+notifications, display layouts or user input. See ADR 0038 for the full list.
 
 ## Migration gates
 

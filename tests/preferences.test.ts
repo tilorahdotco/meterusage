@@ -8,7 +8,7 @@ import type { Command } from "../src/main/providers/transport";
 
 it("reads managed-account data in legacy and machine-readable forms without accepting failed or invalid reads", async () => {
   const accounts = [{ id: "fixture-account", provider: "claude", label: "Synthetic account", path: "~/fixture", enabled: true }];
-  const launch = { home: "/synthetic", data: "/synthetic", demo: false, candidate: false, env: {} };
+  const launch = { home: "/synthetic", data: "/synthetic", demo: false, candidate: false, env: {}, platform: "darwin" as const };
   let legacy = true, failRead = false, failWrite = false, type = "data", stored: unknown = accounts, nativeReads = 0;
   const writes: string[][] = [];
   const command: Command = async (binary, args, options) => {
@@ -83,7 +83,7 @@ it("reads and writes panel size as a validated defaults string without changing 
     if (failWrite) throw new Error("Fixture write failed");
     stored = args[4]; return "";
   };
-  const launch = { home: root, data: root, demo: false, candidate: false, env: {} };
+  const launch = { home: root, data: root, demo: false, candidate: false, env: {}, platform: "darwin" as const };
   try {
     const prefs = await Preferences.load(launch, command, "dev.meterusage.fixture");
     expect(prefs.values.panelSize).toBe("large");
@@ -122,7 +122,7 @@ it("persists the report cooldown as a native date and blocks requests after rela
     expect(args.slice(0, 4)).toEqual(["write", "dev.meterusage.fixture", "reportNextAllowedAt", "-date"]);
     writes.push([...args]); stored = args[4]; return "";
   };
-  const launch = { home: "/synthetic", data: "/synthetic", demo: false, candidate: false, env: {} };
+  const launch = { home: "/synthetic", data: "/synthetic", demo: false, candidate: false, env: {}, platform: "darwin" as const };
   const now = Date.parse("2026-10-15T12:00:00Z"), send = async () => "MU-123";
   let calls = 0;
   const countedSend = async () => { calls++; return send(); };

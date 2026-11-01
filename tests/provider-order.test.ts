@@ -43,7 +43,7 @@ it("persists and reloads order, normalizes legacy input and rejects invalid writ
 });
 it("writes defaults data only after validation and keeps saved order on failure", async () => {
   let stored = [...providers], fail = false;
-  const launch = { home: "/synthetic", data: "/synthetic", demo: false, candidate: false, env: {} };
+  const launch = { home: "/synthetic", data: "/synthetic", demo: false, candidate: false, env: {}, platform: "darwin" as const };
   const command = async (_binary: string, args: string[]) => {
     if (args[2] !== "providerOrder") throw new Error("Absent fixture key");
     if (args[0] === "read-type") return "Type is data";
@@ -57,7 +57,7 @@ it("writes defaults data only after validation and keeps saved order on failure"
   fail = false; await prefs.set("providerOrder", order); expect((await Preferences.load(launch, command, "fixture")).providerOrder).toEqual(order);
 });
 it("reloads full data when defaults abbreviates NSData and appends new providers to older orders", async () => {
-  const launch = { home: "/synthetic", data: "/synthetic", demo: false, candidate: false, env: {} };
+  const launch = { home: "/synthetic", data: "/synthetic", demo: false, candidate: false, env: {}, platform: "darwin" as const };
   const savedOrder = [...providers].reverse();
   let stored = savedOrder;
   const reads: string[][] = [];
