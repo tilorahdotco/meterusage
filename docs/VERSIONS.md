@@ -7,11 +7,11 @@ recovery/reference material, including explicit `--build-from-source` builds.
 See the [beta download](BETA.md), [historical Swift reference](swift/README.md)
 and [distribution decision](adr/0034-electron-beta-default.md).
 
-The Electron source stack is on main through [PR #76](https://github.com/pekth/meterusage/pull/76),
+The Electron source stack is on main through [PR #76](https://github.com/tilorahdotco/meterusage/pull/76),
 merge `0d514dd`. That integration preserves the newer Swift reporting source and
 adds account-isolated quota activity and Muse Stop/Start history preservation.
 Beta.7 includes those history fixes and the provider-icon repair from
-[PR #78](https://github.com/pekth/meterusage/pull/78). Its executable source is
+[PR #78](https://github.com/tilorahdotco/meterusage/pull/78). Its executable source is
 `9cb8880ceedf7107558f7cf8197885753059e28b`. Release documentation and build 61
 synthetic screenshots are separate from executable acceptance. The package
 version is set at packaging time; the source manifest retains 0.2.41. Settings
@@ -27,13 +27,15 @@ Stable acceptance and Swift source retirement remain separate work under
 
 ## Update channels
 
-The repository is moving from `pekth/meterusage` to `tilorahdotco/meterusage` by
-a GitHub transfer. From this change onward, the Electron updater accepts release
-assets under either owner, and nothing else. Every earlier Electron build (betas
-1–11) accepts only `pekth` assets, so it needs this bridge release before the
-transfer to keep updating automatically. The legacy Swift updater checks no
-owner and follows redirects. Never create or fork a `meterusage` repository
-under `pekth` after the transfer: that removes GitHub's redirect, and installed
+The repository moved from `pekth/meterusage` to `tilorahdotco/meterusage` by a
+GitHub transfer on 2026-11-01. Beta 12 and later accept release assets under
+either owner, and nothing else; GitHub now reports them under `tilorahdotco`.
+Builds after beta 12 look up releases at `tilorahdotco`. Every earlier Electron
+build (betas 1–11) accepts only `pekth` assets. Builds that updated to beta 12
+before the transfer keep updating; a build still on an earlier beta needs beta
+12 or later installed manually once. Beta 12 and the legacy Swift updater still call the
+`pekth` API endpoints and rely on GitHub's redirect. Never create or fork a
+`meterusage` repository under `pekth`: that removes the redirect, and those
 builds would stop finding updates.
 
 Swift and stable Electron builds read GitHub's `/releases/latest`, which never

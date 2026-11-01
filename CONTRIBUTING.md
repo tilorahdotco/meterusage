@@ -47,7 +47,7 @@ signed-in provider or a live account.
 
 ## Fork and create a branch
 
-1. Fork `https://github.com/pekth/meterusage` on GitHub.
+1. Fork `https://github.com/tilorahdotco/meterusage` on GitHub.
 2. Clone your fork and enter the checkout:
 
    ```sh
@@ -75,7 +75,7 @@ files.
 Add the main repository as `upstream` once:
 
 ```sh
-git remote add upstream https://github.com/pekth/meterusage.git
+git remote add upstream https://github.com/tilorahdotco/meterusage.git
 ```
 
 Before new work, update your branch and resolve conflicts locally:

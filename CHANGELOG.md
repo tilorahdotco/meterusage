@@ -29,6 +29,10 @@ follows [Semantic Versioning](https://semver.org/).
   `pekth/meterusage`, ahead of transferring the repository to the tilorahdotco
   organization. Release lookups keep using the current endpoints, which GitHub
   redirects after a transfer. No other owner is accepted.
+- Look up releases at `tilorahdotco/meterusage` after the repository transfer,
+  and point the prebuilt download, `Scripts/make-app.sh` and documentation
+  links there. Apps that updated to beta 12 before the transfer keep updating;
+  an app still on an earlier beta needs beta 12 or later installed manually.
 
 ### Fixed
 

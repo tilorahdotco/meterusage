@@ -42,7 +42,7 @@ and reset times in the menu bar, popover and floating side notch.
 * **Existing provider access**: Uses existing provider setup; there is no account connection UI in Swift. Uses existing provider CLIs, local SQLite/JSON stores and aggregate usage endpoints.
 * **Agent Budget API**: Machine-readable JSON CLI (`meterusage json`) exporting burn rates, pacing, and time-to-empty for autonomous AI agents.
 
-[Historical MeterUsage 0.2.41 ZIP for recovery](https://github.com/pekth/meterusage/releases/download/v0.2.41/MeterUsage-0.2.41.zip),
+[Historical MeterUsage 0.2.41 ZIP for recovery](https://github.com/tilorahdotco/meterusage/releases/download/v0.2.41/MeterUsage-0.2.41.zip),
 unzip it, and drag `MeterUsage.app` to
 **Applications**. No Swift, Xcode, Command Line Tools, or Git is required.
 The historical prebuilt release supports Apple silicon Macs with macOS 13 or later.
@@ -130,7 +130,7 @@ MeterUsage reads selected numeric usage fields and existing provider access:
 Installing and running MeterUsage does not require Swift, Xcode, Command Line
 Tools, or Git. The Swift runtime it uses ships with macOS.
 
-1. [Historical MeterUsage 0.2.41 ZIP for recovery](https://github.com/pekth/meterusage/releases/download/v0.2.41/MeterUsage-0.2.41.zip). This app ZIP is for Apple silicon Macs (M1 or later) with macOS 13 or later. Other versions are on [Releases](https://github.com/pekth/meterusage/releases). Choose the app ZIP, not GitHub's **Source code** archives.
+1. [Historical MeterUsage 0.2.41 ZIP for recovery](https://github.com/tilorahdotco/meterusage/releases/download/v0.2.41/MeterUsage-0.2.41.zip). This app ZIP is for Apple silicon Macs (M1 or later) with macOS 13 or later. Other versions are on [Releases](https://github.com/tilorahdotco/meterusage/releases). Choose the app ZIP, not GitHub's **Source code** archives.
 2. Unzip and drag `MeterUsage.app` to your `/Applications/` folder.
 3. Open `MeterUsage.app`. Releases are ad-hoc signed and are not notarized. If macOS blocks the first launch, right-click the app in Finder and choose **Open**, or use **Open Anyway** in System Settings → Privacy & Security.
 

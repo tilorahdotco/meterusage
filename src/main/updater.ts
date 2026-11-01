@@ -11,9 +11,9 @@ import { runCommand, type Command } from "./providers/transport";
 import { type Platform } from "./platform";
 export interface Release { version: string; tag: string; asset: { url: string; digest: string } }
 export type InstallState = "idle" | "downloading" | "installing" | "failed";
-export const releaseEndpoint = "https://api.github.com/repos/pekth/meterusage/releases/latest";
+export const releaseEndpoint = "https://api.github.com/repos/tilorahdotco/meterusage/releases/latest";
 /** Beta builds read the release list: GitHub's "latest" never includes prereleases. */
-export const releasesEndpoint = "https://api.github.com/repos/pekth/meterusage/releases?per_page=20";
+export const releasesEndpoint = "https://api.github.com/repos/tilorahdotco/meterusage/releases?per_page=20";
 const versionPattern = /^v?(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$/i;
 export const isPrerelease = (version: string) => /-beta\.\d+$/i.test(version);
 /** Semantic order for x.y.z and x.y.z-beta.n; a final release outranks its betas. */
@@ -26,8 +26,8 @@ export function newer(candidate: string, current: string) {
 }
 type RawRelease = { tag_name?: unknown; draft?: unknown; assets?: { name?: unknown; browser_download_url?: unknown; digest?: unknown }[] };
 const releaseShape = { tag_name: true, draft: true, assets: { '*': { name: true, browser_download_url: true, digest: true } } } as const;
-// The repository moves from pekth to tilorahdotco by a GitHub transfer. The API endpoints above redirect after
-// the move, but asset URLs report the new owner, so accept exactly these two repositories and nothing else.
+// The repository was transferred from pekth to tilorahdotco on 2026-11-01. GitHub reports asset URLs under the
+// new owner; pekth stays accepted for the same repository's old URLs. Accept exactly these two and nothing else.
 const releaseOwners = ["tilorahdotco", "pekth"] as const;
 function releaseFrom(data: RawRelease, platform: Platform): Release {
   if (typeof data.tag_name !== "string" || !versionPattern.test(data.tag_name) || data.draft === true) throw new Error("Invalid release");

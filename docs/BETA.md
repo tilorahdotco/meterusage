@@ -7,8 +7,8 @@ source/releases remain available for recovery; stable acceptance is still open.
 
 ## Install
 
-1. Download [the beta ZIP](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.12/MeterUsage-0.3.0-beta.12-mac-arm64.zip)
-   and [SHA256SUMS](https://github.com/pekth/meterusage/releases/download/v0.3.0-beta.12/SHA256SUMS).
+1. Download [the beta ZIP](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.12/MeterUsage-0.3.0-beta.12-mac-arm64.zip)
+   and [SHA256SUMS](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.12/SHA256SUMS).
 2. Quit MeterUsage and keep a copy of your existing app and its saved data for
    rollback. The beta shares the app identity and data locations with Swift.
 3. Unzip the download, move `MeterUsage.app` to Applications, and open it.
@@ -30,9 +30,11 @@ dismissed installs through the same checks without the dialog, only while you
 aren't using MeterUsage. Beta 4 and earlier cannot see betas; install the current beta
 manually once. Beta 5 through 10 can discover newer releases, but their installer
 may reject macOS temporary-directory aliases. Install beta.11 or later manually
-once to receive the updater fix. Every build before beta 12 accepts updates only
-from `pekth/meterusage`; install beta 12 before the repository moves to the
-tilorahdotco organization, or later betas won't be offered. `Scripts/make-app.sh` now prepares the pinned Electron beta with
+once to receive the updater fix. Every Electron build before beta 12 accepts updates
+only from `pekth/meterusage`. The repository moved to the tilorahdotco
+organization on 2026-11-01. Builds that updated to beta 12 before the move
+keep updating; a build still on an earlier beta won't be offered later
+releases, so install beta 12 or later manually once. `Scripts/make-app.sh` now prepares the pinned Electron beta with
 checksum/signature verification, destination staging and no compiler fallback.
 It preserves the published signature. Preparing output does not install it.
 
@@ -87,8 +89,8 @@ dd85fd5fd4b03ac69d3440fb902d4efc4e59ad5ce08edb1f814ccd54bbd8cfb8
   preserved and newly pasted keys are not saved. OpenRouter keeps its existing
   balance and aggregate activity source. Read [API setup and limits](API_USAGE_BETA.md).
 
-See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/docs/electron/README.md#source-choices),
-[desktop connections](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/docs/PRIVACY.md).
+See [source choices](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.12/docs/electron/README.md#source-choices),
+[desktop connections](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.12/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.12/docs/PRIVACY.md).
 
 ## Known limits
 
@@ -119,7 +121,7 @@ See [source choices](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/doc
 
 Use Settings > Diagnostics for sanitized diagnostics and **Send report**.
 The app limits report attempts to one every ten minutes, including relaunches.
-Review the [report contents and privacy limits](https://github.com/pekth/meterusage/blob/v0.3.0-beta.12/docs/REPORTING.md) before sending.
+Review the [report contents and privacy limits](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.12/docs/REPORTING.md) before sending.
 Never include tokens, passwords or raw account files in an issue.
 
 ## Build and screenshot identity
@@ -145,8 +147,10 @@ Apple accepted notarization; the final ZIP passed native updater staging,
 extracted signature, stapled-ticket and Gatekeeper checks. The extracted
 executable returned schema-1 synthetic demo JSON without stderr, and ran as
 an isolated demo process. No normal-profile installation was performed.
-Native automatic replacement and relaunch remain unverified. The new artifact
-does not close the native acceptance gaps above.
+On 2026-11-01, an installed beta 11 with **Install updates automatically** on
+replaced itself with beta 12 (build 82) and relaunched; the installed app
+passed Gatekeeper as notarized Developer ID and left no staging copy in
+Applications. The new artifact does not close the native acceptance gaps above.
 
 The [screenshot gallery](SCREENSHOTS.md) uses invented demo data and the actual
 release renderer. It replaces old product captures without exposing real accounts.

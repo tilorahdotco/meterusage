@@ -36,7 +36,7 @@ positioning on a Mac. Details open on hover; the rail has one design and no pin.
 
 ![Appearance and panel sizing](images/beta-settings-appearance.png)
 
-![Separate API connections](https://github.com/pekth/meterusage/blob/v0.3.0-beta.3/docs/images/beta-settings-api.png)
+![Separate API connections](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.3/docs/images/beta-settings-api.png)
 
 API access is disabled in the synthetic demo. Source previews omit the version
 footer when bundle metadata is absent; the installed app shows its bundle version.
