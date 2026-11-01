@@ -18,6 +18,26 @@ its own period. Refresh rereads the file; it does not fetch billing or make an
 old snapshot fresh. Anthropic's cost report excludes Priority Tier costs. Neither
 provider's report replaces its dashboard or invoice.
 
+## OpenAI remaining balance
+
+The OpenAI API card also shows the dollars left. OpenAI documents no balance
+endpoint, so the fetch first tries the unofficial `credit_grants` report with the
+same key. A result is labelled **OpenAI credit grants (unofficial)** and shows
+the amount left, used and granted. This report may reject Admin keys or change
+without notice; its failure never stops the spend fetch. A report with zero
+credit granted counts as no balance, so the fallback below can run.
+
+If it fails, enter **Prepaid credit (USD)** and **Added on (UTC date)** under
+OpenAI API in Settings, save, then fetch billing again. The card shows
+`~$X left`, calculated as the prepaid amount minus Costs API spend since that
+date. Update both values after each top-up. The estimate does not see refunds,
+expiring grants or invoice adjustments. When spend exceeds the prepaid amount,
+the card asks you to update it. Spend on the whole top-up day counts, including
+any before the top-up. A future date is ignored, and the estimate is skipped if
+the date is more than about 2.5 years back. **Clear** turns the fallback off for
+later fetches; an estimate already on the card stays until the next fetch. The
+Terminal helper tries only the credit grants report.
+
 ## Set up in Settings
 
 1. Open **Settings → API connections**.
@@ -132,6 +152,8 @@ stay unavailable; there is no currency conversion.
 - [OpenAI organization costs](https://platform.openai.com/docs/api-reference/usage/costs)
   uses an organization Admin API key. The implementation follows the official
   OpenAI OpenAPI definition for `/organization/costs`.
+- OpenAI `credit_grants` is undocumented; see
+  [ADR 0035](adr/0035-openai-remaining-balance.md).
 - [Anthropic usage and cost API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api)
   requires Admin API access and documents the Priority Tier exclusion.
 

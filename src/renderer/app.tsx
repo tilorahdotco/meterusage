@@ -1,7 +1,7 @@
 import { apiBillingProviders, apiBillingNames, type ApiBillingReading } from "../domain/api-billing";
 import { normalizeProviderOrder } from "../domain/provider-order";
 import { ProviderOrder } from "./provider-order";
-import { ApiBillingSetup } from "./api-billing-setup";
+import { ApiBillingBalanceLine, ApiBillingSetup, PrepaidCreditSetup } from "./api-billing-setup";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { type Bridge, type ViewState, type Request, type Surface, type ConnectionState, PanelSize, panelScales, providerKey, trayKey, statusPages } from "../shared/ipc";
 import { type AccountActivity, type Slot, type Provider, type QuotaWindow, type Telemetry, type Daily, type Loaded, type Session, type UsageWindow, clamp, providerNames, primary, slotKey, slotName, headlineWindow, lastBurn, totalTokens, localDay, shiftDay, utcDay, tokens, resetCreditAvailable, severityNames } from "../domain/models";
@@ -26,7 +26,7 @@ function Mark({ slot, state }: { slot: Slot; state: ViewState }) {
   if (slot.provider === "claude") return <svg aria-hidden="true" className="mark" viewBox="0 0 1 1" style={{ color: tint }}><defs><mask id={`eyes-${id}`}><rect width="1" height="1" fill="white" /><rect x=".27" y=".28" width=".15" height=".20" fill="black" /><rect x=".58" y=".28" width=".15" height=".20" fill="black" /></mask></defs><g fill="currentColor" mask={`url(#eyes-${id})`}><rect x=".08" y=".10" width=".84" height=".60" rx=".16" />{[.16, .35, .54, .73].map((x, i) => <rect key={x} x={x} y=".66" width=".11" height={i === 0 || i === 3 ? .22 : .24} />)}</g></svg>;
   return <span aria-hidden="true" className="mark" style={{ background: tint, maskImage: `url(./${slot.provider}-symbol.png)`, WebkitMaskImage: `url(./${slot.provider}-symbol.png)` }} />;
 }
-function ServiceStatuses({ state, action }: { state: ViewState; action: (r: Request) => Promise<void> }) {
+function ServiceStatuses({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const rows = normalizeProviderOrder(state.settings.providerOrder).flatMap(provider => { const status = state.snapshot.statuses[provider]; return status ? [{ provider, status }] : []; });
   return <section className="provider-card service-status" aria-label="Service status"><h2>Service status</h2>{rows.length ? rows.map(({ provider, status: loaded }) => {
     if (loaded.status === "idle") return <div className="row status" key={provider}><div className="provider-heading"><Mark slot={primary(provider)} state={state} /><strong>{providerNames[provider]}</strong></div><p className="secondary">{state.snapshot.refreshing ? "Checking…" : "Not checked yet"}</p></div>;
@@ -126,7 +126,7 @@ function AccountHeatmap({ reading, staticExport }: { reading: Loaded<AccountActi
   const peak = Math.max(1, ...cells.map(c => c.tokens ?? 0));
   return <section className="telemetry"><ActivityHeatmap title="Account token activity" scope="Provider account" period={`26 weeks through ${sorted[sorted.length - 1].startDate}`} label="Account daily tokens over 26 weeks" fullHistory unavailable={cells.some(c => c.tokens === undefined)}>{cells.map((c, i) => <HeatmapCell key={c.date} first={i === 0} staticExport={staticExport} label={`${c.date}: ${c.tokens === undefined ? "Unavailable" : `${new Intl.NumberFormat("en").format(c.tokens)} tokens`}`} readout={`${new Date(c.date).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · ${c.tokens === undefined ? "Unavailable" : `${n(c.tokens)} tokens`}`} amount={c.tokens} peak={peak} />)}</ActivityHeatmap></section>;
 }
-export function ProviderCard({ slot, state, action, detail = false, staticExport = false }: { slot: Slot; state: ViewState; action: (r: Request) => Promise<void>; detail?: boolean; staticExport?: boolean }) {
+export function ProviderCard({ slot, state, action, detail = false, staticExport = false }: { slot: Slot; state: ViewState; action: (r: Request) => Promise<boolean | void>; detail?: boolean; staticExport?: boolean }) {
   const s = state.snapshot, key = slotKey(slot), fresh = extract(s.quotas[key]), q = fresh ?? s.archived[key], activity = extract(s.activities[key]), usage = extract(s.usages[key]), plan = extract(s.plans[key]) ?? q?.planType, accountActivity = s.accountActivities?.[key];
   const t = activity?.telemetry ?? usage?.telemetry, at = activity && lastBurn(activity.sessions), status = extract(s.statuses[slot.provider]);
   const activeWindow = detail && q && activity ? headlineWindow(slot.provider, effectiveWindows(q)) : undefined;
@@ -160,7 +160,7 @@ function UnifiedStrip({ state }: { state: ViewState }) {
   return <section className="provider-card activity-summary"><h2>AI activity on this Mac</h2>{totals.todayTokens !== undefined && <dl className="metrics"><div><dt>Tokens today</dt><dd>{n(totals.todayTokens)}</dd></div><div><dt>Last 7 days</dt><dd>{n(totals.weekTokens!)}</dd></div><div><dt>Estimated cost today</dt><dd>{money(totals.todayCost!)}</dd></div></dl>}{nudge && <p className="stale">{nudge}</p>}</section>;
 }
 const labels: Record<string, string> = { launchAtLogin: "Launch at login", quotaAlertsEnabled: "Quota alerts", updateCheckEnabled: "Check for updates", sideNotchPanelEnabled: "Show side notch", menuBarCompactEnabled: "Compact menu bar", showHeatmap: "Daily heatmaps", showClaudeHeatmap: "Claude heatmap", showCodexHeatmap: "Codex heatmap", showPacingBurnRate: "Pacing and burn rate", showActivityTelemetry: "Activity statistics", showDailyActivityChart: "Daily activity chart", showSideNotchResetButton: "Codex limit resets in the side notch" };
-function ConnectionRow({ connection: c, state, action }: { connection: ConnectionState; state: ViewState; action: (r: Request) => Promise<void> }) {
+function ConnectionRow({ connection: c, state, action }: { connection: ConnectionState; state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const [method, setMethod] = useState<ConnectionState["source"]>(!c.localAvailable && c.status !== "unsupported" ? "account" : c.source);
   const [expanded, setExpanded] = useState(false);
   const busy = c.status === "connecting", collected = state.settings.values[providerKey(c.provider)] === true;
@@ -210,16 +210,16 @@ export function ApiBillingCards({ state }: { state: ViewState }) {
   return <>{apiBillingProviders.map(provider => {
     const reading = state.snapshot.apiBilling?.[provider];
     if (reading?.status !== "value") return null;
-    return <section key={provider} className="provider-card" aria-label={`${apiBillingNames[provider]} billing`}><div className="row"><h2>{apiBillingNames[provider]} <small>API billing</small></h2><strong>{reading.value.daily.length ? money(reading.value.daily.reduce((sum, day) => sum + day.amountUSD, 0)) : "No cost buckets reported"}</strong></div><ApiBillingDetails reading={reading} />{provider === "anthropic" && <p className="secondary">Priority Tier excluded.</p>}</section>;
+    return <section key={provider} className="provider-card" aria-label={`${apiBillingNames[provider]} billing`}><div className="row"><h2>{apiBillingNames[provider]} <small>API billing</small></h2><strong>{reading.value.daily.length ? `${money(reading.value.daily.reduce((sum, day) => sum + day.amountUSD, 0))} used` : "No cost buckets reported"}</strong></div><ApiBillingBalanceLine balance={reading.value.balance} /><ApiBillingDetails reading={reading} />{provider === "anthropic" && <p className="secondary">Priority Tier excluded.</p>}</section>;
   })}</>;
 }
-export function ApiBillingConnections({ state, action }: { state: ViewState; action: (r: Request) => Promise<void> }) {
-  return <section className="connections" aria-label="API connections"><h2>API connections <small>Beta</small></h2><p className="secondary section-description">View organization API spend. Use an Admin key, not a project key or ChatGPT or Claude subscription sign-in.</p><p className="secondary section-description">Use a saved key from the previous MeterUsage, or paste a one-time key. Pasted keys are cleared on submit and never saved.</p>{state.snapshot.demo && <p className="secondary connection-demo">API access is disabled in this profile.</p>}<div className="settings-group">{apiBillingProviders.map(provider => {
+export function ApiBillingConnections({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
+  return <section className="connections" aria-label="API connections"><h2>API connections <small>Beta</small></h2><p className="secondary section-description">View organization API spend and, for OpenAI, the remaining credit balance. Use an Admin key, not a project key or ChatGPT or Claude subscription sign-in.</p><p className="secondary section-description">Use a saved key from the previous MeterUsage, or paste a one-time key. Pasted keys are cleared on submit and never saved.</p>{state.snapshot.demo && <p className="secondary connection-demo">API access is disabled in this profile.</p>}<div className="settings-group">{apiBillingProviders.map(provider => {
     const reading = state.snapshot.apiBilling?.[provider];
-    return <div className="provider-setting connection-row" key={provider}><strong>{apiBillingNames[provider]}</strong>{reading?.status === "value" ? <ApiBillingDetails reading={reading} /> : <p className="secondary">{reading?.code === "unavailable" ? "Billing snapshot unavailable. Fetch again to replace it." : "No billing snapshot yet."}</p>}<ApiBillingSetup provider={provider} disabled={state.snapshot.demo} action={action} />{provider === "anthropic" && <p className="secondary">Priority Tier costs are excluded.</p>}</div>;
+    return <div className="provider-setting connection-row" key={provider}><strong>{apiBillingNames[provider]}</strong>{reading?.status === "value" ? <><ApiBillingBalanceLine balance={reading.value.balance} /><ApiBillingDetails reading={reading} /></> : <p className="secondary">{reading?.code === "unavailable" ? "Billing snapshot unavailable. Fetch again to replace it." : "No billing snapshot yet."}</p>}<ApiBillingSetup provider={provider} disabled={state.snapshot.demo} action={action} />{provider === "openai" && <PrepaidCreditSetup values={state.settings.values} disabled={state.snapshot.demo} action={action} />}{provider === "anthropic" && <p className="secondary">Priority Tier costs are excluded.</p>}</div>;
   })}</div><p className="secondary">Fetch billing updates the snapshot automatically. Refresh rereads saved snapshots. OpenRouter keeps its existing connection.</p></section>;
 }
-export function Connections({ state, action }: { state: ViewState; action: (r: Request) => Promise<void> }) {
+export function Connections({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const connections: ConnectionState[] = state.connections ?? ["codex", "claude", "antigravity", "grok"].map(provider => ({ provider: provider as ConnectionState["provider"], source: provider === "grok" ? "cli" : "account", localAvailable: !state.snapshot.demo, status: "disconnected" }));
   return <section className="connections" aria-label="Account connections">
     <h2>Choose how to connect</h2>
@@ -240,7 +240,7 @@ export function Connections({ state, action }: { state: ViewState; action: (r: R
     {!state.snapshot.appearance.onboarding && <div className="onboarding-finish"><p className="secondary">You can skip setup and change these choices in Settings later.</p><button onClick={() => void action({ action: "setPreference", key: "onboardingCompleted", value: true })}>Done</button></div>}
   </section>;
 }
-export function UpdateNotice({ state, action }: { state: ViewState; action: (r: Request) => Promise<void> }) {
+export function UpdateNotice({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const [pending, setPending] = useState(false), dispatching = useRef(false);
   const update = state.update;
   if (!update) return null;
@@ -253,7 +253,7 @@ export function UpdateNotice({ state, action }: { state: ViewState; action: (r: 
   };
   return <section className="provider-card update-notice" aria-label="App update"><div className="row update-actions"><svg className="update-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" /></svg><span role="status">MeterUsage {update.version} available</span><button disabled={busy} onClick={() => void send("updateInstall")}>{update.state === "downloading" ? "Downloading…" : update.state === "installing" ? "Installing…" : pending ? "Please wait…" : update.state === "failed" ? "Retry update" : "Install update…"}</button><button disabled={busy} onClick={() => void send("updateDismiss")}>Dismiss</button></div></section>;
 }
-export function Settings({ state, action, saveOrder }: { state: ViewState; action: (r: Request) => Promise<void>; saveOrder: (order: Provider[]) => Promise<boolean> }) {
+export function Settings({ state, action, saveOrder }: { state: ViewState; action: (r: Request) => Promise<boolean | void>; saveOrder: (order: Provider[]) => Promise<boolean> }) {
   const [category, setCategory] = useState("Connections");
   const categories = ["Connections", "API connections", "Appearance", "General", "Providers", "Side notch", "Usage details", "Diagnostics"];
   const values = state.settings.values;
@@ -292,7 +292,7 @@ export function Settings({ state, action, saveOrder }: { state: ViewState; actio
     <p className="secondary settings-footer">MeterUsage{state.appVersion ? ` ${state.appVersion}` : ""} · Cost figures are local estimates.</p>
   </main>;
 }
-function AccountRow({ account: a, action }: { account: ViewState["settings"]["accounts"][number]; action: (r: Request) => Promise<void> }) {
+function AccountRow({ account: a, action }: { account: ViewState["settings"]["accounts"][number]; action: (r: Request) => Promise<boolean | void> }) {
   const [label, setLabel] = useState(a.label);
   useEffect(() => setLabel(a.label), [a.label]);
   return <div className="account-row"><div className="row"><label><span className="secondary">{providerNames[a.provider]} label</span><input aria-label={`${providerNames[a.provider]} account label`} maxLength={100} value={label} onChange={e => setLabel(e.target.value)} onBlur={() => { if (label !== a.label) void action({ action: "accountUpdate", id: a.id, label }); }} /></label><input aria-label={`Enable ${a.label || a.provider} account`} type="checkbox" checked={a.enabled} onChange={e => void action({ action: "accountUpdate", id: a.id, enabled: e.target.checked })} /><button onClick={() => void action({ action: "accountRemove", id: a.id })}>Remove</button></div><div className="row secondary"><span>{a.pathLabel}</span><button onClick={() => void action({ action: "accountPath", id: a.id })}>Change directory…</button></div></div>;
@@ -308,7 +308,7 @@ function TrayImage({ state }: { state: ViewState }) {
   });
   return <div className="tray-image" aria-label="MeterUsage">{s.appearance.compactTray ? <svg width="9" height="13" viewBox="0 0 9 13"><rect x=".5" y=".5" width="8" height="12" rx="2" stroke="currentColor" fill="none" /><rect x="2" y="4.5" width="5" height="6.5" rx="1.5" fill="currentColor" /></svg> : clusters.length ? clusters : <span aria-label="Usage unavailable">–</span>}</div>;
 }
-function Notch({ state, action }: { state: ViewState; action: (r: Request) => Promise<void> }) {
+function Notch({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const entries = notchEntries(state.snapshot), selected = entries.find(e => e.key === state.notch.selected) ?? entries[0];
   const suppressClick = useRef(false), drag = useRef<{ id: number; x: number; y: number; started: boolean } | null>(null);
   const open = state.notch.expanded && !state.notch.dragging;
@@ -340,7 +340,7 @@ function Notch({ state, action }: { state: ViewState; action: (r: Request) => Pr
     {open && selected && <ProviderCard slot={selected.slot} state={state} action={action} detail />}
   </div>;
 }
-export function UsagePanel({ state, action }: { state: ViewState; action: (r: Request) => Promise<void> }) {
+export function UsagePanel({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const [selected, setSelected] = useState("");
   const id = useId(), slots = state.snapshot.slots;
   const slot = slots.find(slot => slotKey(slot) === selected) ?? slots[0];
@@ -376,7 +376,7 @@ export function App({ bridge }: { bridge: Bridge }) {
       if (size !== last) { last = size; void bridge.request(surface === "share" ? { action: "shareResize", height } : { action: "resize", height: panel ? height : Math.min(2000, height), ...(width === undefined ? {} : { width }) }); }
     }); observer.observe(node); return () => observer.disconnect();
   }, [bridge, !!state, surface, panel ? state?.settings.values.panelSize : undefined]);
-  const action = async (r: Request) => { setError(""); try { const reply = await bridge.request(r); if (!reply.ok) setError(reply.error); } catch { setError("Could not complete action"); } };
+  const action = async (r: Request) => { setError(""); try { const reply = await bridge.request(r); if (!reply.ok) setError(reply.error); return reply.ok; } catch { setError("Could not complete action"); return false; } };
   const saveOrder = async (order: Provider[]) => {
     setError("");
     try { const reply = await bridge.request({ action: "providerOrder", order }); if (!reply.ok) setError(reply.error); return reply.ok; }

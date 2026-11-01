@@ -2,6 +2,7 @@
 
 - Status: Accepted implementation direction; real billing acceptance pending
 - Date: 2026-10-16
+- Amended by: [ADR 0035](0035-openai-remaining-balance.md) (undocumented OpenAI credit grants report for the remaining balance)
 
 Add OpenAI API and Anthropic API billing as a separate snapshot field and compact
 cards. Preserve existing subscription provider identities, quota/archive state,

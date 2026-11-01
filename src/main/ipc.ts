@@ -5,6 +5,7 @@ import type { Surface, SettingsState, ViewState } from "../shared/ipc";
 import { notchEntries } from "../domain/notch";
 import { normalizeProviderOrder, validProviderOrder } from "../domain/provider-order";
 import { providers } from "../domain/models";
+import { prepaidPreferenceKeys, validPrepaidAmount, validPrepaidSince } from "../domain/api-billing";
 import { editableBooleans, providerKey, trayKey, statusPages, panelScales, type Request } from "../shared/ipc";
 const empty = new Set(["state", "refresh", "settings", "close", "quit", "clearCache", "copyDiagnostics", "sendReport", "claudeUsagePage", "copyJSON", "dragStart", "dragEnd", "notchContext", "updateInstall", "updateDismiss"]);
 const id = (v: unknown) => typeof v === "string" && /^[A-Za-z0-9-]{1,80}$/.test(v);
@@ -19,7 +20,7 @@ export function parseRequest(raw: unknown): Request {
   else switch (action) {
     case "setPreference":
       fields = ["key", "value"];
-      valid = typeof r.key === "string" && (boolKeys.has(r.key) ? typeof r.value === "boolean" : r.key === "refreshIntervalSeconds" ? typeof r.value === "number" && [30, 60, 120, 300, 900].includes(r.value) : r.key === "appearanceTheme" ? typeof r.value === "string" && ["system", "light", "dark"].includes(r.value) : r.key === "panelSize" ? typeof r.value === "string" && Object.hasOwn(panelScales, r.value) : r.key === "accentTheme" && typeof r.value === "string" && ["blue", "violet", "teal", "amber", "rose", "graphite"].includes(r.value));
+      valid = typeof r.key === "string" && (boolKeys.has(r.key) ? typeof r.value === "boolean" : r.key === "refreshIntervalSeconds" ? typeof r.value === "number" && [30, 60, 120, 300, 900].includes(r.value) : r.key === "appearanceTheme" ? typeof r.value === "string" && ["system", "light", "dark"].includes(r.value) : r.key === "panelSize" ? typeof r.value === "string" && Object.hasOwn(panelScales, r.value) : r.key === prepaidPreferenceKeys.amount ? validPrepaidAmount(r.value) : r.key === prepaidPreferenceKeys.since ? validPrepaidSince(r.value) : r.key === "accentTheme" && typeof r.value === "string" && ["blue", "violet", "teal", "amber", "rose", "graphite"].includes(r.value));
       break;
     case "providerOrder": fields = ["order"]; valid = validProviderOrder(r.order); break;
     case "accountAdd": fields = ["provider"]; valid = r.provider === "codex" || r.provider === "claude"; break;
@@ -53,7 +54,7 @@ export function shareSnapshot(view: ViewState, displayedKey: string): ViewState 
 export function projectSettings(values: Record<string, PreferenceValue>, accounts: ManagedAccount[], home: string, surface?: Surface): SettingsState {
   return {
     providerOrder: normalizeProviderOrder(values.providerOrder),
-    values: Object.fromEntries(["refreshIntervalSeconds", "appearanceTheme", "accentTheme", "panelSize", ...editableBooleans, ...providers.flatMap(p => [providerKey(p), trayKey(p)])].map(k => [k, values[k] as boolean | number | string])),
+    values: Object.fromEntries(["refreshIntervalSeconds", "appearanceTheme", "accentTheme", "panelSize", prepaidPreferenceKeys.amount, prepaidPreferenceKeys.since, ...editableBooleans, ...providers.flatMap(p => [providerKey(p), trayKey(p)])].map(k => [k, values[k] as boolean | number | string])),
     accounts: accounts.map(a => {
       const sub = relative(home, a.path), pathLabel = a.path.startsWith("~") ? a.path : !sub.startsWith("..") ? `~/${sub}` : basename(a.path);
       return { id: a.id, provider: a.provider, label: a.label, enabled: a.enabled, ...(surface === "settings" ? { pathLabel } : {}) };

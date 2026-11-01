@@ -2,7 +2,8 @@ import { describe, expect, it, vi, afterEach } from "vite-plus/test";
 import { readFileSync } from "node:fs";
 import { createElement, useRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ApiBillingSetup } from "../src/renderer/api-billing-setup";
+import { ApiBillingSetup, PrepaidCreditSetup } from "../src/renderer/api-billing-setup";
+import type { Request } from "../src/shared/ipc";
 
 vi.mock("react", async original => {
   const actual = await original<typeof import("react")>();
@@ -62,5 +63,42 @@ describe("one-time API billing setup", () => {
     expect(guide).toContain("Fetch billing"); expect(guide).toContain("not saved");
     expect(guide).toContain("api-usage-helper.cjs openai"); expect(guide).toContain("api-usage-helper.cjs anthropic");
     expect(helper).toContain("delete env[name]");
+  });
+});
+
+describe("prepaid credit fallback form", () => {
+  const amountKey = "openAIPrepaidCreditUSD", sinceKey = "openAIPrepaidSince";
+  const mount = (values: Record<string, number | string>, amount: string, since: string, results: (boolean | void)[] = []) => {
+    const amountField = { value: amount }, sinceField = { value: since };
+    vi.mocked(useRef).mockReturnValueOnce({ current: amountField }).mockReturnValueOnce({ current: sinceField });
+    const action = vi.fn(async (_request: Request) => results.length ? results.shift() : true);
+    return { action, amountField, sinceField, form: PrepaidCreditSetup({ values, disabled: false, action }) };
+  };
+  it("disables the fallback before writing the date, then writes the amount", async () => {
+    const { action, form } = mount({}, "25.5", "2026-10-05");
+    await form.props.onSubmit({ preventDefault: vi.fn() });
+    expect(action.mock.calls.map(c => c[0])).toEqual([
+      { action: "setPreference", key: amountKey, value: 0 }, { action: "setPreference", key: sinceKey, value: "2026-10-05" }, { action: "setPreference", key: amountKey, value: 25.5 }]);
+  });
+  it("stops at the first failed write so the amount never pairs with a stale date", async () => {
+    const { action, form } = mount({ [amountKey]: 10, [sinceKey]: "2026-09-01" }, "25", "2026-10-05", [true, false]);
+    await form.props.onSubmit({ preventDefault: vi.fn() });
+    expect(action).toHaveBeenCalledTimes(2);
+    expect(action.mock.calls.at(-1)?.[0]).toEqual({ action: "setPreference", key: sinceKey, value: "2026-10-05" });
+  });
+  it("rejects invalid input without writing", async () => {
+    for (const [amount, since] of [["0", "2026-10-05"], ["abc", "2026-10-05"], ["5", ""], ["5", "2026-02-30"]]) {
+      const { action, form } = mount({}, amount, since);
+      await form.props.onSubmit({ preventDefault: vi.fn() }); expect(action).not.toHaveBeenCalled();
+    }
+  });
+  it("clears inputs only after both clear writes succeed", async () => {
+    for (const results of [[true, true], [true, false]]) {
+      const { action, form, amountField, sinceField } = mount({ [amountKey]: 10, [sinceKey]: "2026-09-01" }, "10", "2026-09-01", [...results]);
+      const clear = form.props.children.at(-1);
+      await clear.props.onClick();
+      expect(action.mock.calls.map(c => c[0])).toEqual([{ action: "setPreference", key: amountKey, value: 0 }, { action: "setPreference", key: sinceKey, value: "" }]);
+      expect(amountField.value === "" && sinceField.value === "").toBe(results[1]);
+    }
   });
 });

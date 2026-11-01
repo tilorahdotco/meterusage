@@ -10,6 +10,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Show the dollars left on the OpenAI API card beside spend this month. The
+  balance comes from OpenAI's unofficial credit grants report. If that report is
+  unavailable, MeterUsage estimates it from the prepaid credit and top-up date
+  you enter in Settings → API connections.
+
 ### Fixed
 
 - Keep credential and personal-path checks effective on large staged diffs.

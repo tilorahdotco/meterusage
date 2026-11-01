@@ -258,9 +258,10 @@ compatibility and packaged acceptance. See [setup](DESKTOP-CONNECTIONS.md).
 OpenAI API and Anthropic API billing use separate normalized snapshots under
 `Library/Application Support/MeterUsage/api-usage`. The optional bundled helper
 reads the selected organization Admin key from its environment for one fetch,
-removes that key from its own environment and calls only the documented
+removes that key from its own environment and calls the documented
 OpenAI `/v1/organization/costs` or Anthropic `/v1/organizations/cost_report`
-HTTPS endpoint. The Settings → API connections page also accepts a one-time
+HTTPS endpoint. For OpenAI it also calls the undocumented credit grants report
+described below. The Settings → API connections page also accepts a one-time
 Admin key in a masked field. An explicit Fetch billing action passes it through
 the registered Settings bridge to the main process, using the same collector.
 The field clears on submit; leaving the page clears unsubmitted input. Keys are
@@ -275,15 +276,24 @@ polling never read these Keychain items. Fixed errors exclude key values and pro
 Only one request per provider may run; quit cancels pending fetches. Requests
 reject redirects, cap response size and pagination, and never start inference.
 
-The helper writes only schema/provider, capture/period timestamps, currency and
-daily USD totals. Identifiers, headers and raw responses/errors are discarded.
+The helper writes only schema/provider, capture/period timestamps, currency,
+daily USD totals and an optional OpenAI balance (granted, used and available
+totals, or the prepaid amount, top-up date and spend since then). Identifiers, headers and raw responses/errors are discarded.
 Files and their final directory are owner-only; replacement is atomic and a
 failed request preserves the previous file. The app validates the fixed files
 and publishes only projected fields. Demo and isolated provider tests never
 read live API billing files. Demo, candidate and isolated profiles cannot use
 the Settings fetch action. Polling rereads snapshots and never fetches billing.
 Reports older than 24 hours or from a prior UTC month are marked stale.
-Anthropic Priority Tier costs are excluded. See [setup](API_USAGE_BETA.md) and
+Anthropic Priority Tier costs are excluded.
+
+For OpenAI, the same fetch also requests the undocumented
+`/v1/dashboard/billing/credit_grants` report with the same key and keeps only
+its granted, used and available USD totals; grant identifiers are discarded. If
+that fails and Settings holds a prepaid amount and top-up date, the collector
+requests documented costs since that date and stores only the prepaid amount,
+date and spend total. The prepaid amount and date are non-secret preferences.
+See [ADR 0035](adr/0035-openai-remaining-balance.md), [setup](API_USAGE_BETA.md) and
 [ADR 0029](adr/0029-api-billing-snapshots.md) and
 [ADR 0032](adr/0032-one-time-api-setup.md).
 
