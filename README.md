@@ -18,8 +18,9 @@ Quit MeterUsage before replacing it and keep a recovery copy of the app and
 its saved data. Beta 5 and later check hourly for newer betas or a newer stable
 release when **Check for updates** is on. Beta 8 adds an update notice
 in Usage and Settings > General for installation with confirmation or dismissal.
-Downloads and installation show busy states; failures offer retry. Beta 10
-adds the dollars left to the OpenAI API card, from OpenAI's unofficial credit
+Downloads and installation show busy states; failures offer retry. Beta 9
+finds the Codex sign-in helper in `ChatGPT.app` installs and reports refused
+Claude Desktop Keychain reads. Beta 10 adds the dollars left to the OpenAI API card, from OpenAI's unofficial credit
 grants report or an estimate from a prepaid amount you enter. See
 [API billing](docs/API_USAGE_BETA.md#openai-remaining-balance).
 
