@@ -3,6 +3,7 @@
 - Status: Accepted; display confirmed on a real personal account; redemption pending first real use
 - Date: 2026-11-03
 - Amends: [ADR 0016](0016-claude-live-test-profile.md) (Claude usage request; reset redemption outside the test profile)
+- Amended by: [ADR 0046](0046-claude-model-only-free-reset.md) (grant `clears` and model-only reset titles)
 
 ## Context
 
@@ -24,15 +25,7 @@ Codex, rather than send users to Claude's website.
   and offline errors are not retried.
 - From the `cedar_ember` block MeterUsage selects only `eligible`,
   `next_grant_id` and, per grant, `id`, `resets_left`, `resets_total`,
-  `paused`, `starts_at`, `ends_at`, `usable_now` and `clears`.
-- `clears` lists the usage windows a grant resets. Claude Code classifies
-  `seven_day_opus`, `seven_day_sonnet` and `seven_day_overage_included` as
-  per-model limits. A grant whose `clears` names only those is a model reset,
-  not a weekly one, and its credit is titled by model, such as
-  "Free reset · Fable only". `seven_day_overage_included` takes the model name
-  of the single per-model weekly limit in `limits[]`; otherwise the title says
-  "model limit only". An absent, empty or other `clears` keeps "Free reset". A
-  number, boolean or null entry in `clears` drops that grant.
+  `paused`, `starts_at`, `ends_at` and `usable_now`.
 - A grant is live when it is not paused, has resets left, has started and has
   not expired. It is redeemable when its identifier matches
   `^[A-Za-z0-9_-]{1,64}$`, `usable_now` is not false and, when Claude names a
@@ -70,7 +63,4 @@ with one unused reset, showed "1 free reset" expiring 2026-12-15 and offered
 **Use reset**, so the grant identifier and usability fields parsed. Redemption
 through `claude.ai` has not yet run against a real account. The owner is
 keeping the reset until it is needed. Team and Enterprise organizations are
-not covered. Model-only resets (added 2026-11-10) follow Claude Code
-2.1.322's grant schema and have only synthetic tests. After any redeemed
-reset, pacing restarts for every window as before, including windows that a
-model-only reset did not clear.
+not covered.

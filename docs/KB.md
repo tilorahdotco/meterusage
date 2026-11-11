@@ -129,7 +129,8 @@ Release documentation refresh: 2026-11-07 for build 90.
   the Desktop usage request adds `cedar_ember=1` and retries once without it
   if rejected. Live grants become "Free reset" credits on the Claude card. A
   grant whose `clears` names only per-model limits is titled as a model
-  reset, such as "Free reset · Fable only" (synthetic tests only). A
+  reset, such as "Free reset · Fable only" ([ADR 0046](adr/0046-claude-model-only-free-reset.md),
+  synthetic tests only). A
   confirmed **Use reset** POSTs to `claude.ai/api/organizations/{org}/reset_rate_limits`
   inside the verified Desktop session, and Claude's outcome is shown. Grant IDs
   stay in memory and are not archived. Both endpoints are undocumented. A
