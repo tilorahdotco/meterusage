@@ -618,6 +618,26 @@ it("reads Claude free resets per grant and marks only the next usable grant rede
   }
   expect(desktopQuota('{"five_hour":{"utilization":10}}', now).resetCreditCount).toBeUndefined();
 });
+it("titles a Claude free reset that clears only per-model limits by the model it resets", () => {
+  const grant = (id: string, clears: unknown) => ({ id, resets_left: 1, resets_total: 1, paused: false, usable_now: true, clears });
+  const fable = { kind: "weekly_scoped", percent: 40, resets_at: "2026-11-06T04:00:00Z", scope: { model: { display_name: "Fable" } } };
+  const usage = (limits: unknown[], ...grants: unknown[]) => JSON.stringify({ five_hour: { utilization: 10 }, seven_day: { utilization: 20 }, limits, cedar_ember: { eligible: true, grants } });
+  const titles = (raw: string) => desktopQuota(raw, now).resetCredits.map(c => [c.id, c.title, c.status]);
+  expect(titles(usage([fable],
+    grant("model_fable", ["seven_day_overage_included"]), grant("model_opus", ["seven_day_opus"]), grant("model_both", ["seven_day_sonnet", "seven_day_opus"]),
+    grant("full", ["five_hour", "seven_day", "seven_day_overage_included"]), grant("weekly", ["seven_day"]), grant("legacy", undefined), grant("empty", []), grant("unknown", ["seven_day_cowork"]),
+  ))).toEqual([
+    ["model_fable", "Free reset · Fable only", "available"], ["model_opus", "Free reset · Opus only", "available"], ["model_both", "Free reset · Sonnet, Opus only", "available"],
+    ["full", "Free reset", "available"], ["weekly", "Free reset", "available"], ["legacy", "Free reset", "available"], ["empty", "Free reset", "available"], ["unknown", "Free reset", "available"],
+  ]);
+  // Without exactly one named per-model limit, the reset is still shown as model-only.
+  expect(titles(usage([], grant("model", ["seven_day_overage_included"])))).toEqual([["model", "Free reset · model limit only", "available"]]);
+  expect(titles(usage([fable, { ...fable, scope: { model: { display_name: "Opus" } } }], grant("model", ["seven_day_overage_included"])))).toEqual([["model", "Free reset · model limit only", "available"]]);
+  // A list with a non-string entry drops that grant; a scalar is not a list and keeps the plain title. Neither affects the windows.
+  const bad = desktopQuota(usage([fable], grant("bad_item", ["seven_day_opus", 3]), grant("scalar", "seven_day_opus"), grant("ok", ["seven_day_opus"])), now);
+  expect(bad.windows.map(w => w.label)).toEqual(["5-hour", "Weekly · All models", "Weekly · Fable"]);
+  expect(bad.resetCredits.map(c => [c.id, c.title])).toEqual([["scalar", "Free reset"], ["ok", "Free reset · Opus only"]]);
+});
 it("maps each Claude reset outcome to a settled result or a user message", () => {
   expect(() => claudeResetOutcome('{"result":"reset","OMIT":"x"}')).not.toThrow();
   for (const [result, message] of [["not_limited", claudeResetErrors.notLimited], ["already_used", claudeResetErrors.alreadyUsed], ["ineligible", claudeResetErrors.ineligible], ["cooldown", claudeResetErrors.cooldown], ["unavailable", claudeResetErrors.unconfirmed], ["surprise", claudeResetErrors.failed]]) expect(() => claudeResetOutcome(JSON.stringify({ result }))).toThrow(message);
