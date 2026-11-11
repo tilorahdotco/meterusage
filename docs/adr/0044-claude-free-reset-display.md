@@ -3,6 +3,7 @@
 - Status: Accepted; display confirmed on a real personal account; redemption pending first real use
 - Date: 2026-11-03
 - Amends: [ADR 0016](0016-claude-live-test-profile.md) (Claude usage request; reset redemption outside the test profile)
+- Amended by: [ADR 0046](0046-claude-model-only-free-reset.md) (grant `clears` and model-only reset titles)
 
 ## Context
 

@@ -21,6 +21,8 @@ follows [Semantic Versioning](https://semver.org/).
   within the hourly limit or for a dismissed version, and always says whether
   one is available. A newer version opens the usual **Install update**
   confirmation. If update checks are off, it asks before turning them on.
+- A Claude free reset that clears only a model's limit, not the weekly
+  limit, is labeled with the model, for example **Free reset · Fable only**.
 - The Claude card shows per-model weekly plan limits, such as **Weekly ·
   Fable** on Max, when Claude Desktop is connected. They come from the same
   usage response that Claude's Settings → Usage page reads.

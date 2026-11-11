@@ -172,7 +172,7 @@ export function verifyDesktopAccount(raw: string, credential: DesktopCredential)
 const maxResetGrants = 200, maxFreeResets = 50;
 /** Claude grant identifiers are redemption handles: kept in memory for redemption, never archived or reported. */
 export const claudeGrantID = /^[A-Za-z0-9_-]{1,64}$/;
-type Grant = { id?: string; left: number; startsAt?: number; endsAt?: number; paused: boolean; usableNow?: boolean };
+type Grant = { id?: string; left: number; startsAt?: number; endsAt?: number; paused: boolean; usableNow?: boolean; clears: string[] };
 const grantBound = (value: unknown) => { if (value == null) return undefined; const at = date(value); if (at === undefined) throw new Error("Invalid reset bound"); return at; };
 function resetGrant(value: unknown): Grant | undefined {
   try {
@@ -181,37 +181,52 @@ function resetGrant(value: unknown): Grant | undefined {
     if (total != null && (!Number.isSafeInteger(total) || (total as number) < (left as number))) return undefined;
     if (g.usable_now != null && typeof g.usable_now !== "boolean") return undefined;
     const id = typeof g.id === "string" && claudeGrantID.test(g.id) ? g.id : undefined;
-    return { id, left: left as number, startsAt: grantBound(g.starts_at), endsAt: grantBound(g.ends_at), paused: g.paused, usableNow: g.usable_now as boolean | undefined };
+    if (g.clears != null && (!Array.isArray(g.clears) || g.clears.some(key => typeof key !== "string"))) return undefined;
+    return { id, left: left as number, startsAt: grantBound(g.starts_at), endsAt: grantBound(g.ends_at), paused: g.paused, usableNow: g.usable_now as boolean | undefined, clears: (g.clears as string[] | undefined) ?? [] };
   } catch { return undefined; }
+}
+// The usage windows a grant's `clears` list names that belong to one model, as Claude Code classifies them.
+const modelResetLimits: Record<string, string | undefined> = { seven_day_opus: "Opus", seven_day_sonnet: "Sonnet", seven_day_overage_included: undefined };
+/** "Free reset", or for a grant that clears only per-model limits, the model it resets, such as "Free reset · Fable only". */
+function resetTitle(grant: Grant, scopedModels: string[]) {
+  const base = grant.left > 1 ? `Free reset ×${grant.left}` : "Free reset";
+  if (!grant.clears.length || !grant.clears.every(key => Object.hasOwn(modelResetLimits, key))) return base;
+  const names = [...new Set(grant.clears.map(key => key === "seven_day_overage_included" ? scopedModels.length === 1 ? scopedModels[0] : undefined : modelResetLimits[key]))];
+  return `${base} · ${names.every(Boolean) ? names.join(", ") : "model limit"} only`;
 }
 /**
  * Claude's saved "Reset for free" grants, from the usage response's `cedar_ember` block. A live grant is not paused,
  * has resets left, has started and has not expired. It is redeemable when Claude reports it usable now, its identifier
- * is well formed and, when Claude names the next grant, it is that grant. A malformed block or an implausible inventory
- * shows no resets and never affects the usage windows.
+ * is well formed and, when Claude names the next grant, it is that grant. A grant whose `clears` list names only
+ * per-model limits is titled as a model reset. A malformed block or an implausible inventory shows no resets and never
+ * affects the usage windows. `scopedModels` names the per-model weekly limits shown from `limits[]`.
  */
-export function desktopFreeResets(block: unknown, now: number): { count: number; credits: ResetCredit[] } {
+export function desktopFreeResets(block: unknown, now: number, scopedModels: string[] = [], grantShapes?: unknown): { count: number; credits: ResetCredit[] } {
   const none = { count: 0, credits: [] };
   if (block == null || typeof block !== "object" || Array.isArray(block)) return none;
   const b = block as Record<string, unknown>;
   if (b.eligible !== true || !Array.isArray(b.grants) || b.grants.length > maxResetGrants) return none;
+  if (grantShapes !== undefined && (!Array.isArray(grantShapes) || grantShapes.length !== b.grants.length)) return none;
   const next = typeof b.next_grant_id === "string" ? b.next_grant_id : undefined;
   let count = 0; const credits: ResetCredit[] = [];
   for (const [index, grant] of b.grants.map(resetGrant).entries()) {
+    // A container inside `clears` is dropped by the main pass; the shape pass keeps it so the grant is rejected.
+    const clearShape = object(Array.isArray(grantShapes) ? grantShapes[index] : undefined).clears;
+    if (Array.isArray(clearShape) && clearShape.length) continue;
     if (!grant || grant.paused || grant.left === 0 || grant.startsAt !== undefined && grant.startsAt > now || grant.endsAt !== undefined && grant.endsAt <= now) continue;
     if (count + grant.left > maxFreeResets) return none;
     count += grant.left;
     const redeemable = grant.id !== undefined && grant.usableNow !== false && (next === undefined || grant.id === next);
-    credits.push({ id: grant.id ?? `claude-free-reset-${index}`, title: grant.left > 1 ? `Free reset ×${grant.left}` : "Free reset", status: redeemable ? "available" : "Not usable yet", expiresAt: grant.endsAt });
+    credits.push({ id: grant.id ?? `claude-free-reset-${index}`, title: resetTitle(grant, scopedModels), status: redeemable ? "available" : "Not usable yet", expiresAt: grant.endsAt });
   }
   credits.sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity));
   return { count, credits };
 }
-const resetSelection = { eligible: true, next_grant_id: true, grants: { "*": { id: true, resets_left: true, resets_total: true, paused: true, starts_at: true, ends_at: true, usable_now: true } } } as const;
+const resetSelection = { eligible: true, next_grant_id: true, grants: { "*": { id: true, resets_left: true, resets_total: true, paused: true, starts_at: true, ends_at: true, usable_now: true, clears: { "*": true } } } } as const;
 const scopedLimitSelection = { "*": { kind: true, percent: true, resets_at: true, scope: { model: { display_name: true } } } } as const;
 // Selecting `resets_at: true` drops an object or array value. This pass keeps such a value as an empty container, so
 // the entry can be rejected without reading its contents. Both passes keep the same container entries, so they align.
-const scopedResetShapeSelection = { limits: { "*": { resets_at: {} } } } as const;
+const scopedResetShapeSelection = { limits: { "*": { resets_at: {} } }, cedar_ember: { grants: { "*": { clears: { "*": {} } } } } } as const;
 /**
  * Per-model weekly plan limits, such as Fable's on Max, from the usage response's `limits` array. Claude lists them
  * there as `weekly_scoped` entries named by model. A malformed entry is skipped and never affects the other windows,
@@ -241,8 +256,10 @@ export function desktopQuota(raw: string, now: number) {
     return [window(label, percent, reset, key === "five_hour" ? 300 : 10080)];
   });
   if (!windows.length) throw new Unavailable("noData");
-  windows.splice(windows.findIndex(w => w.label === "Weekly · All models") + 1 || windows.length, 0, ...desktopModelWeeklyWindows(selected.limits, object(selectJSON(raw, scopedResetShapeSelection)).limits, windows.map(w => w.label.toLowerCase())));
-  const q = quota("claude", windows, now), resets = desktopFreeResets(selected.cedar_ember, now);
+  const shapes = object(selectJSON(raw, scopedResetShapeSelection));
+  const scoped = desktopModelWeeklyWindows(selected.limits, shapes.limits, windows.map(w => w.label.toLowerCase()));
+  windows.splice(windows.findIndex(w => w.label === "Weekly · All models") + 1 || windows.length, 0, ...scoped);
+  const q = quota("claude", windows, now), resets = desktopFreeResets(selected.cedar_ember, now, scoped.map(w => w.label.slice(9)), object(shapes.cedar_ember).grants);
   if (resets.count) { q.resetCreditCount = resets.count; q.resetCredits = resets.credits; }
   return q;
 }
