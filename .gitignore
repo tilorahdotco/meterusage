@@ -43,6 +43,8 @@ NO-LOOPS.md
 .handoff/
 build/
 .automation/
+.backpassrc.json
+.wrangler/
 
 # TypeScript / Electron candidate output
 node_modules/

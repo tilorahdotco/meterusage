@@ -44,6 +44,6 @@ public repository.
 
 ## Docs
 
-- Facts and known gaps: [`docs/KB.md`](docs/KB.md). Decisions: [`docs/adr/`](docs/adr/README.md). Update them in the same change when a documented fact or decision changes.
+- Facts and known gaps: [`docs/KB.md`](docs/KB.md) and its topic files in [`docs/kb/`](docs/kb/). Keep each file under 64 KiB; add a topic file instead of growing one past that. CI skips docs-only changes, so run `pnpm test` after editing these files. Decisions: [`docs/adr/`](docs/adr/README.md). Update them in the same change when a documented fact or decision changes.
 - Keep public docs free of credentials, personal data, private repository references, and absolute local paths.
 - Issue forms in `.github/ISSUE_TEMPLATE/` apply the `bug`, `feature`, and `chore` labels.
