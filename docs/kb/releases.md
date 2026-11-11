@@ -10,7 +10,7 @@ Part of [project knowledge](../KB.md). Product summary, version pins, published 
 
 - `CONTRIBUTING.md` requires focused changes, synthetic fixtures and affected-path checks: Electron typecheck/tests/build, plus legacy Swift build/tests only for changes inside `legacy/swift/`. `tests/scripts/make-app-tests.sh` (run in CI) checks the exact default beta pin, signature preservation, the moved `--build-from-source` option, that Swift never runs, and staged/download/verification/argument/platform failures without network or compiler access.
 
-- GitHub Actions runs Electron typecheck, synthetic tests, production bundling and the installer script tests on Linux, plus the Windows package and smoke job, for pushes to `main` and pull requests. It no longer builds Swift (ADR 0045). This repository fact does not prove that a workflow run has passed.
+- GitHub Actions runs Electron typecheck, synthetic tests, production bundling and the installer script tests on Linux, plus the Windows package and smoke job, for pushes to `main` and pull requests. A `Changes` job skips these jobs when every changed file is docs-only (`**/*.md`, `docs/**`), so run `pnpm test` locally after editing knowledge files. It no longer builds Swift (ADR 0045). This repository fact does not prove that a workflow run has passed.
 
 - ADR 0010 selects macOS TypeScript/Electron/React with pnpm, Vite+, Tailwind, Vitest and electron-builder. Main owns provider files/keys, native actions and persistence; a separate sandbox-compatible preload exposes sender-validated IPC to React. The candidate keeps JSON/history/archive and known preference formats. Swift remains the oracle and rollback path. No server or remote control layer is added.
 
