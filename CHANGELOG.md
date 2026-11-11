@@ -7,7 +7,7 @@ follows [Semantic Versioning](https://semver.org/).
 ## 2026-11-11
 
 - Split `docs/KB.md` product facts into topic files under `docs/kb/` with no fact changes. `pnpm test` checks that each knowledge file stays under 64 KiB and that its relative links resolve. CI skips docs-only changes, so it runs this check only when a change also touches code.
-- Ignore local `.wrangler/` and agent tool state in `.gitignore`.
+- Ignore local `.wrangler/` and agent tool config in `.gitignore`.
 - Add `.gitattributes` (`* text=auto eol=lf`) so a Windows clone with the default `core.autocrlf=true` checks out shell scripts and test fixtures with LF. No tracked file changes.
 
 ## 2026-11-04
