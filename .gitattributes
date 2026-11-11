@@ -1,0 +1,3 @@
+# Check out text files with LF on every platform, so shell scripts and test
+# fixtures work from a Windows clone where core.autocrlf defaults to true.
+* text=auto eol=lf

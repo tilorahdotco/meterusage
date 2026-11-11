@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 follows [Semantic Versioning](https://semver.org/).
 
+## 2026-11-11
+
+- Add `.gitattributes` (`* text=auto eol=lf`) so a Windows clone with the default `core.autocrlf=true` checks out shell scripts and test fixtures with LF. No tracked file changes.
+
 ## 2026-11-04
 
 - Bump the shared workflow pins to `tilorahdotco/.github` `f7a775a`. `ci.yml` starts with a `Changes` job that skips CI for docs-only changes and ends with a `CI gate` job (it covers the Windows job) that always reports. Triggers, runners and commands are unchanged. The secret scan still runs on every change.
