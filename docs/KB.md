@@ -188,9 +188,11 @@ to open Settings. No window is shown or focused by preload.
 - OpenAI API and Anthropic API are independent billing snapshots, not quota
   provider slots. Settings → API connections accepts a one-time masked Admin
   key and fetches billing without Terminal. The field clears on submit or
-  leaving the page; pasted keys are never saved. **Use saved key** reads only the
-  selected provider's legacy `com.meterusage.api-keys` Keychain entry without
-  changing it or returning the key to the renderer. It runs only on request. A bundled environment-only helper
+  leaving the page. On macOS, the unchecked **Save key in macOS Keychain**
+  option saves the key after a successful fetch. A failed save preserves the
+  new snapshot and reports a fixed error. **Use saved key** reads only the
+  selected provider's `com.meterusage.api-keys` Keychain entry without
+  returning the key to the renderer. It runs only on request. A bundled environment-only helper
   remains available. Both paths use fixed cost endpoints and projected
   owner-only USD files. Cards retain the
   reported UTC period, exact capture time and explicit stale state. Empty
@@ -225,7 +227,8 @@ to open Settings. No window is shown or focused by preload.
 - API setup has its own Settings category, separate from account connections
   and onboarding. Fetch billing updates the snapshot automatically; ordinary
   Refresh only rereads it. The advanced helper retains key-free macOS zsh
-  commands and a hidden prompt. See [ADR 0032](adr/0032-one-time-api-setup.md).
+  commands and a hidden prompt. See [ADR 0032](adr/0032-one-time-api-setup.md)
+  and its storage amendment, [ADR 0047](adr/0047-opt-in-api-key-saving.md).
   Real organization billing remains unverified.
 
 ## Retained Swift reporting source

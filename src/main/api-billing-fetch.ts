@@ -9,6 +9,7 @@ export const apiBillingFetchErrors = {
   auth: "API billing authentication failed",
   unavailable: "API billing data unavailable",
   savedMissing: "No saved Admin key for this provider. Paste an organization Admin key to fetch billing.",
+  save: "Billing fetched, but the Admin key could not be saved in macOS Keychain. Try again.",
   savedAccess: "Could not read the saved Admin key. Approve MeterUsage access in macOS Keychain and try again.",
 } as const;
 
@@ -16,9 +17,9 @@ export class ApiBillingFetch {
   private readonly busy = new Map<ApiBillingProvider, AbortController>();
   get running() { return this.busy.size > 0; }
   private stopped = false;
-  constructor(private readonly launch: Launch, private readonly refresh: () => Promise<void>, private readonly fetcher: typeof fetch = fetch, private readonly savedKey?: (provider: ApiBillingProvider, signal: AbortSignal) => Promise<string>, private readonly prepaid?: () => ApiBillingPrepaid | undefined) {}
+  constructor(private readonly launch: Launch, private readonly refresh: () => Promise<void>, private readonly fetcher: typeof fetch = fetch, private readonly savedKey?: (provider: ApiBillingProvider, signal: AbortSignal) => Promise<string>, private readonly prepaid?: () => ApiBillingPrepaid | undefined, private readonly saveKey?: (provider: ApiBillingProvider, key: string, signal: AbortSignal) => Promise<void>) {}
 
-  async run(provider: ApiBillingProvider, adminKey?: string) {
+  async run(provider: ApiBillingProvider, adminKey?: string, remember = false) {
     if (this.launch.demo || this.launch.candidate || this.launch.profile || this.launch.codexTest || this.launch.claudeTest) throw new Error(apiBillingFetchErrors.profile);
     if (this.stopped) throw new Error(apiBillingFetchErrors.unavailable);
     if (this.busy.has(provider)) throw new Error(apiBillingFetchErrors.busy);
@@ -35,8 +36,15 @@ export class ApiBillingFetch {
       if (this.stopped) throw new Error(apiBillingFetchErrors.unavailable);
       writeApiBilling(this.launch.home, snapshot, this.launch.platform, this.launch.env);
       await this.refresh();
+      if (remember) {
+        try {
+          controller.signal.throwIfAborted();
+          if (!this.saveKey) throw new Error();
+          await this.saveKey(provider, adminKey, controller.signal);
+        } catch { throw new Error(apiBillingFetchErrors.save); }
+      }
     } catch (error) {
-      throw new Error(!this.stopped && error instanceof Error && [apiBillingFetchErrors.auth, apiBillingFetchErrors.savedMissing, apiBillingFetchErrors.savedAccess].some(message => message === error.message) ? error.message : apiBillingFetchErrors.unavailable);
+      throw new Error(!this.stopped && error instanceof Error && [apiBillingFetchErrors.auth, apiBillingFetchErrors.savedMissing, apiBillingFetchErrors.savedAccess, apiBillingFetchErrors.save].some(message => message === error.message) ? error.message : apiBillingFetchErrors.unavailable);
     } finally { this.busy.delete(provider); }
   }
 

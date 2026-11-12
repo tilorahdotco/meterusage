@@ -2,6 +2,7 @@
 
 - Status: Accepted implementation direction; live billing acceptance pending
 - Date: 2026-10-17
+- Storage restriction superseded by [ADR 0047](0047-opt-in-api-key-saving.md).
 
 Place API billing setup in **Settings → API connections**, separate from app
 account connections and onboarding. OpenAI API and Anthropic API each have a

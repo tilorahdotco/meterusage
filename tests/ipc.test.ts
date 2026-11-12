@@ -18,6 +18,8 @@ describe("renderer boundary", () => {
       expect(parseRequest(request)).toEqual(request);
     }
     const request = { action: "apiBillingFetch", provider: "openai", adminKey: "synthetic" };
+    for (const remember of [true, false]) expect(parseRequest({ ...request, remember })).toEqual({ ...request, remember });
+    for (const remember of [null, undefined, 1, "true", {}]) expect(() => parseRequest({ ...request, remember })).toThrow("Invalid request");
     for (const adminKey of ["", "x".repeat(8193), "a b", "a\u00a0b", "a\u2028b", ...Array.from({ length: 32 }, (_, n) => `a${String.fromCharCode(n)}b`), "a\x7fb", null, 1, ["synthetic"], {}]) expect(() => parseRequest({ ...request, adminKey })).toThrow("Invalid request");
     for (const provider of ["codex", "claude", "OPENAI", ["openai"], null, 1]) expect(() => parseRequest({ ...request, provider })).toThrow("Invalid request");
     for (const raw of [{ action: request.action }, { action: request.action, provider: "openai" }, { ...request, url: "https://example.invalid" }, { ...request, path: "/synthetic" }, { ...request, save: true }]) expect(() => parseRequest(raw)).toThrow("Invalid request");
