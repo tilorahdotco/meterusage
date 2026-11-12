@@ -299,7 +299,8 @@ publications. By default they are not saved in Keychain either. On macOS, the
 unchecked **Save key in macOS Keychain** option explicitly permits saving after
 a successful billing fetch. The fixed native helper receives the key through
 stdin, never arguments, and adds or updates only the selected provider's fixed
-item. New items are device-local and accessible only while Keychain is unlocked.
+item. New items disable synchronization and request unlocked-only, device-local
+accessibility. Actual access and prompts follow macOS Keychain controls.
 A save failure keeps the fetched snapshot and reports a fixed error. An explicit **Use saved key** action instead reads the selected
 provider's existing `com.meterusage.api-keys` generic-password item, account
 `openAI` or `anthropic`, through the fixed native helper. Only that action may

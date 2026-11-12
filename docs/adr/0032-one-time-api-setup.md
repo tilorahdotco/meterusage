@@ -25,7 +25,8 @@ change or delete the item or return the key to the renderer, and never fall
 back to another source. The unchecked **Save key in macOS Keychain** option
 permits adding or updating only this fixed provider item after a successful
 fetch. The helper receives the key through stdin, never process arguments. New
-items use device-local, unlocked-only accessibility. A failed save retains the
+items disable synchronization and request device-local, unlocked-only
+accessibility; enforcement follows macOS Keychain controls. A failed save retains the
 fetched snapshot and reports a fixed save error. Missing and denied reads fail with fixed errors.
 No startup or background Keychain access is added.
 

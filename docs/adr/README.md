@@ -45,7 +45,7 @@ compatibility and acceptance requirements remain in force. The
 
 | [0031](0031-grok-quota-burn.md) | Measure Grok Bot quota burn from recent same-account percentages without inventing token counts or cycle duration. | Source implementation; native and live rate acceptance separate |
 
-| [0032](0032-one-time-api-setup.md) | Separate API setup from account connections and accept a one-time Admin key for explicit billing fetches, without saving credentials. | Source implementation; real billing acceptance pending |
+| [0032](0032-one-time-api-setup.md) | Separate API setup from account connections and accept an Admin key for explicit billing fetches, with opt-in macOS Keychain saving after success. | Source implementation; real billing acceptance pending |
 | [0033](0033-muse-code-subscription-allowance.md) | Read opt-in Muse Code allowance through official MSP without a model turn; preserve observation age and keep Muse.ai separate. | Source implementation; native/live acceptance pending |
 | [0035](0035-openai-remaining-balance.md) | Show OpenAI remaining balance from undocumented credit grants, falling back to a prepaid-minus-spend estimate; failures never block spend. | Source implementation; real-account acceptance pending |
 | [0036](0036-grok-bot-usage-cache-fallback.md) | Fall back to Grok Bot's cached usage for the verified account when its allowance request fails with a network or server error. | Source implementation; live acceptance pending |
