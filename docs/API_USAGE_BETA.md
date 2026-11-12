@@ -18,6 +18,9 @@ its own period. Refresh rereads the file; it does not fetch billing or make an
 old snapshot fresh. Anthropic's cost report excludes Priority Tier costs. Neither
 provider's report replaces its dashboard or invoice.
 
+The opt-in macOS Keychain save option below is an unreleased source change,
+not included in beta 20. See [ADR 0047](adr/0047-opt-in-api-key-saving.md).
+
 ## OpenAI remaining balance
 
 The OpenAI API card also shows the dollars left. OpenAI documents no balance
@@ -66,7 +69,7 @@ rereads snapshots without contacting the billing API.
 Saved-key access reads only the previous app's fixed `com.meterusage.api-keys`
 Keychain service and `openAI` or `anthropic` account. The key stays in the main
 process and native helper; it is never returned to the UI or copied elsewhere.
-The original entry is not changed or deleted. Missing and denied entries show
+Reads do not change or delete the original entry. Missing and denied entries show
 a fixed error, with no environment or other-account fallback. Keychain is read
 only after the explicit action, never at startup or during polling.
 

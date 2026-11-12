@@ -227,7 +227,8 @@ to open Settings. No window is shown or focused by preload.
 - API setup has its own Settings category, separate from account connections
   and onboarding. Fetch billing updates the snapshot automatically; ordinary
   Refresh only rereads it. The advanced helper retains key-free macOS zsh
-  commands and a hidden prompt. See [ADR 0032](adr/0032-one-time-api-setup.md).
+  commands and a hidden prompt. See [ADR 0032](adr/0032-one-time-api-setup.md)
+  and its storage amendment, [ADR 0047](adr/0047-opt-in-api-key-saving.md).
   Real organization billing remains unverified.
 
 ## Retained Swift reporting source
