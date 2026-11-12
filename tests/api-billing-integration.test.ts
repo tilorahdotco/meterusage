@@ -71,7 +71,7 @@ it("renders exact UTC snapshot age, old-month period and separate billing withou
 it("separates API setup from app connections and explains one-time Admin keys", async () => {
   const { view } = await setup();
   const markup = renderToStaticMarkup(createElement(ApiBillingConnections, { state: view(), action: async () => {} }));
-  for (const text of ["OpenAI API", "Anthropic API", "Admin key", "never saved", "No billing snapshot yet.", "Fetch billing"]) expect(markup).toContain(text);
+  for (const text of ["OpenAI API", "Anthropic API", "Admin key", "Pasted keys are cleared on submit", "No billing snapshot yet.", "Fetch billing"]) expect(markup).toContain(text);
   expect(markup.match(/type="password"/g)).toHaveLength(2);
   const connections = renderToStaticMarkup(createElement(Connections, { state: view(), action: async () => {} }));
   for (const text of ["OpenAI API", "Anthropic API", 'type="password"', "API connections", "Fetch billing"]) expect(connections).not.toContain(text);

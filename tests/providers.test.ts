@@ -185,6 +185,7 @@ describe("bounded transports", () => {
     else expect(JSON.parse(await read).result.dailyUsageBuckets).toEqual([{ startDate: "2026-10-06", tokens: 123 }]);
   });
   it("bounds timeout, abort and output and never propagates stderr", async () => {
+    expect(await runCommand(process.execPath, ["-e", "let input='';process.stdin.on('data',x=>input+=x);process.stdin.on('end',()=>process.stdout.write(input==='synthetic-stdin'?'received':'wrong'))"], { input: "synthetic-stdin" })).toBe("received");
     await expect(runCommand(process.execPath, ["-e", "process.stderr.write('PRIVATE');setInterval(()=>{},1000)"], { timeoutMs: 50 })).rejects.toThrow("timed out");
     const controller = new AbortController(); const pending = runCommand(process.execPath, ["-e", "setInterval(()=>{},1000)"], { signal: controller.signal }); controller.abort(); await expect(pending).rejects.toThrow("cancelled");
     await expect(runCommand(process.execPath, ["-e", "process.stdout.write('x'.repeat(10000))"], { maxBytes: 100 })).rejects.toThrow("limit");

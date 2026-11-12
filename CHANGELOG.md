@@ -20,6 +20,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- API connections on macOS can save an Admin key in Keychain after a successful
+  billing fetch when **Save key in macOS Keychain** is selected. **Use saved
+  key** can reuse it after relaunch. One-time entry remains the default.
+
 ### Added
 
 - **Check for Updates…** in the menu bar (macOS) and notification-area

@@ -61,8 +61,9 @@ allowance, existing CLI sources, compact provider tabs and hover cards, provider
 reordering and readable token totals. Account coverage depends on the source.
 The beta also includes Antigravity Desktop allowance, Grok Bot Desktop (Beta),
 key-free OpenCode Go local setup and separate [API billing](docs/API_USAGE_BETA.md)
-under Settings → API connections. Reuse a legacy saved Admin key or enter a
-one-time key. Pasted keys are not saved. OpenRouter retains its existing balance
+under Settings → API connections. Reuse a saved Admin key or enter a
+one-time key. On macOS, select **Save key in macOS Keychain** to reuse a pasted
+key after a successful fetch. Without that selection, pasted keys are not saved. OpenRouter retains its existing balance
 and activity integration. Desktop compatibility and billing coverage vary;
 see [known beta limits](docs/BETA.md#known-limits).
 

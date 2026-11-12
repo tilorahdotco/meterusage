@@ -164,3 +164,51 @@ it("passes the prepaid fallback only to OpenAI and drops an in-flight balance re
   await expect(pending).rejects.toThrow(apiBillingFetchErrors.unavailable);
   expect(hanging).toHaveBeenCalledTimes(2); expect(files(home)).toEqual(before);
 });
+
+
+it("saves an opted-in Anthropic key after fetching and reuses it in a new session", async () => {
+  const { launch, refresh, home } = await setup();
+  let stored = "";
+  const save = vi.fn(async (_provider: ApiBillingProvider, key: string) => { stored = key; });
+  const fetcher = vi.fn<typeof fetch>(async () => response("anthropic"));
+  await new ApiBillingFetch(launch, refresh, fetcher, undefined, undefined, save).run("anthropic", keys.anthropic, true);
+  expect(save).toHaveBeenCalledExactlyOnceWith("anthropic", keys.anthropic, expect.any(AbortSignal));
+  expect(files(home).join("")).not.toContain(keys.anthropic);
+  await new ApiBillingFetch(launch, refresh, fetcher, async () => stored).run("anthropic");
+  expect(new Headers(fetcher.mock.calls.at(-1)![1]?.headers).get("x-api-key")).toBe(keys.anthropic);
+});
+
+it("does not save a one-time key or a key rejected by the provider", async () => {
+  const { launch, refresh } = await setup(), save = vi.fn(async () => {});
+  const fetcher = vi.fn<typeof fetch>(async () => response("anthropic"));
+  const billing = new ApiBillingFetch(launch, refresh, fetcher, undefined, undefined, save);
+  await billing.run("anthropic", keys.anthropic);
+  expect(save).not.toHaveBeenCalled();
+  fetcher.mockResolvedValueOnce(new Response("private", { status: 401 }));
+  await expect(billing.run("anthropic", keys.anthropic, true)).rejects.toThrow(apiBillingFetchErrors.auth);
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("reports a save failure without losing the fetched snapshot or leaking the key", async () => {
+  const { launch, refresh, home } = await setup();
+  const save = vi.fn(async () => { throw new Error(keys.anthropic); });
+  const billing = new ApiBillingFetch(launch, refresh, async () => response("anthropic"), undefined, undefined, save);
+  await expect(billing.run("anthropic", keys.anthropic, true)).rejects.toThrow("Billing fetched, but the Admin key could not be saved in macOS Keychain. Try again.");
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(readFileSync(apiBillingPath(home, "anthropic"), "utf8")).not.toContain(keys.anthropic);
+});
+
+
+it("blocks opted-in saves in isolated profiles and after quit", async () => {
+  for (const mode of [{ demo: true }, { candidate: true }, { profile: "synthetic" }, { codexTest: true }, { claudeTest: true }]) {
+    const { launch, refresh } = await setup(mode), save = vi.fn(async () => {}), fetcher = vi.fn<typeof fetch>();
+    const billing = new ApiBillingFetch(launch, refresh, fetcher, undefined, undefined, save);
+    await expect(billing.run("anthropic", keys.anthropic, true)).rejects.toThrow(apiBillingFetchErrors.profile);
+    expect(save).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled();
+  }
+  const { launch } = await setup(), save = vi.fn(async () => {});
+  let billing: ApiBillingFetch;
+  billing = new ApiBillingFetch(launch, async () => { billing.stop(); }, async () => response("anthropic"), undefined, undefined, save);
+  await expect(billing.run("anthropic", keys.anthropic, true)).rejects.toThrow(apiBillingFetchErrors.unavailable);
+  expect(save).not.toHaveBeenCalled();
+});

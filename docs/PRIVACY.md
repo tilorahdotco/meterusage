@@ -4,7 +4,7 @@ MeterUsage reads quota and usage from existing local provider stores, provider
 CLIs and aggregate endpoints. It has no telemetry service, analytics or
 automatic crash-upload endpoint. Electron Diagnostics has an explicit optional
 **Send report** action described below. The Electron candidate adds opt-in account connections;
-Codex sign-in occurs in the provider browser page, not a MeterUsage password form. The optional API billing page accepts a one-time organization Admin key as
+Codex sign-in occurs in the provider browser page, not a MeterUsage password form. The optional API billing page accepts an organization Admin key with optional macOS Keychain saving as
 described below. MeterUsage does not send prompts, code or tool payloads to a provider.
 
 The published Swift app retains the existing local/CLI boundaries. The
@@ -294,11 +294,17 @@ described below. The Settings → API connections page also accepts a one-time
 Admin key in a masked field. An explicit Fetch billing action passes it through
 the registered Settings bridge to the main process, using the same collector.
 The field clears on submit; leaving the page clears unsubmitted input. Keys are
-not saved in preferences, Keychain, snapshots, diagnostics or renderer state
-publications. An explicit **Use saved key** action instead reads the selected
+not saved in preferences, snapshots, diagnostics or renderer state
+publications. By default they are not saved in Keychain either. On macOS, the
+unchecked **Save key in macOS Keychain** option explicitly permits saving after
+a successful billing fetch. The fixed native helper receives the key through
+stdin, never arguments, and adds or updates only the selected provider's fixed
+item. New items are device-local and accessible only while Keychain is unlocked.
+A save failure keeps the fetched snapshot and reports a fixed error. An explicit **Use saved key** action instead reads the selected
 provider's existing `com.meterusage.api-keys` generic-password item, account
 `openAI` or `anthropic`, through the fixed native helper. Only that action may
-request Keychain UI. The original item is not changed or deleted; the key stays
+request Keychain UI for reading. Saving may also request UI. A read does not
+change or delete the item; an explicitly selected save may replace it. The key stays
 in main-process/helper memory and never reaches the renderer. Missing, denied
 and ambiguous requests do not fall back to another credential. Startup and
 polling never read these Keychain items. Fixed errors exclude key values and provider response bodies.

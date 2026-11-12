@@ -32,7 +32,7 @@ export type Request =
   | { action: "setPreference"; key: string; value: boolean | number | string }
   | { action: "providerOrder"; order: Provider[] }
   | { action: "accountAdd"; provider: "codex" | "claude" }
-  | { action: "apiBillingFetch"; provider: "openai" | "anthropic"; adminKey: string }
+  | { action: "apiBillingFetch"; provider: "openai" | "anthropic"; adminKey: string; remember?: boolean }
   | { action: "apiBillingFetchSaved"; provider: "openai" | "anthropic" }
   | { action: "connect" | "disconnect" | "connectionCancel" | "connectionLocal"; provider: ConnectionProvider }
   | { action: "accountUpdate"; id: string; label?: string; enabled?: boolean }

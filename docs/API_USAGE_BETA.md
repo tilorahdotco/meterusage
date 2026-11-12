@@ -41,18 +41,21 @@ Terminal helper tries only the credit grants report.
 ## Set up in Settings
 
 1. Open **Settings → API connections**.
-2. If you saved an Admin key in the previous MeterUsage, click **Use saved key** for that provider. Approve macOS Keychain access if asked. This fetches billing without entering the key again.
+2. If you saved an Admin key in macOS Keychain, click **Use saved key** for that provider. Approve macOS Keychain access if asked. This fetches billing without entering the key again.
 3. Otherwise, create an organization Admin key in **OpenAI Platform → Organization settings → Admin keys**, or **Anthropic Console → Settings → Admin keys**.
-4. Paste the key into the matching provider's masked field and click **Fetch billing**.
+4. Paste the key into the matching provider's masked field. On macOS, select **Save key in macOS Keychain** if you want to reuse it, then click **Fetch billing**.
 
 MeterUsage clears the field on submit and updates the billing snapshot after a
-successful request. Pasted keys are not saved. Use **Use saved key** again to
+successful request. Pasted keys are not saved unless you select the Keychain
+option. A selected key is saved only after a successful fetch. If saving fails,
+the billing snapshot stays available and Settings reports the save failure. Use **Use saved key** again to
 refresh with an existing Keychain key; otherwise, enter a one-time key. Leaving the API page clears unsubmitted input. A normal project key or
 ChatGPT or Claude subscription sign-in cannot read organization billing.
 
 The key passes through the trusted Settings bridge to a one-time main-process
-request to that provider. A pasted key never enters preferences, Keychain, diagnostic
-reports or billing snapshots. There is no background billing fetch. Demo and
+request to that provider. With explicit save consent, the macOS helper adds or
+updates only that provider's fixed Keychain item, using stdin for the key. Keys
+never enter preferences, diagnostic reports or billing snapshots. There is no background billing fetch. Demo and
 isolated profiles cannot fetch billing. Keep keys out of chat and documentation.
 
 Authentication failure means the key is invalid or lacks organization access.
@@ -134,7 +137,7 @@ integration.
 
 ## Data and credential boundary
 
-The Settings action receives a one-time key in memory; the advanced helper
+The Settings action receives a key in memory, with optional macOS Keychain saving; the advanced helper
 receives its key through the environment. Both use the same fixed-endpoint
 collector and write only normalized numeric snapshots. A snapshot contains schema/provider, capture and period
 timestamps, USD currency, and daily start/end/amount values. It excludes raw

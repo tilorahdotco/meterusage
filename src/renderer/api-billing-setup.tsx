@@ -2,9 +2,10 @@ import { useRef, useState } from "react";
 import { apiBillingNames, maxPrepaidUSD, prepaidDay, prepaidPreferenceKeys, validPrepaidAmount, type ApiBillingBalance, type ApiBillingProvider } from "../domain/api-billing";
 import type { Request } from "../shared/ipc";
 
-// The saved key is a legacy macOS Keychain item; Windows offers only the one-time key.
+// Windows offers only the one-time key; macOS can explicitly save in Keychain.
 export function ApiBillingSetup({ provider, disabled, action, savedKey = true }: { provider: ApiBillingProvider; disabled: boolean; action: (request: Request) => Promise<boolean | void>; savedKey?: boolean }) {
   const input = useRef<HTMLInputElement>(null), pending = useRef(false);
+  const remember = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const fetchBilling = async (saved: boolean) => {
     if (disabled || pending.current) return;
@@ -12,15 +13,16 @@ export function ApiBillingSetup({ provider, disabled, action, savedKey = true }:
     if (input.current) input.current.value = "";
     if (!saved && !adminKey) return;
     pending.current = true; setBusy(true);
-    try { await action(saved ? { action: "apiBillingFetchSaved", provider } : { action: "apiBillingFetch", provider, adminKey: adminKey! }); }
+    try { await action(saved ? { action: "apiBillingFetchSaved", provider } : { action: "apiBillingFetch", provider, adminKey: adminKey!, ...(savedKey && remember.current?.checked ? { remember: true } : {}) }); }
     finally { pending.current = false; setBusy(false); }
   };
   return <form className="api-billing-setup" onSubmit={async event => { event.preventDefault(); await fetchBilling(false); }}>
     {savedKey && <><button type="button" disabled={disabled || busy} onClick={() => fetchBilling(true)}>{busy ? "Fetching…" : "Use saved key"}</button>
-    <p className="secondary connection-help">Reuse this provider's Admin key saved by the previous MeterUsage. Approve macOS Keychain access if asked.</p></>}
+    <p className="secondary connection-help">Reuse this provider's Admin key saved in macOS Keychain. Approve macOS Keychain access if asked.</p></>}
     <p className="secondary connection-help">{provider === "openai" ? "OpenAI Platform → Organization settings → Admin keys." : "Anthropic Console → Settings → Admin keys."}</p>
-    <label className="api-key-field"><span className="secondary">Or use a one-time Admin key</span><input ref={input} aria-label={`${apiBillingNames[provider]} Admin key`} type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={8192} required disabled={disabled || busy} placeholder="Paste Admin key" /></label>
+    <label className="api-key-field"><span className="secondary">Or paste an Admin key</span><input ref={input} aria-label={`${apiBillingNames[provider]} Admin key`} type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={8192} required disabled={disabled || busy} placeholder="Paste Admin key" /></label>
     <button type="submit" disabled={disabled || busy}>{busy ? "Fetching…" : "Fetch billing"}</button>
+    {savedKey && <label className="secondary connection-help api-key-save"><input ref={remember} type="checkbox" disabled={disabled || busy} /> Save key in macOS Keychain after a successful fetch</label>}
   </form>;
 }
 

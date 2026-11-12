@@ -185,7 +185,7 @@ it("checks guard before every private read, and cancellation during helper preve
 });
 it("preserves Claude's default fixed helper pair and denies restricted profiles before Bot reads", async () => {
   const source = readFileSync(new URL("../Scripts/electron/desktop-keychain.swift", import.meta.url), "utf8");
-  expect(source).toContain('grok ? "Grok Bot Safe Storage" : "Claude Safe Storage"'); expect(source).toContain('grok ? "Grok Bot Key" : "Claude Key"'); expect(source).not.toContain("SecItemAdd");
+  expect(source).toContain('grok ? "Grok Bot Safe Storage" : "Claude Safe Storage"'); expect(source).toContain('grok ? "Grok Bot Key" : "Claude Key"'); expect(source).toContain('!save || (modes.first?.hasPrefix("--api-") == true && CommandLine.arguments.contains("--allow-ui"))');
   const f = await setup();
   for (const restricted of [{ demo: true }, { codexTest: true }, { claudeTest: true }]) {
     const c = new DesktopConnections({ ...f.launch, ...restricted }, f.prefs, "/fixture/helper", () => {}, f.command, undefined, () => now, undefined, f.rpc);

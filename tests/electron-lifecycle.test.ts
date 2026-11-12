@@ -298,6 +298,9 @@ it.each([
         expect(await invoke(settings, { ...billingRequest, provider })).toEqual({ ok: true });
         expect(refresh).toHaveBeenCalledTimes(refreshes + 1);
       }
+      reportFetch.mockResolvedValueOnce(Response.json({ has_more: false, data: [] }));
+      expect(await invoke(settings, { ...billingRequest, provider: "anthropic", remember: true })).toEqual({ ok: true });
+      expect(savedCommand).toHaveBeenLastCalledWith(join(root, "desktop-keychain"), ["--api-anthropic", "--save", "--allow-ui"], { input: billingRequest.adminKey, signal: expect.any(AbortSignal), timeoutMs: 60000, maxBytes: 8192 });
       reportFetch.mockResolvedValueOnce(new Response(billingRequest.adminKey, { status: 401 }));
       expect(await invoke(settings, billingRequest)).toEqual({ ok: false, error: "API billing authentication failed" });
       reportFetch.mockRejectedValueOnce(new Error(billingRequest.adminKey));

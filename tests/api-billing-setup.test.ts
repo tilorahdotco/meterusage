@@ -22,7 +22,7 @@ describe("one-time API billing setup", () => {
 
   it.each([false, true])("clears the field before fetching and releases duplicate-submit protection after success/failure (%s)", async fails => {
     const field = { value: "  synthetic-admin  " }, input = { current: field }, pending = { current: false };
-    vi.mocked(useRef).mockReturnValueOnce(input).mockReturnValueOnce(pending);
+    vi.mocked(useRef).mockReturnValueOnce(input).mockReturnValueOnce(pending).mockReturnValueOnce({ current: null });
     let finish!: () => void;
     const action = vi.fn(() => new Promise<void>((resolve, reject) => { finish = () => fails ? reject(new Error("Synthetic failure")) : resolve(); }));
     const form = ApiBillingSetup({ provider: "openai", disabled: false, action });
@@ -37,22 +37,35 @@ describe("one-time API billing setup", () => {
     expect(pending.current).toBe(false);
   });
 
+  it("sends explicit save consent and keeps the field cleared", async () => {
+    const field = { value: "synthetic-admin" };
+    vi.mocked(useRef).mockReturnValueOnce({ current: field }).mockReturnValueOnce({ current: false }).mockReturnValueOnce({ current: { checked: true } });
+    const action = vi.fn(async () => {});
+    const form = ApiBillingSetup({ provider: "anthropic", disabled: false, action });
+    await form.props.onSubmit({ preventDefault: vi.fn() });
+    expect(field.value).toBe("");
+    expect(action).toHaveBeenCalledExactlyOnceWith({ action: "apiBillingFetch", provider: "anthropic", adminKey: "synthetic-admin", remember: true });
+    const html = renderToStaticMarkup(createElement(ApiBillingSetup, { provider: "anthropic", disabled: false, action }));
+    expect(html).toContain("Save key in macOS Keychain");
+    expect(html).not.toContain('checked=""');
+  });
+
   it("blocks access in demo profiles", async () => {
-    vi.mocked(useRef).mockReturnValueOnce({ current: { value: "synthetic-admin" } }).mockReturnValueOnce({ current: false });
+    vi.mocked(useRef).mockReturnValueOnce({ current: { value: "synthetic-admin" } }).mockReturnValueOnce({ current: false }).mockReturnValueOnce({ current: null });
     const action = vi.fn(async () => {}), props = { provider: "anthropic" as const, disabled: true, action };
     const form = ApiBillingSetup(props);
     await form.props.onSubmit({ preventDefault: vi.fn() }); expect(action).not.toHaveBeenCalled();
     const html = renderToStaticMarkup(createElement(ApiBillingSetup, props));
-    expect(html.match(/disabled=""/g)).toHaveLength(3);
+    expect(html.match(/disabled=""/g)).toHaveLength(4);
   });
 
   it("omits the macOS saved-key action on Windows", () => {
-    vi.mocked(useRef).mockReturnValueOnce({ current: null }).mockReturnValueOnce({ current: false });
+    vi.mocked(useRef).mockReturnValueOnce({ current: null }).mockReturnValueOnce({ current: false }).mockReturnValueOnce({ current: null });
     expect(ApiBillingSetup({ provider: "openai", disabled: false, action: vi.fn(), savedKey: false }).props.children[0]).toBe(false);
   });
   it("uses the saved-key action without sending or retaining input", async () => {
     const field = { value: "synthetic-unsubmitted" }, pending = { current: false };
-    vi.mocked(useRef).mockReturnValueOnce({ current: field }).mockReturnValueOnce(pending);
+    vi.mocked(useRef).mockReturnValueOnce({ current: field }).mockReturnValueOnce(pending).mockReturnValueOnce({ current: null });
     const action = vi.fn(async () => {}), form = ApiBillingSetup({ provider: "openai", disabled: false, action });
     const button = form.props.children[0].props.children[0];
     await button.props.onClick();
