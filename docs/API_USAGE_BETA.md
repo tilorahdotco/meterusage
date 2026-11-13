@@ -25,14 +25,14 @@ not included in beta 20. See [ADR 0047](adr/0047-opt-in-api-key-saving.md).
 
 The OpenAI API card also shows the dollars left. OpenAI documents no balance
 endpoint, so the fetch first tries the unofficial `credit_grants` report with the
-same key. A result is labelled **OpenAI credit grants (unofficial)** and shows
+same key. A result is labelled **Reported by OpenAI (unofficial)** and shows
 the amount left, used and granted. This report may reject Admin keys or change
 without notice; its failure never stops the spend fetch. A report with zero
 credit granted counts as no balance, so the fallback below can run.
 
-If it fails, enter **Prepaid credit (USD)** and **Added on (UTC date)** under
+If it fails, enter **Credit (USD)** and **Added on (UTC)** under
 OpenAI API in Settings, save, then fetch billing again. The card shows
-`~$X left`, calculated as the prepaid amount minus Costs API spend since that
+**Left** as `~$X`, calculated as the prepaid amount minus Costs API spend since that
 date. Update both values after each top-up. The estimate does not see refunds,
 expiring grants or invoice adjustments. When spend exceeds the prepaid amount,
 the card asks you to update it. Spend on the whole top-up day counts, including
@@ -44,7 +44,7 @@ Terminal helper tries only the credit grants report.
 ## Anthropic credit total, used and left
 
 Anthropic documents no endpoint that returns a credit balance to an Admin key.
-To track a credit, enter **Prepaid credit (USD)** and **Added on (UTC date)**
+To track a credit, enter **Credit (USD)** and **Added on (UTC)**
 under Anthropic API in Settings, save, then fetch billing again. The card shows
 **Total credit**, **Used** (cost report spend since that date) and **Left**
 (`~` marks an estimate). The same estimate limits as OpenAI apply.

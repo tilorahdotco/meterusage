@@ -143,13 +143,12 @@ describe("balance line", () => {
   it("shows total credit, used and left for reported, estimated, monthly and exhausted balances", () => {
     expect(html(undefined)).toBe("");
     expect(html({ source: "creditGrants", availableUSD: 62.5, grantedUSD: 100, usedUSD: 37.5 })).toMatch(/Total credit<\/dt><dd>\$100\.00<.*Used<\/dt><dd>\$37\.50<.*Left<\/dt><dd>\$62\.50<.*unofficial/);
-    expect(html({ source: "manual", availableUSD: 16.5, prepaidUSD: 20, since: Date.UTC(2026, 9, 6), spentSinceUSD: 3.5 })).toMatch(/Total credit<\/dt><dd>\$20\.00<.*Used<\/dt><dd>\$3\.50<.*Left<\/dt><dd>~\$16\.50<.*Estimate.*\$20\.00 prepaid on 2026-10-06/);
-    expect(html({ source: "manual", availableUSD: 7, prepaidUSD: 10, since: Date.UTC(2026, 10, 1), spentSinceUSD: 3, monthly: true })).toMatch(/monthly credit renewed 2026-11-01/);
+    expect(html({ source: "manual", availableUSD: 16.5, prepaidUSD: 20, since: Date.UTC(2026, 9, 6), spentSinceUSD: 3.5 })).toMatch(/Total credit<\/dt><dd>\$20\.00<.*Used<\/dt><dd>\$3\.50<.*Left<\/dt><dd>~\$16\.50<.*>Estimate from Oct 6</);
     const monthly = { source: "manual", availableUSD: 150, prepaidUSD: 200, since: Date.UTC(2026, 9, 5), spentSinceUSD: 50, monthly: true, expiresAt: Date.UTC(2026, 10, 5) } as const;
-    expect(html(monthly)).toMatch(/Left<\/dt><dd>~\$150\.00<.*Expires 2026-11-05 UTC · 20 days left/);
-    expect(html(monthly, Date.UTC(2026, 10, 4, 12))).toMatch(/1 day left/);
-    expect(html(monthly, Date.UTC(2026, 10, 5))).toMatch(/Left<\/dt><dd class="stale">Expired<.*expired on 2026-11-05\. Fetch billing to count the new cycle/);
+    expect(html(monthly)).toMatch(/Left<\/dt><dd>~\$150\.00<.*>Estimate from Oct 5 · expires Nov 5 \(20 days left\)</);
+    expect(html(monthly, Date.UTC(2026, 10, 4, 12))).toMatch(/\(1 day left\)/);
+    expect(html(monthly, Date.UTC(2026, 10, 5))).toMatch(/Left<\/dt><dd class="stale">Expired<.*class="stale api-note">Expired Nov 5\. Fetch billing for the new credit\.</);
     expect(html(monthly)).not.toMatch(/Expired/);
-    expect(html({ source: "manual", availableUSD: -2, prepaidUSD: 10, since: Date.UTC(2026, 9, 6), spentSinceUSD: 12 })).toMatch(/Left<\/dt><dd class="stale">\$0\.00<.*exhausted/);
+    expect(html({ source: "manual", availableUSD: -2, prepaidUSD: 10, since: Date.UTC(2026, 9, 6), spentSinceUSD: 12 })).toMatch(/Left<\/dt><dd class="stale">\$0\.00<.*Used more than the credit/);
   });
 });
