@@ -1,7 +1,7 @@
 import { apiBillingProviders, apiBillingNames, type ApiBillingReading } from "../domain/api-billing";
 import { normalizeProviderOrder } from "../domain/provider-order";
 import { ProviderOrder } from "./provider-order";
-import { ApiBillingBalanceLine, ApiBillingSetup, PrepaidCreditSetup } from "./api-billing-setup";
+import { ApiBillingBalanceLine, ApiBillingSetup, PrepaidCreditSetup, shortDay } from "./api-billing-setup";
 import { Children, createContext, isValidElement, useContext, useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { interfaceStyles, styleInfo, styleOf, type ChartKind, type GaugeKind, type InterfaceStyle, type MeterKind } from "../shared/styles";
 import { type Bridge, type ViewState, type Request, type Surface, type ConnectionState, PanelSize, panelScales, providerKey, trayKey, statusPages } from "../shared/ipc";
@@ -302,22 +302,25 @@ function ConnectionRow({ connection: c, state, action }: { connection: Connectio
     </div>
   </div>;
 }
+// One line: the reported UTC period and when it was fetched, with "Stale" first when old.
 function ApiBillingDetails({ reading }: { reading: Extract<ApiBillingReading, { status: "value" }> }) {
-  const value = reading.value;
-  return <><p className="secondary">Provider-reported billing · USD · {new Date(value.monthStart).toISOString().slice(0, 10)} to {new Date(value.periodEnd).toISOString().slice(0, 10)} UTC</p><p className={reading.stale ? "stale" : "secondary"}>{reading.stale ? "Stale snapshot" : "Snapshot"} · {new Date(value.capturedAt).toISOString()}</p></>;
+  const value = reading.value, captured = new Date(value.capturedAt).toISOString();
+  const period = `${shortDay(value.monthStart)}–${new Date(value.periodEnd).getUTCDate()}`;
+  return <p className={reading.stale ? "stale api-note" : "secondary api-note"} title={`Provider-reported billing in USD · fetched ${captured}`}>{reading.stale ? `Stale · ${period} · fetched ${shortDay(value.capturedAt)}, ${captured.slice(11, 16)} UTC` : `${period} · fetched ${captured.slice(11, 16)} UTC`}</p>;
 }
+const creditHint = <p className="secondary api-note">Add your credit in Settings to see what's left.</p>;
 export function ApiBillingCards({ state }: { state: ViewState }) {
   return <>{apiBillingProviders.map(provider => {
     const reading = state.snapshot.apiBilling?.[provider];
     if (reading?.status !== "value") return null;
-    return <section key={provider} className="provider-card" aria-label={`${apiBillingNames[provider]} billing`}><div className="row"><h2>{apiBillingNames[provider]} <small>API billing</small></h2><strong>{reading.value.daily.length ? `${money(reading.value.daily.reduce((sum, day) => sum + day.amountUSD, 0))} in ${new Date(reading.value.monthStart).toLocaleString("en", { month: "long", timeZone: "UTC" })}` : "No cost buckets reported"}</strong></div><ApiBillingBalanceLine balance={reading.value.balance} now={state.snapshot.clock} /><ApiBillingDetails reading={reading} />{provider === "anthropic" && <p className="secondary">Priority Tier excluded.</p>}</section>;
+    return <section key={provider} className="provider-card" aria-label={`${apiBillingNames[provider]} billing`}><div className="row"><h2>{apiBillingNames[provider]}</h2><strong>{reading.value.daily.length ? `${money(reading.value.daily.reduce((sum, day) => sum + day.amountUSD, 0))} in ${new Date(reading.value.monthStart).toLocaleString("en", { month: "short", timeZone: "UTC" })}` : "No spend reported"}</strong></div>{reading.value.balance ? <ApiBillingBalanceLine balance={reading.value.balance} now={state.snapshot.clock} /> : creditHint}<ApiBillingDetails reading={reading} /></section>;
   })}</>;
 }
 export function ApiBillingConnections({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
-  return <section className="connections" aria-label="API connections"><h2>API connections <small>Beta</small></h2><p className="secondary section-description">View organization API spend and your credit total, amount used and amount left. Use an Admin key, not a project key or ChatGPT or Claude subscription sign-in.</p><p className="secondary section-description">Use a saved key or paste an Admin key. Pasted keys are cleared on submit. On macOS, a pasted key is saved in Keychain after a successful fetch unless you clear Save key.</p>{state.snapshot.demo && <p className="secondary connection-demo">API access is disabled in this profile.</p>}<div className="settings-group">{apiBillingProviders.map(provider => {
+  return <section className="connections" aria-label="API connections"><h2>API connections <small>Beta</small></h2><p className="secondary section-description">See API spend and credit left. Needs an organization Admin key, not a project key or subscription sign-in. Pasted keys are cleared on submit.</p>{state.snapshot.demo && <p className="secondary connection-demo">API access is disabled in this profile.</p>}<div className="settings-group">{apiBillingProviders.map(provider => {
     const reading = state.snapshot.apiBilling?.[provider];
-    return <div className="provider-setting connection-row" key={provider}><strong>{apiBillingNames[provider]}</strong>{reading?.status === "value" ? <><ApiBillingBalanceLine balance={reading.value.balance} now={state.snapshot.clock} /><ApiBillingDetails reading={reading} /></> : <p className="secondary">{reading?.code === "unavailable" ? "Billing snapshot unavailable. Fetch again to replace it." : "No billing snapshot yet."}</p>}<ApiBillingSetup provider={provider} disabled={state.snapshot.demo} action={action} savedKey={state.platform !== "win32"} /><PrepaidCreditSetup provider={provider} values={state.settings.values} disabled={state.snapshot.demo} action={action} />{provider === "anthropic" && <p className="secondary">Priority Tier costs are excluded.</p>}</div>;
-  })}</div><p className="secondary">Fetch billing updates the snapshot automatically. Refresh rereads saved snapshots. OpenRouter keeps its existing connection.</p></section>;
+    return <div className="provider-setting connection-row" key={provider}><strong>{apiBillingNames[provider]}</strong>{reading?.status === "value" ? <><ApiBillingBalanceLine balance={reading.value.balance} now={state.snapshot.clock} /><ApiBillingDetails reading={reading} /></> : <p className="secondary">{reading?.code === "unavailable" ? "Billing snapshot unavailable. Fetch again to replace it." : "No billing snapshot yet."}</p>}<h3 className="api-subhead">Admin key</h3><ApiBillingSetup provider={provider} disabled={state.snapshot.demo} action={action} savedKey={state.platform !== "win32"} /><h3 className="api-subhead">Credit</h3><PrepaidCreditSetup provider={provider} values={state.settings.values} disabled={state.snapshot.demo} action={action} />{provider === "anthropic" && <p className="secondary api-note">Excludes Priority Tier costs.</p>}</div>;
+  })}</div></section>;
 }
 export function Connections({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {
   const connections: ConnectionState[] = state.connections ?? ["codex", "claude", "antigravity", "grok"].map(provider => ({ provider: provider as ConnectionState["provider"], source: provider === "grok" ? "cli" : "account", localAvailable: !state.snapshot.demo, status: "disconnected" }));

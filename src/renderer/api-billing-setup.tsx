@@ -18,33 +18,34 @@ export function ApiBillingSetup({ provider, disabled, action, savedKey = true }:
     finally { pending.current = false; setBusy(false); }
   };
   return <form className="api-billing-setup" onSubmit={async event => { event.preventDefault(); await fetchBilling(false); }}>
-    {savedKey && <><button type="button" disabled={disabled || busy} onClick={() => fetchBilling(true)}>{busy ? "Fetching…" : "Use saved key"}</button>
-    <p className="secondary connection-help">Reuse this provider's Admin key saved in macOS Keychain. Approve macOS Keychain access if asked.</p></>}
-    <p className="secondary connection-help">{provider === "openai" ? "OpenAI Platform → Organization settings → Admin keys." : "Anthropic Console → Settings → Admin keys."}</p>
-    <label className="api-key-field"><span className="secondary">Or paste an Admin key</span><input ref={input} aria-label={`${apiBillingNames[provider]} Admin key`} type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={8192} required disabled={disabled || busy} placeholder="Paste Admin key" /></label>
+    {savedKey && <><button type="button" disabled={disabled || busy} onClick={() => fetchBilling(true)}>{busy ? "Fetching…" : "Use saved key"}</button><span className="secondary api-or">or</span></>}
+    <input ref={input} className="api-key-input" aria-label={`${apiBillingNames[provider]} Admin key`} type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={8192} required disabled={disabled || busy} placeholder="Paste Admin key" />
     <button type="submit" disabled={disabled || busy}>{busy ? "Fetching…" : "Fetch billing"}</button>
-    {savedKey && <label className="secondary connection-help api-key-save"><input ref={remember} type="checkbox" defaultChecked disabled={disabled || busy} /> Save key in macOS Keychain after a successful fetch</label>}
+    <p className="secondary connection-help">Get one in {provider === "openai" ? "OpenAI Platform → Organization settings → Admin keys" : "Anthropic Console → Settings → Admin keys"}.</p>
+    {savedKey && <label className="secondary connection-help api-key-save"><input ref={remember} type="checkbox" defaultChecked disabled={disabled || busy} /> Save key in macOS Keychain</label>}
   </form>;
 }
 
 const usd = (x: number) => new Intl.NumberFormat("en", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(x);
-const isoDay = (at: number) => new Date(at).toISOString().slice(0, 10);
-const daysLeft = (ms: number) => { const days = Math.ceil(ms / 86400000); return `${days} day${days === 1 ? "" : "s"}`; };
+/** Short UTC date, such as "Dec 5". */
+export const shortDay = (at: number) => new Date(at).toLocaleDateString("en", { month: "short", day: "numeric", timeZone: "UTC" });
+const daysLeft = (ms: number) => { const days = Math.ceil(ms / 86400000); return `${days} day${days === 1 ? "" : "s"} left`; };
 
-// Total, used and left always come from the same three inputs, so the figures add up.
+// Total, used and left come from the same three inputs, so the figures add up.
+// One short note says where the numbers come from or what needs attention.
 export function ApiBillingBalanceLine({ balance, now }: { balance?: ApiBillingBalance; now: number }) {
   if (!balance) return null;
   const reported = balance.source === "creditGrants";
   const total = reported ? balance.grantedUSD : balance.prepaidUSD, used = reported ? balance.usedUSD : balance.spentSinceUSD;
   const expiresAt = reported ? undefined : balance.expiresAt, expired = expiresAt !== undefined && now >= expiresAt;
-  const exhausted = balance.availableUSD < 0, mark = reported ? "" : "~";
+  const exhausted = balance.availableUSD < 0;
+  const note = expired ? `Expired ${shortDay(expiresAt)}. Fetch billing for the new credit.`
+    : exhausted ? "Used more than the credit. Update it in Settings."
+    : reported ? "Reported by OpenAI (unofficial)"
+    : [`Estimate from ${shortDay(balance.since)}`, expiresAt !== undefined && `expires ${shortDay(expiresAt)} (${daysLeft(expiresAt - now)})`].filter(Boolean).join(" · ");
   return <div className="api-balance">
-    <dl className="metrics api-balance-metrics"><div><dt>Total credit</dt><dd>{usd(total)}</dd></div><div><dt>Used</dt><dd>{usd(used)}</dd></div><div><dt>Left</dt><dd className={exhausted || expired ? "stale" : undefined}>{expired ? "Expired" : exhausted ? usd(0) : `${mark}${usd(balance.availableUSD)}`}</dd></div></dl>
-    {expired ? <p className="stale">This credit expired on {isoDay(expiresAt)}. Fetch billing to count the new cycle.</p>
-      : expiresAt !== undefined && <p className="secondary">Expires {isoDay(expiresAt)} UTC · {daysLeft(expiresAt - now)} left</p>}
-    {reported ? <p className="secondary">OpenAI credit grants (unofficial)</p>
-      : exhausted ? <p className="stale">Estimated balance exhausted · {usd(used)} spent since {isoDay(balance.since)} exceeds the {usd(total)} prepaid. Update prepaid credit in Settings.</p>
-      : <p className="secondary">Estimate: {usd(total)} {balance.monthly ? "monthly credit renewed" : "prepaid on"} {isoDay(balance.since)} minus {usd(used)} spent since</p>}
+    <dl className="metrics api-balance-metrics"><div><dt>Total credit</dt><dd>{usd(total)}</dd></div><div><dt>Used</dt><dd>{usd(used)}</dd></div><div><dt>Left</dt><dd className={exhausted || expired ? "stale" : undefined}>{expired ? "Expired" : exhausted ? usd(0) : `${reported ? "" : "~"}${usd(balance.availableUSD)}`}</dd></div></dl>
+    <p className={expired || exhausted ? "stale api-note" : "secondary api-note"}>{note}</p>
   </div>;
 }
 
@@ -66,12 +67,11 @@ export function PrepaidCreditSetup({ provider, values, disabled, action }: { pro
     } finally { setBusy(false); }
   };
   return <form className="api-billing-setup api-prepaid" onSubmit={async event => { event.preventDefault(); await save(false); }}>
-    <p className="secondary connection-help">{provider === "openai" ? "Balance fallback: if OpenAI does not report a balance, MeterUsage estimates it" : "Anthropic does not report a credit balance to Admin keys. MeterUsage estimates it"} from your credit total and top-up date minus spend since that day. For a monthly credit, select Renews monthly. Fetch billing again after saving.</p>
-    {provider === "anthropic" && <p className="secondary connection-help">Max and Ultra plan API credits arrive each billing cycle and expire at the end of it. Enter the monthly amount and the date it arrived, and select Renews monthly.</p>}
-    <label className="api-key-field"><span className="secondary">Prepaid credit (USD)</span><input ref={amount} aria-label={`${name} prepaid credit in USD`} type="number" min="0.01" max={maxPrepaidUSD} step="0.01" required disabled={disabled || busy} defaultValue={typeof stored === "number" && stored > 0 ? stored : undefined} placeholder="e.g. 50" /></label>
-    <label className="api-key-field"><span className="secondary">Added on (UTC date)</span><input ref={since} aria-label={`${name} prepaid credit date`} type="date" required disabled={disabled || busy} defaultValue={typeof storedSince === "string" ? storedSince : undefined} /></label>
-    <label className="secondary connection-help api-key-save"><input ref={monthly} type="checkbox" disabled={disabled || busy} defaultChecked={values[keys.monthly] === true} /> Renews monthly: the credit resets on this day each month</label>
-    <button type="submit" disabled={disabled || busy}>Save prepaid credit</button>
+    <p className="secondary connection-help">{provider === "openai" ? "If OpenAI reports no balance, enter your credit to estimate what's left." : "Anthropic reports no balance. Enter your credit to estimate what's left."}</p>
+    <label className="api-key-field"><span className="secondary">Credit (USD)</span><input ref={amount} aria-label={`${name} prepaid credit in USD`} type="number" min="0.01" max={maxPrepaidUSD} step="0.01" required disabled={disabled || busy} defaultValue={typeof stored === "number" && stored > 0 ? stored : undefined} placeholder="e.g. 50" /></label>
+    <label className="api-key-field"><span className="secondary">Added on (UTC)</span><input ref={since} aria-label={`${name} prepaid credit date`} type="date" required disabled={disabled || busy} defaultValue={typeof storedSince === "string" ? storedSince : undefined} /></label>
+    <label className="secondary connection-help api-key-save"><input ref={monthly} type="checkbox" disabled={disabled || busy} defaultChecked={values[keys.monthly] === true} /> Renews monthly on this day</label>
+    <button type="submit" disabled={disabled || busy}>Save credit</button>
     {typeof stored === "number" && stored > 0 && <button type="button" disabled={disabled || busy} onClick={() => save(true)}>Clear</button>}
   </form>;
 }

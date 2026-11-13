@@ -45,7 +45,7 @@ it("refresh projects billing independently and removes a value after a file beco
   expect(JSON.stringify(c.snapshot())).not.toContain("OMIT_PRIVATE");
   expect(c.snapshot().slots).toEqual([]); expect(c.snapshot().archived).toEqual({}); expect(c.json()).toBe(before);
   let cards = renderToStaticMarkup(createElement(ApiBillingCards, { state: view() }));
-  expect(cards).toContain("$12.34 in October"); expect(cards).toContain("$5.67 in October");
+  expect(cards).toContain("$12.34 in Oct"); expect(cards).toContain("$5.67 in Oct");
   writeFileSync(path, "{}");
   await c.refresh();
   expect(c.snapshot().apiBilling?.openai).toEqual({ status: "missing", code: "unavailable" });
@@ -65,7 +65,7 @@ it("renders exact UTC snapshot age, old-month period and separate billing withou
   const { c, view } = await setup();
   c.apiBilling = { openai: { status: "value", stale: false, value: snapshot("openai") }, anthropic: { status: "value", stale: true, value: snapshot("anthropic", Date.parse("2026-09-30T23:45:12Z")) } };
   const markup = renderToStaticMarkup(createElement(ApiBillingCards, { state: view() }));
-  for (const text of ["OpenAI API", "Anthropic API", "API billing", "Provider-reported billing", "USD", "2026-09-01 to 2026-09-30 UTC", "2026-09-30T23:45:12.000Z", "2026-10-16T12:34:56.000Z", "Stale snapshot", "Priority Tier excluded."]) expect(markup).toContain(text);
+  for (const text of ["OpenAI API", "Anthropic API", "API billing", "Provider-reported billing in USD", "Oct 1–16 · fetched 12:34 UTC", "Stale · Sep 1–30 · fetched Sep 30, 23:45 UTC", "2026-09-30T23:45:12.000Z", "2026-10-16T12:34:56.000Z", "Add your credit in Settings"]) expect(markup).toContain(text);
   for (const text of ["tokens", "quota", "%", "current month", "Codex", "Claude Desktop"]) expect(markup).not.toContain(text);
 });
 it("separates API setup from app connections and explains one-time Admin keys", async () => {
@@ -97,11 +97,11 @@ it("distinguishes no reported cost buckets from an explicit zero-cost bucket", a
   const empty = snapshot("openai"); empty.daily = [];
   c.apiBilling = { openai: { status: "value", stale: false, value: empty } };
   const noBuckets = renderToStaticMarkup(createElement(ApiBillingCards, { state: view() }));
-  expect(noBuckets).toContain("No cost buckets reported"); expect(noBuckets).not.toContain("$0.00");
+  expect(noBuckets).toContain("No spend reported"); expect(noBuckets).not.toContain("$0.00");
   const zero = snapshot("openai"); zero.daily[0].amountUSD = 0;
   c.apiBilling.openai = { status: "value", stale: false, value: zero };
   const explicitZero = renderToStaticMarkup(createElement(ApiBillingCards, { state: view() }));
-  expect(explicitZero).toContain("$0.00"); expect(explicitZero).not.toContain("No cost buckets reported");
+  expect(explicitZero).toContain("$0.00"); expect(explicitZero).not.toContain("No spend reported");
   const settings = renderToStaticMarkup(createElement(ApiBillingConnections, { state: view(), action: async () => {} }));
   expect(settings).not.toContain("docs/API_USAGE_BETA.md");
 });

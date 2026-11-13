@@ -11,6 +11,7 @@
 .api-billing-setup { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-top: 8px; }
 .api-billing-setup > p { flex-basis: 100%; }
 .api-key-save { flex-basis: 100%; display: flex; align-items: center; gap: 6px; }
+.api-key-input { flex: 1 1 160px; min-width: 0; } .api-or { align-self: center; }
 .api-key-field { display: flex; flex: 1 1 180px; flex-direction: column; gap: 4px; min-width: 0; }
 .api-key-field input { width: 100%; min-width: 0; }
 :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; font-kerning: normal; font-variant-numeric: tabular-nums; line-height: 1.45; color-scheme: light dark; background: transparent; }
@@ -279,3 +280,5 @@
 .api-balance-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 8px 0 4px; }
 .api-balance-metrics dd.stale { margin: 0; font-size: 13px; }
 .api-balance-metrics dd { overflow-wrap: normal; }
+.api-note { margin: 2px 0; line-height: 1.4; }
+.api-subhead { margin: 14px 0 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
