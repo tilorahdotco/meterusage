@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 follows [Semantic Versioning](https://semver.org/).
 
+## 2026-11-12
+
+- API connections (macOS): **Save key in macOS Keychain** now starts selected, so a pasted OpenAI or Anthropic Admin key is saved after a successful fetch. **Use saved key** no longer discards a pasted key; it fetches with that key instead. See the ADR 0047 amendment.
+
 ## 2026-11-11
 
 - Split `docs/KB.md` product facts into topic files under `docs/kb/` with no fact changes. `pnpm test` checks that each knowledge file stays under 64 KiB and that its relative links resolve. CI skips docs-only changes, so it runs this check only when a change also touches code.

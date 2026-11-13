@@ -13,7 +13,8 @@ export function ApiBillingSetup({ provider, disabled, action, savedKey = true }:
     if (input.current) input.current.value = "";
     if (!saved && !adminKey) return;
     pending.current = true; setBusy(true);
-    try { await action(saved ? { action: "apiBillingFetchSaved", provider } : { action: "apiBillingFetch", provider, adminKey: adminKey!, ...(savedKey && remember.current?.checked ? { remember: true } : {}) }); }
+    // A pasted key wins over "Use saved key", so the button never discards it.
+    try { await action(adminKey ? { action: "apiBillingFetch", provider, adminKey, ...(savedKey && remember.current?.checked ? { remember: true } : {}) } : { action: "apiBillingFetchSaved", provider }); }
     finally { pending.current = false; setBusy(false); }
   };
   return <form className="api-billing-setup" onSubmit={async event => { event.preventDefault(); await fetchBilling(false); }}>
@@ -22,7 +23,7 @@ export function ApiBillingSetup({ provider, disabled, action, savedKey = true }:
     <p className="secondary connection-help">{provider === "openai" ? "OpenAI Platform → Organization settings → Admin keys." : "Anthropic Console → Settings → Admin keys."}</p>
     <label className="api-key-field"><span className="secondary">Or paste an Admin key</span><input ref={input} aria-label={`${apiBillingNames[provider]} Admin key`} type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={8192} required disabled={disabled || busy} placeholder="Paste Admin key" /></label>
     <button type="submit" disabled={disabled || busy}>{busy ? "Fetching…" : "Fetch billing"}</button>
-    {savedKey && <label className="secondary connection-help api-key-save"><input ref={remember} type="checkbox" disabled={disabled || busy} /> Save key in macOS Keychain after a successful fetch</label>}
+    {savedKey && <label className="secondary connection-help api-key-save"><input ref={remember} type="checkbox" defaultChecked disabled={disabled || busy} /> Save key in macOS Keychain after a successful fetch</label>}
   </form>;
 }
 

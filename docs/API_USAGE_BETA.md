@@ -18,7 +18,7 @@ its own period. Refresh rereads the file; it does not fetch billing or make an
 old snapshot fresh. Anthropic's cost report excludes Priority Tier costs. Neither
 provider's report replaces its dashboard or invoice.
 
-The opt-in macOS Keychain save option below is an unreleased source change,
+The macOS Keychain save option below is an unreleased source change,
 not included in beta 20. See [ADR 0047](adr/0047-opt-in-api-key-saving.md).
 
 ## OpenAI remaining balance
@@ -46,11 +46,12 @@ Terminal helper tries only the credit grants report.
 1. Open **Settings → API connections**.
 2. If you saved an Admin key in macOS Keychain, click **Use saved key** for that provider. Approve macOS Keychain access if asked. This fetches billing without entering the key again.
 3. Otherwise, create an organization Admin key in **OpenAI Platform → Organization settings → Admin keys**, or **Anthropic Console → Settings → Admin keys**.
-4. Paste the key into the matching provider's masked field. On macOS, select **Save key in macOS Keychain** if you want to reuse it, then click **Fetch billing**.
+4. Paste the key into the matching provider's masked field and click **Fetch billing** (or **Use saved key**, which uses a pasted key when one is entered). On macOS, **Save key in macOS Keychain** starts selected; clear it to use the key once.
 
 MeterUsage clears the field on submit and updates the billing snapshot after a
-successful request. Pasted keys are not saved unless you select the Keychain
-option. A selected key is saved only after a successful fetch. If saving fails,
+successful request. On macOS, pasted keys are saved unless you clear the Keychain
+option; with it cleared, or on Windows, the key is not saved. A key is saved
+only after a successful fetch. If saving fails,
 the billing snapshot stays available and Settings reports the save failure. Use **Use saved key** again to
 refresh with an existing Keychain key; otherwise, enter a one-time key. Leaving the API page clears unsubmitted input. A normal project key or
 ChatGPT or Claude subscription sign-in cannot read organization billing.

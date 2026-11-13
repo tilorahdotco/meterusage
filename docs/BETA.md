@@ -92,8 +92,8 @@ f1ee03d410144f2eb89d2b4e8654ef9686eaa09a5bd68b8a6c359c2e0f27a07c
   Settings → API connections can reuse a provider's fixed legacy Keychain
   Admin key or accept a masked one-time Admin key. Original saved keys are
   preserved and newly pasted keys are not saved in beta 20. Current source adds
-  an unchecked **Save key in macOS Keychain** option to save a pasted key after
-  a successful fetch; that fix is not included in beta 20. OpenRouter keeps its existing
+  a **Save key in macOS Keychain** option, selected by default, to save a pasted
+  key after a successful fetch; that fix is not included in beta 20. OpenRouter keeps its existing
   balance and aggregate activity source. Read [API setup and limits](API_USAGE_BETA.md).
 
 See [source choices](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/electron/README.md#source-choices),

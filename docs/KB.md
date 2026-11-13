@@ -188,8 +188,8 @@ to open Settings. No window is shown or focused by preload.
 - OpenAI API and Anthropic API are independent billing snapshots, not quota
   provider slots. Settings → API connections accepts a one-time masked Admin
   key and fetches billing without Terminal. The field clears on submit or
-  leaving the page. On macOS, the unchecked **Save key in macOS Keychain**
-  option saves the key after a successful fetch. A failed save preserves the
+  leaving the page. On macOS, the **Save key in macOS Keychain** option starts
+  selected and saves the key after a successful fetch. A failed save preserves the
   new snapshot and reports a fixed error. **Use saved key** reads only the
   selected provider's `com.meterusage.api-keys` Keychain entry without
   returning the key to the renderer. It runs only on request. A bundled environment-only helper
