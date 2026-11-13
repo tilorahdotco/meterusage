@@ -79,7 +79,7 @@ async function start(launch: Launch) {
     if (!launch.demo && !launch.candidate && Notification.isSupported()) new Notification({ title: alert.title, body: alert.body, silent: !alert.sound }).show();
   }, sources);
   const issueReports = new IssueReports(() => coordinator.diagnostics(app.getVersion()), publish, prefs);
-  const apiBillingFetch = new ApiBillingFetch(launch, () => coordinator.refresh(), fetch, windowsShell ? undefined : (provider, signal) => runCommand(desktopHelper, [`--api-${provider}`, "--allow-ui"], { signal, timeoutMs: 60000, maxBytes: 8192 }), () => prepaidFrom(prefs.values), windowsShell ? undefined : async (provider, key, signal) => { await runCommand(desktopHelper, [`--api-${provider}`, "--save", "--allow-ui"], { input: key, signal, timeoutMs: 60000, maxBytes: 8192 }); });
+  const apiBillingFetch = new ApiBillingFetch(launch, () => coordinator.refresh(), fetch, windowsShell ? undefined : (provider, signal) => runCommand(desktopHelper, [`--api-${provider}`, "--allow-ui"], { signal, timeoutMs: 60000, maxBytes: 8192 }), provider => prepaidFrom(prefs.values, provider), windowsShell ? undefined : async (provider, key, signal) => { await runCommand(desktopHelper, [`--api-${provider}`, "--save", "--allow-ui"], { input: key, signal, timeoutMs: 60000, maxBytes: 8192 }); });
   // Invalidate the restored quota archive while retaining this connection's activity.
   for (const p of ["codex", "claude", "antigravity", "grok"] as const) if (connections.configured(p)) coordinator.forgetQuota(p, true);
   const notch = { expanded: false, cardOnRight: false, selected: "codex", dragging: false };

@@ -147,13 +147,14 @@ it.each(["missing", "denied", "cancelled"])("preserves snapshots and hides saved
   expect(fetcher).not.toHaveBeenCalled(); expect(refresh).not.toHaveBeenCalled(); expect(files(home)).toEqual(before);
 });
 
-it("passes the prepaid fallback only to OpenAI and drops an in-flight balance request on quit", async () => {
+it("passes each provider its own prepaid estimate and drops an in-flight balance request on quit", async () => {
   const { launch, home, refresh } = await setup();
-  const prepaid = vi.fn(() => ({ amountUSD: 10, since: start }));
+  const prepaid = vi.fn((_provider: ApiBillingProvider) => ({ amountUSD: 10, since: start }));
   const fetcher = vi.fn<typeof fetch>(async url => response(new URL(String(url)).hostname === "api.openai.com" ? "openai" : "anthropic"));
   const billing = new ApiBillingFetch(launch, refresh, fetcher, undefined, prepaid);
-  await billing.run("anthropic", keys.anthropic); expect(prepaid).not.toHaveBeenCalled();
-  await billing.run("openai", keys.openai); expect(prepaid).toHaveBeenCalledOnce();
+  await billing.run("anthropic", keys.anthropic); expect(prepaid).toHaveBeenLastCalledWith("anthropic");
+  expect(JSON.parse(readFileSync(apiBillingPath(home, "anthropic"), "utf8")).balance).toEqual({ source: "manual", availableUSD: 7, prepaidUSD: 10, since: start, spentSinceUSD: 3 });
+  await billing.run("openai", keys.openai); expect(prepaid).toHaveBeenLastCalledWith("openai");
   expect(JSON.parse(readFileSync(apiBillingPath(home, "openai"), "utf8")).balance).toEqual({ source: "manual", availableUSD: 8, prepaidUSD: 10, since: start, spentSinceUSD: 2 });
 
   const before = files(home); let grants!: () => void;

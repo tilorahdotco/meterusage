@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { prepaidDay, prepaidFrom, type ApiBillingSnapshot } from "../src/domain/api-billing";
+import { latestRenewal, prepaidDay, prepaidFrom, type ApiBillingSnapshot } from "../src/domain/api-billing";
 import { collectApiBilling, parseApiBillingSnapshot } from "../src/main/providers/api-billing";
 import { parseRequest } from "../src/main/ipc";
 import { ApiBillingBalanceLine } from "../src/renderer/api-billing-setup";
@@ -70,10 +70,31 @@ describe("OpenAI remaining balance", () => {
     expect(value.balance).toBeUndefined();
   });
 
-  it("never requests a balance for Anthropic", async () => {
+  it("never requests a credit_grants balance for Anthropic", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => Response.json({ data: [], has_more: false }));
-    const value = await collectApiBilling("anthropic", "synthetic-key", now, fetcher, { amountUSD: 50, since: start });
+    const value = await collectApiBilling("anthropic", "synthetic-key", now, fetcher);
     expect(value.balance).toBeUndefined(); expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("estimates the Anthropic balance from its cost report, including an earlier-month top-up", async () => {
+    const since = Date.UTC(2026, 8, 20), requested: URL[] = [];
+    const row = (at: number, cents: string) => ({ starting_at: new Date(at).toISOString(), ending_at: new Date(at + day).toISOString(), results: [{ amount: cents, currency: "USD", workspace_id: "PRIVATE_WORKSPACE" }] });
+    const fetcher = vi.fn<typeof fetch>(async input => {
+      const url = new URL(String(input)); requested.push(url);
+      expect(url.pathname).toBe("/v1/organizations/cost_report");
+      return Response.json({ data: url.searchParams.get("starting_at") === new Date(since).toISOString() ? [row(since, "500")] : [row(start, "250")], has_more: false, next_page: null });
+    });
+    const value = await collectApiBilling("anthropic", "synthetic-key", now, fetcher, { amountUSD: 50, since });
+    expect(value.balance).toEqual({ source: "manual", availableUSD: 42.5, prepaidUSD: 50, since, spentSinceUSD: 7.5 });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(value)).not.toContain("PRIVATE");
+  });
+
+  it("keeps the monthly flag on an estimate from a renewing credit", async () => {
+    const since = start + 5 * day;
+    const value = await collectApiBilling("anthropic", "synthetic-key", now, async () => Response.json({ data: [{ starting_at: new Date(since).toISOString(), ending_at: new Date(since + day).toISOString(), results: [{ amount: "300", currency: "USD" }] }], has_more: false }), { amountUSD: 20, since, monthly: true });
+    expect(value.balance).toEqual({ source: "manual", availableUSD: 17, prepaidUSD: 20, since, spentSinceUSD: 3, monthly: true });
+    expect(parseApiBillingSnapshot(JSON.stringify(value), "anthropic", now).balance).toEqual(value.balance);
   });
 
   it("validates stored balances and recomputes the manual remaining amount", () => {
@@ -82,32 +103,45 @@ describe("OpenAI remaining balance", () => {
     for (const balance of [
       { source: "other", availableUSD: 1 }, { source: "creditGrants", availableUSD: -1, grantedUSD: 1, usedUSD: 1 }, { source: "creditGrants", availableUSD: 1, grantedUSD: 1 },
       { ...manual, since: start + 1 }, { ...manual, since: now + day }, { ...manual, prepaidUSD: -1 }, { ...manual, availableUSD: "1" },
+      { ...manual, monthly: false }, { ...manual, monthly: "yes" },
     ]) expect(() => parseApiBillingSnapshot(JSON.stringify(base(balance)), "openai", now), JSON.stringify(balance)).toThrow();
+    expect(parseApiBillingSnapshot(JSON.stringify({ ...base(manual), provider: "anthropic" }), "anthropic", now).balance).toEqual({ ...manual, availableUSD: -2 });
     expect(() => parseApiBillingSnapshot(JSON.stringify({ ...base({ source: "creditGrants", availableUSD: 1, grantedUSD: 1, usedUSD: 0 }), provider: "anthropic" }), "anthropic", now)).toThrow();
   });
 });
 
 describe("prepaid credit preferences", () => {
   it("accepts only bounded amounts and real UTC dates", () => {
-    for (const [key, value] of [["openAIPrepaidCreditUSD", 0], ["openAIPrepaidCreditUSD", 25.5], ["openAIPrepaidSince", ""], ["openAIPrepaidSince", "2026-02-28"]] as const)
+    for (const [key, value] of [["openAIPrepaidCreditUSD", 0], ["openAIPrepaidCreditUSD", 25.5], ["openAIPrepaidSince", ""], ["openAIPrepaidSince", "2026-02-28"], ["anthropicPrepaidCreditUSD", 5], ["anthropicPrepaidSince", "2026-11-01"], ["anthropicPrepaidMonthly", true], ["openAIPrepaidMonthly", false]] as const)
       expect(parseRequest({ action: "setPreference", key, value })).toEqual({ action: "setPreference", key, value });
-    for (const [key, value] of [["openAIPrepaidCreditUSD", -1], ["openAIPrepaidCreditUSD", 1e8], ["openAIPrepaidCreditUSD", "5"], ["openAIPrepaidSince", "2026-02-30"], ["openAIPrepaidSince", "2026-2-1"], ["openAIPrepaidSince", 5]] as const)
+    for (const [key, value] of [["openAIPrepaidCreditUSD", -1], ["openAIPrepaidCreditUSD", 1e8], ["openAIPrepaidCreditUSD", "5"], ["openAIPrepaidSince", "2026-02-30"], ["openAIPrepaidSince", "2026-2-1"], ["openAIPrepaidSince", 5], ["anthropicPrepaidCreditUSD", -1], ["anthropicPrepaidSince", "soon"], ["anthropicPrepaidMonthly", "yes"]] as const)
       expect(() => parseRequest({ action: "setPreference", key, value })).toThrow("Invalid request");
   });
   it("enables the fallback only when both amount and date are set", () => {
     expect(prepaidDay("2026-10-05")).toBe(Date.UTC(2026, 9, 5));
-    expect(prepaidFrom({ openAIPrepaidCreditUSD: 25, openAIPrepaidSince: "2026-10-05" })).toEqual({ amountUSD: 25, since: Date.UTC(2026, 9, 5) });
-    expect(prepaidFrom({ openAIPrepaidCreditUSD: 0, openAIPrepaidSince: "2026-10-05" })).toBeUndefined();
-    expect(prepaidFrom({ openAIPrepaidCreditUSD: 25, openAIPrepaidSince: "" })).toBeUndefined();
+    expect(prepaidFrom({ openAIPrepaidCreditUSD: 25, openAIPrepaidSince: "2026-10-05" }, "openai")).toEqual({ amountUSD: 25, since: Date.UTC(2026, 9, 5) });
+    expect(prepaidFrom({ openAIPrepaidCreditUSD: 0, openAIPrepaidSince: "2026-10-05" }, "openai")).toBeUndefined();
+    expect(prepaidFrom({ openAIPrepaidCreditUSD: 25, openAIPrepaidSince: "" }, "openai")).toBeUndefined();
+    expect(prepaidFrom({ openAIPrepaidCreditUSD: 25, openAIPrepaidSince: "2026-10-05" }, "anthropic")).toBeUndefined();
+    expect(prepaidFrom({ anthropicPrepaidCreditUSD: 10, anthropicPrepaidSince: "2026-10-05" }, "anthropic", now)).toEqual({ amountUSD: 10, since: Date.UTC(2026, 9, 5) });
+  });
+  it("counts a monthly credit from its latest renewal", () => {
+    expect(prepaidFrom({ anthropicPrepaidCreditUSD: 10, anthropicPrepaidSince: "2026-08-05", anthropicPrepaidMonthly: true }, "anthropic", now)).toEqual({ amountUSD: 10, since: Date.UTC(2026, 9, 5), monthly: true });
+    expect(latestRenewal(Date.UTC(2026, 7, 20), now)).toBe(Date.UTC(2026, 8, 20));
+    expect(latestRenewal(Date.UTC(2026, 0, 31), Date.parse("2026-03-01T12:00:00Z"))).toBe(Date.UTC(2026, 1, 28));
+    expect(latestRenewal(Date.UTC(2026, 0, 31), Date.parse("2026-03-31T00:00:00Z"))).toBe(Date.UTC(2026, 2, 31));
+    expect(latestRenewal(Date.UTC(2026, 9, 16), now)).toBe(Date.UTC(2026, 9, 16));
+    expect(latestRenewal(now + day, now)).toBe(now + day);
   });
 });
 
 describe("balance line", () => {
   const html = (balance: ApiBillingSnapshot["balance"]) => renderToStaticMarkup(createElement(ApiBillingBalanceLine, { balance }));
-  it("labels reported, estimated and exhausted balances", () => {
+  it("shows total credit, used and left for reported, estimated, monthly and exhausted balances", () => {
     expect(html(undefined)).toBe("");
-    expect(html({ source: "creditGrants", availableUSD: 62.5, grantedUSD: 100, usedUSD: 37.5 })).toMatch(/\$62\.50 left.*\$37\.50 used of \$100\.00.*unofficial/);
-    expect(html({ source: "manual", availableUSD: 16.5, prepaidUSD: 20, since: Date.UTC(2026, 9, 6), spentSinceUSD: 3.5 })).toMatch(/~\$16\.50 left.*estimate.*\$20\.00 prepaid on 2026-10-06/);
-    expect(html({ source: "manual", availableUSD: -2, prepaidUSD: 10, since: Date.UTC(2026, 9, 6), spentSinceUSD: 12 })).toMatch(/exhausted/);
+    expect(html({ source: "creditGrants", availableUSD: 62.5, grantedUSD: 100, usedUSD: 37.5 })).toMatch(/Total credit<\/dt><dd>\$100\.00<.*Used<\/dt><dd>\$37\.50<.*Left<\/dt><dd>\$62\.50<.*unofficial/);
+    expect(html({ source: "manual", availableUSD: 16.5, prepaidUSD: 20, since: Date.UTC(2026, 9, 6), spentSinceUSD: 3.5 })).toMatch(/Total credit<\/dt><dd>\$20\.00<.*Used<\/dt><dd>\$3\.50<.*Left<\/dt><dd>~\$16\.50<.*Estimate.*\$20\.00 prepaid on 2026-10-06/);
+    expect(html({ source: "manual", availableUSD: 7, prepaidUSD: 10, since: Date.UTC(2026, 10, 1), spentSinceUSD: 3, monthly: true })).toMatch(/monthly credit renewed 2026-11-01/);
+    expect(html({ source: "manual", availableUSD: -2, prepaidUSD: 10, since: Date.UTC(2026, 9, 6), spentSinceUSD: 12 })).toMatch(/Left<\/dt><dd class="stale">\$0\.00<.*exhausted/);
   });
 });

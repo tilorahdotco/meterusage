@@ -8,7 +8,7 @@ import { runCommand, type Command } from "./providers/transport";
 import { type Launch } from "./launch";
 import { PanelSize, panelScales } from "../shared/ipc";
 import { validInterfaceStyle } from "../shared/styles";
-import { prepaidPreferenceKeys, validPrepaidAmount, validPrepaidSince } from "../domain/api-billing";
+import { prepaidAmountKeys, prepaidMonthlyKeys, prepaidSinceKeys, validPrepaidAmount, validPrepaidSince } from "../domain/api-billing";
 export const defaultsDomain = "dev.meterusage.app";
 const readDefaultsData = `ObjC.import("Foundation");
 function run(args) {
@@ -24,7 +24,7 @@ const kinds: Record<string, Kind> = {
   refreshIntervalSeconds: "number", appearanceTheme: "string", accentTheme: "string", interfaceStyle: "string", panelSize: "string", managedAccounts: "data", providerOrder: "data",
   sideNotchPanelCorner: "string", updateLastCheckDate: "date", reportNextAllowedAt: "date", updateDismissedVersion: "string", updateAnnouncedVersion: "string",
   desktopCodexConnection: "string", desktopCodexCleanup: "string", desktopClaudeIdentity: "string", desktopAntigravityIdentity: "string", desktopGrokIdentity: "string", desktopGrokSource: "string",
-  [prepaidPreferenceKeys.amount]: "number", [prepaidPreferenceKeys.since]: "string",
+  ...Object.fromEntries(prepaidAmountKeys.map(k => [k, "number" as const])), ...Object.fromEntries(prepaidSinceKeys.map(k => [k, "string" as const])), ...Object.fromEntries(prepaidMonthlyKeys.map(k => [k, "boolean" as const])),
   ...Object.fromEntries(["launchAtLogin", "showHeatmap", "showClaudeHeatmap", "showCodexHeatmap", "quotaAlertsEnabled", "sideNotchPanelEnabled", "sideNotchPanelPinned", "menuBarCompactEnabled", "onboardingCompleted", "updateCheckEnabled", "updateAutoInstall", "showPacingBurnRate", "showActivityTelemetry", "showDailyActivityChart", "showSideNotchResetButton", ...providers.flatMap(p => [providerPreference(p), trayPreference(p)])].map(k => [k, "boolean" as const])),
 };
 export const initialPreferences: Record<string, PreferenceValue> = {
@@ -34,7 +34,7 @@ export const initialPreferences: Record<string, PreferenceValue> = {
   updateCheckEnabled: true, updateAutoInstall: false, showPacingBurnRate: true, showActivityTelemetry: true, showDailyActivityChart: true, showSideNotchResetButton: true,
   updateDismissedVersion: "", updateAnnouncedVersion: "",
   desktopCodexConnection: "", desktopCodexCleanup: "", desktopClaudeIdentity: "", desktopAntigravityIdentity: "", desktopGrokIdentity: "", desktopGrokSource: "cursor",
-  [prepaidPreferenceKeys.amount]: 0, [prepaidPreferenceKeys.since]: "",
+  ...Object.fromEntries(prepaidAmountKeys.map(k => [k, 0])), ...Object.fromEntries(prepaidSinceKeys.map(k => [k, ""])), ...Object.fromEntries(prepaidMonthlyKeys.map(k => [k, false])),
   ...Object.fromEntries(providers.flatMap(p => [[providerPreference(p), ["codex", "openCodeGo", "openRouter"].includes(p)], [trayPreference(p), true]])),
 };
 const codexTestPreferences: Record<string, PreferenceValue> = {
@@ -52,8 +52,8 @@ function validate(key: string, v: unknown): v is PreferenceValue {
   const kind = kinds[key]; if (!kind) return false;
   if (key === "providerOrder") return validProviderOrder(v);
   if (kind === "data") return validAccounts(v);
-  if (key === prepaidPreferenceKeys.amount) return validPrepaidAmount(v);
-  if (key === prepaidPreferenceKeys.since) return validPrepaidSince(v);
+  if (prepaidAmountKeys.includes(key)) return validPrepaidAmount(v);
+  if (prepaidSinceKeys.includes(key)) return validPrepaidSince(v);
   if (kind === "date" || kind === "number") return typeof v === "number" && Number.isFinite(v);
   if (kind === "boolean") return typeof v === "boolean";
   if (typeof v !== "string" || v.length > 100 || /[\r\n\0]/.test(v)) return false;

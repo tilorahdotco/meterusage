@@ -41,6 +41,21 @@ the date is more than about 2.5 years back. **Clear** turns the fallback off for
 later fetches; an estimate already on the card stays until the next fetch. The
 Terminal helper tries only the credit grants report.
 
+## Anthropic credit total, used and left
+
+Anthropic documents no endpoint that returns a credit balance to an Admin key.
+To track a credit, enter **Prepaid credit (USD)** and **Added on (UTC date)**
+under Anthropic API in Settings, save, then fetch billing again. The card shows
+**Total credit**, **Used** (cost report spend since that date) and **Left**
+(`~` marks an estimate). The same estimate limits as OpenAI apply.
+
+For a credit that renews each month, select **Renews monthly** and enter a
+renewal date. Each fetch counts spend from the latest renewal on or before
+today (UTC). A month without that day, such as the 31st, uses its last day.
+This option is also available for OpenAI. The estimate assumes the cost report
+includes usage paid by credits; this is not verified with a real account. See
+[ADR 0049](adr/0049-api-credit-total-used-left.md).
+
 ## Set up in Settings
 
 1. Open **Settings → API connections**.
