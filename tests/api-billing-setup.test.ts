@@ -37,7 +37,7 @@ describe("one-time API billing setup", () => {
     expect(pending.current).toBe(false);
   });
 
-  it("sends explicit save consent and keeps the field cleared", async () => {
+  it("saves by default (box starts checked) and keeps the field cleared", async () => {
     const field = { value: "synthetic-admin" };
     vi.mocked(useRef).mockReturnValueOnce({ current: field }).mockReturnValueOnce({ current: false }).mockReturnValueOnce({ current: { checked: true } });
     const action = vi.fn(async () => {});
@@ -47,7 +47,7 @@ describe("one-time API billing setup", () => {
     expect(action).toHaveBeenCalledExactlyOnceWith({ action: "apiBillingFetch", provider: "anthropic", adminKey: "synthetic-admin", remember: true });
     const html = renderToStaticMarkup(createElement(ApiBillingSetup, { provider: "anthropic", disabled: false, action }));
     expect(html).toContain("Save key in macOS Keychain");
-    expect(html).not.toContain('checked=""');
+    expect(html).toContain('checked=""');
   });
 
   it("blocks access in demo profiles", async () => {
@@ -63,14 +63,22 @@ describe("one-time API billing setup", () => {
     vi.mocked(useRef).mockReturnValueOnce({ current: null }).mockReturnValueOnce({ current: false }).mockReturnValueOnce({ current: null });
     expect(ApiBillingSetup({ provider: "openai", disabled: false, action: vi.fn(), savedKey: false }).props.children[0]).toBe(false);
   });
-  it("uses the saved-key action without sending or retaining input", async () => {
-    const field = { value: "synthetic-unsubmitted" }, pending = { current: false };
-    vi.mocked(useRef).mockReturnValueOnce({ current: field }).mockReturnValueOnce(pending).mockReturnValueOnce({ current: null });
+  it("uses the saved-key action when the field is empty", async () => {
+    const field = { value: "  " }, pending = { current: false };
+    vi.mocked(useRef).mockReturnValueOnce({ current: field }).mockReturnValueOnce(pending).mockReturnValueOnce({ current: { checked: true } });
     const action = vi.fn(async () => {}), form = ApiBillingSetup({ provider: "openai", disabled: false, action });
     const button = form.props.children[0].props.children[0];
     await button.props.onClick();
     expect(field.value).toBe(""); expect(pending.current).toBe(false);
     expect(action).toHaveBeenCalledExactlyOnceWith({ action: "apiBillingFetchSaved", provider: "openai" });
+  });
+  it("does not discard a pasted key when Use saved key is clicked", async () => {
+    const field = { value: "synthetic-pasted" }, pending = { current: false };
+    vi.mocked(useRef).mockReturnValueOnce({ current: field }).mockReturnValueOnce(pending).mockReturnValueOnce({ current: { checked: true } });
+    const action = vi.fn(async () => {}), form = ApiBillingSetup({ provider: "anthropic", disabled: false, action });
+    await form.props.children[0].props.children[0].props.onClick();
+    expect(field.value).toBe("");
+    expect(action).toHaveBeenCalledExactlyOnceWith({ action: "apiBillingFetch", provider: "anthropic", adminKey: "synthetic-pasted", remember: true });
   });
 
   it("retains the advanced environment helper as an optional setup path", () => {

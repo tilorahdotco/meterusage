@@ -295,17 +295,21 @@ Admin key in a masked field. An explicit Fetch billing action passes it through
 the registered Settings bridge to the main process, using the same collector.
 The field clears on submit; leaving the page clears unsubmitted input. Keys are
 not saved in preferences, snapshots, diagnostics or renderer state
-publications. By default they are not saved in Keychain either. On macOS, the
-unchecked **Save key in macOS Keychain** option explicitly permits saving after
-a successful billing fetch. The fixed native helper receives the key through
+publications. On macOS, the **Save key in macOS Keychain** option starts
+selected and saves the pasted key after a successful billing fetch. Clear it
+before fetching to use the key once. Windows never saves the key. The fixed native helper receives the key through
 stdin, never arguments, and adds or updates only the selected provider's fixed
 item in the existing legacy file-based Keychain. Synchronization is disabled.
 Access and prompts follow that Keychain's lock state and item access controls.
 The requested accessibility attribute does not enforce protection in this store.
 Screen lock does not guarantee that the login Keychain locks; screen-lock
 protection and backup exclusion are not promised. See
-[ADR 0047](adr/0047-opt-in-api-key-saving.md).
-A save failure keeps the fetched snapshot and reports a fixed error. An explicit **Use saved key** action instead reads the selected
+[ADR 0047](adr/0047-opt-in-api-key-saving.md) and
+[ADR 0048](adr/0048-save-api-keys-by-default.md).
+A save failure keeps the fetched snapshot and reports a fixed error. If the
+Admin key field contains a key, **Use saved key** fetches with that key and,
+with the save option selected, saves it after a successful fetch, which may
+replace the saved key. With an empty field, an explicit **Use saved key** action instead reads the selected
 provider's existing `com.meterusage.api-keys` generic-password item, account
 `openAI` or `anthropic`, through the fixed native helper. Only that action may
 request Keychain UI for reading. Saving may also request UI. A read does not

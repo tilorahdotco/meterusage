@@ -1,6 +1,6 @@
 # ADR 0047: Save API Admin keys with explicit consent
 
-- Status: Accepted source implementation; release and live billing acceptance pending
+- Status: Accepted source implementation; unchecked default superseded by ADR 0048
 - Date: 2026-11-12
 - Supersedes: ADR 0032's prohibition on saving newly entered Admin keys
 

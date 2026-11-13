@@ -59,8 +59,8 @@ Desktop connection. These changes are separate from the published build 54.
 - Separate OpenAI API and Anthropic API cards read owner-only billing snapshots
   from **Settings → API connections → Fetch billing** or the bundled one-run
   helper. Settings can reuse the previous app's saved Keychain Admin key or
-  accept a masked key. Pasted keys are not saved unless the user selects
-  **Save key in macOS Keychain**, which saves only after a successful fetch. See [API billing](../API_USAGE_BETA.md).
+  accept a masked key. On macOS, **Save key in macOS Keychain** starts
+  selected and saves only after a successful fetch; clearing it keeps the key one-time. See [API billing](../API_USAGE_BETA.md).
   That activity is provider account scope, not a local chat count.
 - Cursor, Copilot CLI and Gemini CLI use optional existing local quota snapshots.
   Presence alone does not provide cloud quota or a token ledger.
