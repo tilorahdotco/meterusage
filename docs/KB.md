@@ -209,7 +209,8 @@ to open Settings. No window is shown or focused by preload.
 - Both API cards show **Total credit**, **Used** and **Left** from one balance.
   The heading names the snapshot's UTC month, such as **$3.42 in November**. Anthropic has no balance
   endpoint, so its card uses the same prepaid estimate from per-provider
-  Settings values. **Renews monthly** counts spend from the latest renewal day.
+  Settings values. **Renews monthly** counts spend from the latest renewal day
+  and shows the next renewal as the credit's expiry, with days left.
   Whether `cost_report` includes credit-paid usage is unverified. See
   [ADR 0049](adr/0049-api-credit-total-used-left.md).
   See [API billing](API_USAGE_BETA.md) and [ADR 0029](adr/0029-api-billing-snapshots.md).

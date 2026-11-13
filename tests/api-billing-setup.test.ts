@@ -111,6 +111,7 @@ describe.each([
     const html = renderToStaticMarkup(createElement(PrepaidCreditSetup, { provider, values: { [monthlyKey]: true }, disabled: false, action: vi.fn() }));
     expect(html).toContain("Renews monthly"); expect(html).toContain('checked=""');
     expect(html).toContain(`${provider === "openai" ? "OpenAI" : "Anthropic"} API prepaid credit in USD`);
+    expect(html.includes("expire at the end of it")).toBe(provider === "anthropic");
   });
   it("stops at the first failed write so the amount never pairs with a stale date", async () => {
     const { action, form } = mount({ [amountKey]: 10, [sinceKey]: "2026-09-01" }, "25", "2026-10-05", [true, false]);

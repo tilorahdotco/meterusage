@@ -323,7 +323,7 @@ reject redirects, cap response size and pagination, and never start inference.
 The helper writes only schema/provider, capture/period timestamps, currency,
 daily USD totals and an optional balance (OpenAI granted, used and available
 totals, or for either provider the prepaid amount, top-up or renewal date, a
-monthly flag and spend since then). Identifiers, headers and raw responses/errors are discarded.
+monthly flag, the computed expiry date and spend since then). Identifiers, headers and raw responses/errors are discarded.
 Files and their final directory are owner-only; replacement is atomic and a
 failed request preserves the previous file. The app validates the fixed files
 and publishes only projected fields. Demo and isolated provider tests never
