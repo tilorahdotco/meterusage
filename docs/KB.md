@@ -190,9 +190,11 @@ to open Settings. No window is shown or focused by preload.
   key and fetches billing without Terminal. The field clears on submit or
   leaving the page. On macOS, the **Save key in macOS Keychain** option starts
   selected and saves the key after a successful fetch. A failed save preserves the
-  new snapshot and reports a fixed error. **Use saved key** reads only the
-  selected provider's `com.meterusage.api-keys` Keychain entry without
-  returning the key to the renderer. It runs only on request. A bundled environment-only helper
+  new snapshot and reports a fixed error. With a key in the field, **Use saved key**
+  fetches with that key (and saves it when selected, which may replace the
+  saved key). With an empty field it reads only the selected provider's
+  `com.meterusage.api-keys` Keychain entry without returning the key to the
+  renderer ([ADR 0048](adr/0048-save-api-keys-by-default.md)). It runs only on request. A bundled environment-only helper
   remains available. Both paths use fixed cost endpoints and projected
   owner-only USD files. Cards retain the
   reported UTC period, exact capture time and explicit stale state. Empty

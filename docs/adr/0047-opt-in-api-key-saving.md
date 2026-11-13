@@ -1,6 +1,6 @@
 # ADR 0047: Save API Admin keys with explicit consent
 
-- Status: Accepted source implementation; release and live billing acceptance pending
+- Status: Accepted source implementation; unchecked default superseded by ADR 0048
 - Date: 2026-11-12
 - Supersedes: ADR 0032's prohibition on saving newly entered Admin keys
 
@@ -28,15 +28,6 @@ Keep ADR 0032's remaining boundaries: trusted Settings IPC, fixed provider
 endpoints, no credentials in preferences, snapshots or diagnostics, no renderer
 readback, no startup or polling Keychain access, and isolated-profile refusal.
 Explicit saved-key reads do not modify items or fall back to another source.
-
-## Amendment 2026-11-12: save by default
-
-The unchecked default lost keys in practice: the maintainer pasted an Anthropic
-key, did not notice the box, and found no saved key later. **Use saved key** also
-cleared a pasted key and read the empty Keychain item. The save option now
-starts selected on macOS, and **Use saved key** sends a pasted key as a normal
-fetch, with the save option applied. Clearing the box keeps one-time entry.
-All other boundaries above are unchanged.
 
 Synthetic billing tests and a disposable-Keychain create/update/read check prove
 bounded source behavior. They do not establish installed GUI operation, existing

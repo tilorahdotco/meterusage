@@ -6,7 +6,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## 2026-11-12
 
-- API connections (macOS): **Save key in macOS Keychain** now starts selected, so a pasted OpenAI or Anthropic Admin key is saved after a successful fetch. **Use saved key** no longer discards a pasted key; it fetches with that key instead. See the ADR 0047 amendment.
+- API connections (macOS): **Save key in macOS Keychain** now starts selected, so a pasted OpenAI or Anthropic Admin key is saved after a successful fetch. **Use saved key** no longer discards a pasted key; it fetches with that key instead. See ADR 0048.
 
 ## 2026-11-11
 
