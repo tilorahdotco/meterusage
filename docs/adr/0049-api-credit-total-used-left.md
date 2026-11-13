@@ -28,6 +28,12 @@ Admin key; the Console shows it only to a signed-in user.
    the date as a renewal day. Each fetch counts spend from the latest renewal
    on or before now; a month without that day uses its last day. The snapshot
    stores the renewal date used and `monthly: true`.
+4. A monthly credit expires at its next renewal, as Anthropic's Max, Ultra and
+   Team plan API credits expire at the end of each billing cycle without
+   rollover. The snapshot stores that date as `expiresAt`. The card shows
+   **Expires YYYY-MM-DD UTC · N days left**. When the clock passes that date
+   before the next fetch, **Left** shows **Expired** and the card asks for a
+   fetch to count the new cycle.
 
 Snapshots stay schema 1. The balance stays optional and never fails the spend
 fetch. The environment helper reads no preferences, so it stores no estimate.

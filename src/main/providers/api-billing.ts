@@ -27,7 +27,7 @@ function privateDirectory(home: string, platform: Platform, env: NodeJS.ProcessE
 export function parseApiBillingSnapshot(raw: string, provider: ApiBillingProvider, now = Date.now()): ApiBillingSnapshot {
   if (Buffer.byteLength(raw) > maxBytes) throw invalid();
   const root = record(selectJSON(raw, { schema: true, provider: true, capturedAt: true, monthStart: true, periodEnd: true, currency: true, daily: { "*": { start: true, end: true, amountUSD: true } },
-    balance: { source: true, availableUSD: true, grantedUSD: true, usedUSD: true, prepaidUSD: true, since: true, spentSinceUSD: true, monthly: true } }, undefined, true));
+    balance: { source: true, availableUSD: true, grantedUSD: true, usedUSD: true, prepaidUSD: true, since: true, spentSinceUSD: true, monthly: true, expiresAt: true } }, undefined, true));
   const scalarRows = record(selectJSON(raw, { daily: { "*": true } }));
   if (Array.isArray(scalarRows.daily) && scalarRows.daily.length) throw invalid();
   const capturedAt = timestamp(root.capturedAt), start = timestamp(root.monthStart), periodEnd = timestamp(root.periodEnd);
@@ -48,8 +48,10 @@ function parseBalance(row: Record<string, unknown>, provider: ApiBillingProvider
   if (row.source !== "manual" || typeof row.availableUSD !== "number" || !Number.isFinite(row.availableUSD)) throw invalid();
   const prepaidUSD = amount(row.prepaidUSD), spentSinceUSD = amount(row.spentSinceUSD), since = timestamp(row.since);
   if (since % day !== 0 || since > periodEnd || row.monthly !== undefined && row.monthly !== true) throw invalid();
+  const expiresAt = row.expiresAt === undefined ? undefined : timestamp(row.expiresAt);
+  if (expiresAt !== undefined && (row.monthly !== true || expiresAt % day !== 0 || expiresAt <= periodEnd)) throw invalid();
   // Derived, so a hand-edited file cannot show a remaining amount that disagrees with its inputs.
-  return { source: "manual", availableUSD: prepaidUSD - spentSinceUSD, prepaidUSD, since, spentSinceUSD, ...(row.monthly === true ? { monthly: true as const } : {}) };
+  return { source: "manual", availableUSD: prepaidUSD - spentSinceUSD, prepaidUSD, since, spentSinceUSD, ...(row.monthly === true ? { monthly: true as const } : {}), ...(expiresAt === undefined ? {} : { expiresAt }) };
 }
 
 export function readApiBilling(home: string, provider: ApiBillingProvider, now = Date.now(), platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): ApiBillingReading {
@@ -166,11 +168,11 @@ export async function collectApiBilling(provider: ApiBillingProvider, key: strin
     return { source: "creditGrants", availableUSD: amount(root.total_available), grantedUSD: amount(root.total_granted), usedUSD: amount(root.total_used) };
   };
 
-  const manual = async (daily: ApiBillingSnapshot["daily"], { amountUSD, since, monthly }: ApiBillingPrepaid): Promise<ApiBillingBalance | undefined> => {
+  const manual = async (daily: ApiBillingSnapshot["daily"], { amountUSD, since, monthly, expiresAt }: ApiBillingPrepaid): Promise<ApiBillingBalance | undefined> => {
     if (since > end || since % day !== 0) return undefined;
     const earlier = since < start ? (await costs(since, start)).filter(row => row.end <= start) : [];
     const spentSinceUSD = [...earlier, ...daily].filter(row => row.start >= since).reduce((sum, row) => sum + row.amountUSD, 0);
-    return { source: "manual", availableUSD: amountUSD - spentSinceUSD, prepaidUSD: amountUSD, since, spentSinceUSD, ...(monthly ? { monthly } : {}) };
+    return { source: "manual", availableUSD: amountUSD - spentSinceUSD, prepaidUSD: amountUSD, since, spentSinceUSD, ...(monthly ? { monthly } : {}), ...(monthly && expiresAt !== undefined ? { expiresAt } : {}) };
   };
 
   try {

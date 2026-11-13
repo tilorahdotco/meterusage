@@ -29,15 +29,19 @@ export function ApiBillingSetup({ provider, disabled, action, savedKey = true }:
 
 const usd = (x: number) => new Intl.NumberFormat("en", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(x);
 const isoDay = (at: number) => new Date(at).toISOString().slice(0, 10);
+const daysLeft = (ms: number) => { const days = Math.ceil(ms / 86400000); return `${days} day${days === 1 ? "" : "s"}`; };
 
 // Total, used and left always come from the same three inputs, so the figures add up.
-export function ApiBillingBalanceLine({ balance }: { balance?: ApiBillingBalance }) {
+export function ApiBillingBalanceLine({ balance, now }: { balance?: ApiBillingBalance; now: number }) {
   if (!balance) return null;
   const reported = balance.source === "creditGrants";
   const total = reported ? balance.grantedUSD : balance.prepaidUSD, used = reported ? balance.usedUSD : balance.spentSinceUSD;
+  const expiresAt = reported ? undefined : balance.expiresAt, expired = expiresAt !== undefined && now >= expiresAt;
   const exhausted = balance.availableUSD < 0, mark = reported ? "" : "~";
   return <div className="api-balance">
-    <dl className="metrics api-balance-metrics"><div><dt>Total credit</dt><dd>{usd(total)}</dd></div><div><dt>Used</dt><dd>{usd(used)}</dd></div><div><dt>Left</dt><dd className={exhausted ? "stale" : undefined}>{exhausted ? usd(0) : `${mark}${usd(balance.availableUSD)}`}</dd></div></dl>
+    <dl className="metrics api-balance-metrics"><div><dt>Total credit</dt><dd>{usd(total)}</dd></div><div><dt>Used</dt><dd>{usd(used)}</dd></div><div><dt>Left</dt><dd className={exhausted || expired ? "stale" : undefined}>{expired ? "Expired" : exhausted ? usd(0) : `${mark}${usd(balance.availableUSD)}`}</dd></div></dl>
+    {expired ? <p className="stale">This credit expired on {isoDay(expiresAt)}. Fetch billing to count the new cycle.</p>
+      : expiresAt !== undefined && <p className="secondary">Expires {isoDay(expiresAt)} UTC · {daysLeft(expiresAt - now)} left</p>}
     {reported ? <p className="secondary">OpenAI credit grants (unofficial)</p>
       : exhausted ? <p className="stale">Estimated balance exhausted · {usd(used)} spent since {isoDay(balance.since)} exceeds the {usd(total)} prepaid. Update prepaid credit in Settings.</p>
       : <p className="secondary">Estimate: {usd(total)} {balance.monthly ? "monthly credit renewed" : "prepaid on"} {isoDay(balance.since)} minus {usd(used)} spent since</p>}
@@ -63,6 +67,7 @@ export function PrepaidCreditSetup({ provider, values, disabled, action }: { pro
   };
   return <form className="api-billing-setup api-prepaid" onSubmit={async event => { event.preventDefault(); await save(false); }}>
     <p className="secondary connection-help">{provider === "openai" ? "Balance fallback: if OpenAI does not report a balance, MeterUsage estimates it" : "Anthropic does not report a credit balance to Admin keys. MeterUsage estimates it"} from your credit total and top-up date minus spend since that day. For a monthly credit, select Renews monthly. Fetch billing again after saving.</p>
+    {provider === "anthropic" && <p className="secondary connection-help">Max and Ultra plan API credits arrive each billing cycle and expire at the end of it. Enter the monthly amount and the date it arrived, and select Renews monthly.</p>}
     <label className="api-key-field"><span className="secondary">Prepaid credit (USD)</span><input ref={amount} aria-label={`${name} prepaid credit in USD`} type="number" min="0.01" max={maxPrepaidUSD} step="0.01" required disabled={disabled || busy} defaultValue={typeof stored === "number" && stored > 0 ? stored : undefined} placeholder="e.g. 50" /></label>
     <label className="api-key-field"><span className="secondary">Added on (UTC date)</span><input ref={since} aria-label={`${name} prepaid credit date`} type="date" required disabled={disabled || busy} defaultValue={typeof storedSince === "string" ? storedSince : undefined} /></label>
     <label className="secondary connection-help api-key-save"><input ref={monthly} type="checkbox" disabled={disabled || busy} defaultChecked={values[keys.monthly] === true} /> Renews monthly: the credit resets on this day each month</label>
