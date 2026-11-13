@@ -45,7 +45,7 @@ it("refresh projects billing independently and removes a value after a file beco
   expect(JSON.stringify(c.snapshot())).not.toContain("OMIT_PRIVATE");
   expect(c.snapshot().slots).toEqual([]); expect(c.snapshot().archived).toEqual({}); expect(c.json()).toBe(before);
   let cards = renderToStaticMarkup(createElement(ApiBillingCards, { state: view() }));
-  expect(cards).toContain("$12.34"); expect(cards).toContain("$5.67");
+  expect(cards).toContain("$12.34 in October"); expect(cards).toContain("$5.67 in October");
   writeFileSync(path, "{}");
   await c.refresh();
   expect(c.snapshot().apiBilling?.openai).toEqual({ status: "missing", code: "unavailable" });

@@ -321,8 +321,9 @@ Only one request per provider may run; quit cancels pending fetches. Requests
 reject redirects, cap response size and pagination, and never start inference.
 
 The helper writes only schema/provider, capture/period timestamps, currency,
-daily USD totals and an optional OpenAI balance (granted, used and available
-totals, or the prepaid amount, top-up date and spend since then). Identifiers, headers and raw responses/errors are discarded.
+daily USD totals and an optional balance (OpenAI granted, used and available
+totals, or for either provider the prepaid amount, top-up or renewal date, a
+monthly flag and spend since then). Identifiers, headers and raw responses/errors are discarded.
 Files and their final directory are owner-only; replacement is atomic and a
 failed request preserves the previous file. The app validates the fixed files
 and publishes only projected fields. Demo and isolated provider tests never
@@ -336,7 +337,9 @@ For OpenAI, the same fetch also requests the undocumented
 its granted, used and available USD totals; grant identifiers are discarded. If
 that fails and Settings holds a prepaid amount and top-up date, the collector
 requests documented costs since that date and stores only the prepaid amount,
-date and spend total. The prepaid amount and date are non-secret preferences.
+date and spend total. Anthropic API uses only this prepaid estimate and makes no
+balance request. The prepaid amount, date and monthly flag are non-secret
+per-provider preferences ([ADR 0049](adr/0049-api-credit-total-used-left.md)).
 See [ADR 0035](adr/0035-openai-remaining-balance.md), [setup](API_USAGE_BETA.md) and
 [ADR 0029](adr/0029-api-billing-snapshots.md) and
 [ADR 0032](adr/0032-one-time-api-setup.md).

@@ -17,7 +17,7 @@ export class ApiBillingFetch {
   private readonly busy = new Map<ApiBillingProvider, AbortController>();
   get running() { return this.busy.size > 0; }
   private stopped = false;
-  constructor(private readonly launch: Launch, private readonly refresh: () => Promise<void>, private readonly fetcher: typeof fetch = fetch, private readonly savedKey?: (provider: ApiBillingProvider, signal: AbortSignal) => Promise<string>, private readonly prepaid?: () => ApiBillingPrepaid | undefined, private readonly saveKey?: (provider: ApiBillingProvider, key: string, signal: AbortSignal) => Promise<void>) {}
+  constructor(private readonly launch: Launch, private readonly refresh: () => Promise<void>, private readonly fetcher: typeof fetch = fetch, private readonly savedKey?: (provider: ApiBillingProvider, signal: AbortSignal) => Promise<string>, private readonly prepaid?: (provider: ApiBillingProvider) => ApiBillingPrepaid | undefined, private readonly saveKey?: (provider: ApiBillingProvider, key: string, signal: AbortSignal) => Promise<void>) {}
 
   async run(provider: ApiBillingProvider, adminKey?: string, remember = false) {
     if (this.launch.demo || this.launch.candidate || this.launch.profile || this.launch.codexTest || this.launch.claudeTest) throw new Error(apiBillingFetchErrors.profile);
@@ -32,7 +32,7 @@ export class ApiBillingFetch {
         if (!adminKey) throw new Error(apiBillingFetchErrors.savedMissing);
       }
       if (this.stopped) throw new Error(apiBillingFetchErrors.unavailable);
-      const snapshot = await collectApiBilling(provider, adminKey, Date.now(), (url, init) => { controller.signal.throwIfAborted(); return this.fetcher(url, { ...init, signal: AbortSignal.any([controller.signal, ...(init?.signal ? [init.signal] : [])]) }); }, provider === "openai" ? this.prepaid?.() : undefined);
+      const snapshot = await collectApiBilling(provider, adminKey, Date.now(), (url, init) => { controller.signal.throwIfAborted(); return this.fetcher(url, { ...init, signal: AbortSignal.any([controller.signal, ...(init?.signal ? [init.signal] : [])]) }); }, this.prepaid?.(provider));
       if (this.stopped) throw new Error(apiBillingFetchErrors.unavailable);
       writeApiBilling(this.launch.home, snapshot, this.launch.platform, this.launch.env);
       await this.refresh();

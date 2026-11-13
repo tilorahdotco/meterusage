@@ -91,19 +91,26 @@ describe("one-time API billing setup", () => {
   });
 });
 
-describe("prepaid credit fallback form", () => {
-  const amountKey = "openAIPrepaidCreditUSD", sinceKey = "openAIPrepaidSince";
-  const mount = (values: Record<string, number | string>, amount: string, since: string, results: (boolean | void)[] = []) => {
-    const amountField = { value: amount }, sinceField = { value: since };
-    vi.mocked(useRef).mockReturnValueOnce({ current: amountField }).mockReturnValueOnce({ current: sinceField });
+describe.each([
+  ["openai", "openAIPrepaidCreditUSD", "openAIPrepaidSince", "openAIPrepaidMonthly"],
+  ["anthropic", "anthropicPrepaidCreditUSD", "anthropicPrepaidSince", "anthropicPrepaidMonthly"],
+] as const)("%s prepaid credit form", (provider, amountKey, sinceKey, monthlyKey) => {
+  const mount = (values: Record<string, number | string | boolean>, amount: string, since: string, results: (boolean | void)[] = [], monthly = false) => {
+    const amountField = { value: amount }, sinceField = { value: since }, monthlyField = { checked: monthly };
+    vi.mocked(useRef).mockReturnValueOnce({ current: amountField }).mockReturnValueOnce({ current: sinceField }).mockReturnValueOnce({ current: monthlyField });
     const action = vi.fn(async (_request: Request) => results.length ? results.shift() : true);
-    return { action, amountField, sinceField, form: PrepaidCreditSetup({ values, disabled: false, action }) };
+    return { action, amountField, sinceField, monthlyField, form: PrepaidCreditSetup({ provider, values, disabled: false, action }) };
   };
-  it("disables the fallback before writing the date, then writes the amount", async () => {
-    const { action, form } = mount({}, "25.5", "2026-10-05");
+  it.each([false, true])("disables the estimate before writing the date and renewal (%s), then writes the amount", async monthly => {
+    const { action, form } = mount({}, "25.5", "2026-10-05", [], monthly);
     await form.props.onSubmit({ preventDefault: vi.fn() });
     expect(action.mock.calls.map(c => c[0])).toEqual([
-      { action: "setPreference", key: amountKey, value: 0 }, { action: "setPreference", key: sinceKey, value: "2026-10-05" }, { action: "setPreference", key: amountKey, value: 25.5 }]);
+      { action: "setPreference", key: amountKey, value: 0 }, { action: "setPreference", key: sinceKey, value: "2026-10-05" }, { action: "setPreference", key: monthlyKey, value: monthly }, { action: "setPreference", key: amountKey, value: 25.5 }]);
+  });
+  it("offers a monthly renewal option labelled for the provider", () => {
+    const html = renderToStaticMarkup(createElement(PrepaidCreditSetup, { provider, values: { [monthlyKey]: true }, disabled: false, action: vi.fn() }));
+    expect(html).toContain("Renews monthly"); expect(html).toContain('checked=""');
+    expect(html).toContain(`${provider === "openai" ? "OpenAI" : "Anthropic"} API prepaid credit in USD`);
   });
   it("stops at the first failed write so the amount never pairs with a stale date", async () => {
     const { action, form } = mount({ [amountKey]: 10, [sinceKey]: "2026-09-01" }, "25", "2026-10-05", [true, false]);
@@ -117,13 +124,13 @@ describe("prepaid credit fallback form", () => {
       await form.props.onSubmit({ preventDefault: vi.fn() }); expect(action).not.toHaveBeenCalled();
     }
   });
-  it("clears inputs only after both clear writes succeed", async () => {
-    for (const results of [[true, true], [true, false]]) {
-      const { action, form, amountField, sinceField } = mount({ [amountKey]: 10, [sinceKey]: "2026-09-01" }, "10", "2026-09-01", [...results]);
+  it("clears inputs only after all clear writes succeed", async () => {
+    for (const results of [[true, true, true], [true, true, false]]) {
+      const { action, form, amountField, sinceField, monthlyField } = mount({ [amountKey]: 10, [sinceKey]: "2026-09-01", [monthlyKey]: true }, "10", "2026-09-01", [...results], true);
       const clear = form.props.children.at(-1);
       await clear.props.onClick();
-      expect(action.mock.calls.map(c => c[0])).toEqual([{ action: "setPreference", key: amountKey, value: 0 }, { action: "setPreference", key: sinceKey, value: "" }]);
-      expect(amountField.value === "" && sinceField.value === "").toBe(results[1]);
+      expect(action.mock.calls.map(c => c[0])).toEqual([{ action: "setPreference", key: amountKey, value: 0 }, { action: "setPreference", key: sinceKey, value: "" }, { action: "setPreference", key: monthlyKey, value: false }]);
+      expect(amountField.value === "" && sinceField.value === "" && !monthlyField.checked).toBe(results[2]);
     }
   });
 });

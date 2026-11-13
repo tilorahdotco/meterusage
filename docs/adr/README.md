@@ -68,3 +68,4 @@ compatibility and acceptance requirements remain in force. The
 
 | [0047](0047-opt-in-api-key-saving.md) | Save API Admin keys in the existing macOS Keychain only with explicit consent after a successful fetch. | Source implementation; unchecked default superseded by ADR 0048 |
 | [0048](0048-save-api-keys-by-default.md) | Start the macOS Keychain save option selected, and let **Use saved key** fetch with a pasted key instead of discarding it. | Source implementation; release and live billing acceptance pending |
+| [0049](0049-api-credit-total-used-left.md) | Show credit total, used and left on both API billing cards; add the prepaid estimate and a monthly renewal option for Anthropic API. | Source implementation; real-account acceptance pending |
