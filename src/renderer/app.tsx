@@ -310,7 +310,7 @@ export function ApiBillingCards({ state }: { state: ViewState }) {
   return <>{apiBillingProviders.map(provider => {
     const reading = state.snapshot.apiBilling?.[provider];
     if (reading?.status !== "value") return null;
-    return <section key={provider} className="provider-card" aria-label={`${apiBillingNames[provider]} billing`}><div className="row"><h2>{apiBillingNames[provider]} <small>API billing</small></h2><strong>{reading.value.daily.length ? `${money(reading.value.daily.reduce((sum, day) => sum + day.amountUSD, 0))} this month` : "No cost buckets reported"}</strong></div><ApiBillingBalanceLine balance={reading.value.balance} /><ApiBillingDetails reading={reading} />{provider === "anthropic" && <p className="secondary">Priority Tier excluded.</p>}</section>;
+    return <section key={provider} className="provider-card" aria-label={`${apiBillingNames[provider]} billing`}><div className="row"><h2>{apiBillingNames[provider]} <small>API billing</small></h2><strong>{reading.value.daily.length ? `${money(reading.value.daily.reduce((sum, day) => sum + day.amountUSD, 0))} in ${new Date(reading.value.monthStart).toLocaleString("en", { month: "long", timeZone: "UTC" })}` : "No cost buckets reported"}</strong></div><ApiBillingBalanceLine balance={reading.value.balance} /><ApiBillingDetails reading={reading} />{provider === "anthropic" && <p className="secondary">Priority Tier excluded.</p>}</section>;
   })}</>;
 }
 export function ApiBillingConnections({ state, action }: { state: ViewState; action: (r: Request) => Promise<boolean | void> }) {

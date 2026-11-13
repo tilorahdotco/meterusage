@@ -17,8 +17,9 @@ Admin key; the Console shows it only to a signed-in user.
 1. Both cards show a **Total credit**, **Used** and **Left** row. All three come
    from one balance: OpenAI `credit_grants` totals, or the prepaid estimate.
    An estimated **Left** has a `~` prefix. When spend exceeds the total, **Left**
-   shows $0.00 and the card asks for an update. The card heading shows spend as
-   **$X this month**, so it is not confused with **Used**.
+   shows $0.00 and the card asks for an update. The card heading names the
+   snapshot's UTC month, such as **$3.42 in November**, so it is not confused
+   with **Used** and an old snapshot is not labelled as the current month.
 2. Anthropic API gets the same prepaid estimate as OpenAI: credit amount and UTC
    date in Settings, minus documented `cost_report` spend since that date.
    Preferences are per provider: `anthropicPrepaidCreditUSD` and

@@ -207,7 +207,7 @@ to open Settings. No window is shown or focused by preload.
   stored spend but no credit grants balance; why it returned none was not
   captured. See [ADR 0035](adr/0035-openai-remaining-balance.md).
 - Both API cards show **Total credit**, **Used** and **Left** from one balance.
-  The heading shows spend as **$X this month**. Anthropic has no balance
+  The heading names the snapshot's UTC month, such as **$3.42 in November**. Anthropic has no balance
   endpoint, so its card uses the same prepaid estimate from per-provider
   Settings values. **Renews monthly** counts spend from the latest renewal day.
   Whether `cost_report` includes credit-paid usage is unverified. See
