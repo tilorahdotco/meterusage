@@ -75,8 +75,8 @@ export class Unavailable extends Error {
     super(code === "cliNotFound" ? `${subject} CLI not found` : code === "notSignedIn" ? `Not signed in to ${subject}` : code === "offline" ? "Offline" : code === "failed" ? `Couldn't read ${subject} usage` : code === "dataNotFound" ? `${subject} not found` : code === "keychainDenied" ? `Keychain access for ${subject} was not kept. Disconnect, connect again and choose Always Allow`
       // No companion file at all: the CLI source cannot supply allowance, so say how to get it rather than implying no usage.
       : code === "companionMissing" ? `Allowance unavailable for Claude Code CLI. Add a companion usage file${subject ? ` or connect ${subject}` : ""}`
-      // No agy container runtime, image or volumes: the Antigravity CLI source cannot supply allowance.
-      : code === "containerMissing" ? `Allowance unavailable for Antigravity CLI. Set up the agy container or connect ${subject}` : "No usage yet");
+      // Keep old archived states readable without recommending the retired container setup.
+      : code === "containerMissing" ? `Allowance unavailable for Antigravity CLI. Install or update the native agy CLI` : "No usage yet");
   }
 }
 export const failed = (p: Provider) => new Unavailable("failed", providerNames[p]);

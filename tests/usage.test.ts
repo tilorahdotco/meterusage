@@ -3,9 +3,8 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseGeneration, parseStep, conversationUsage, readConversations, AntigravityRuntime } from "../src/main/providers/antigravity";
+import { parseGeneration, parseStep, conversationUsage, readConversations, nativeAntigravityUsage } from "../src/main/providers/antigravity";
 import { antigravityHistory, grokUsage, openCodeUsage, parseOpenCodeRows, openCodeQuery, openRouterUsage } from "../src/main/providers/usage";
-import { CommandFailure, type Command } from "../src/main/providers/transport";
 const roots: string[] = []; const temp = () => { const root = mkdtempSync(join(tmpdir(), "meterusage-fixture-")); roots.push(root); return root; };
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 const now = Date.parse("2026-10-06T12:00:00Z");
@@ -37,37 +36,14 @@ describe("Antigravity numeric conversation contract", () => {
     expect(conversationUsage([{ generations: [], steps: [step(4, now)] }], now).tokens).toBeUndefined();
   });
 });
-describe("existing runtime recovery", () => {
-  it("prefers an already healthy runtime without starting a machine", async () => {
-    const root = temp(), docker = join(root, "docker"), podman = join(root, "podman"); for (const p of [docker, podman]) writeFileSync(p, "", { mode: 0o700 });
-    const calls: string[][] = [], command: Command = async (binary, args) => { calls.push([binary, ...args]); return "healthy"; };
-    expect(await new AntigravityRuntime([docker, podman], command).resolve()).toBe(docker); expect(calls).toEqual([[docker, "info"]]);
-  });
-  it("inspects before starting, never creates a machine, and cools down failed recovery", async () => {
-    const root = temp(), podman = join(root, "podman"); writeFileSync(podman, "", { mode: 0o700 });
-    const calls: string[][] = [], command: Command = async (_binary, args) => { calls.push(args); if (args.includes("inspect")) return "existing"; throw new Error("unavailable"); };
-    const runtime = new AntigravityRuntime([podman], command);
-    expect(await runtime.resolve(undefined, now)).toBeUndefined(); expect(calls).toEqual([["info"], ["machine", "inspect", "podman-machine-default"], ["machine", "start", "podman-machine-default"]]);
-    calls.length = 0; expect(await runtime.resolve(undefined, now + 1000)).toBeUndefined(); expect(calls).toEqual([["info"]]);
-  });
-  it("explains missing Antigravity CLI allowance when the agy container is absent", async () => {
-    const message = "Allowance unavailable for Antigravity CLI. Set up the agy container or connect Antigravity Desktop";
-    await expect(new AntigravityRuntime([], async () => "unused").quota(now)).rejects.toMatchObject({ code: "containerMissing", message });
-    const root = temp(), docker = join(root, "docker"); writeFileSync(docker, "", { mode: 0o700 });
-    const noImage: Command = async (_binary, args) => { if (args[0] === "image") throw new CommandFailure(1); return "exists"; };
-    await expect(new AntigravityRuntime([docker], noImage).quota(now)).rejects.toMatchObject({ code: "containerMissing", message });
-    // A hung or unstartable inspect does not prove the container is missing.
-    const slowVolume: Command = async (_binary, args) => { if (args[0] === "volume") throw new Error("Provider request timed out"); return "exists"; };
-    await expect(new AntigravityRuntime([docker], slowVolume).quota(now)).rejects.toMatchObject({ code: "failed" });
-    // A cancelled refresh keeps the generic state instead of claiming the container is missing.
-    const aborted = new AbortController(); aborted.abort();
-    await expect(new AntigravityRuntime([docker], noImage).quota(now, aborted.signal)).rejects.toMatchObject({ code: "noData" });
-  });
-  it("checks existing image and volumes before quota invocation", async () => {
-    const root = temp(), docker = join(root, "docker"); writeFileSync(docker, "", { mode: 0o700 }); const calls: string[][] = [];
-    const runtime = new AntigravityRuntime([docker], async (_binary, args) => { calls.push(args); if (args[0] === "run") return "Gemini Models\tWeekly Limit Remaining\t100%\t2030-01-01T00:00:00Z"; return "exists"; });
-    expect((await runtime.quota(now)).windows[0].usedPercent).toBe(0);
-    expect(calls.slice(1, 4)).toEqual([["image", "inspect", "antigravity-cli:local"], ["volume", "inspect", "antigravity-config"], ["volume", "inspect", "antigravity-bin"]]); expect(calls.at(-1)).toContain("--pull=never");
+describe("native Antigravity activity", () => {
+  it("reads older local history and reports absent stores without a runtime", async () => {
+    const root = temp();
+    await expect(nativeAntigravityUsage(root, now)).rejects.toMatchObject({ code: "dataNotFound" });
+    writeFileSync(join(root, "history.jsonl"), JSON.stringify({ conversationId: "synthetic", timestamp: new Date(now).toISOString() }) + "\n");
+    await expect(nativeAntigravityUsage(root, now)).resolves.toMatchObject({ messageCount: 1 });
+    const controller = new AbortController(); controller.abort();
+    await expect(nativeAntigravityUsage(root, now, controller.signal)).rejects.toThrow();
   });
 });
 describe("supplemental usage", () => {
