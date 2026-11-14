@@ -6,7 +6,6 @@ import { appDataDirectory, envValue, localRoot, minimalEnvironment, spawnPlan, s
 import { launchConfiguration } from "../src/main/launch";
 import { Preferences } from "../src/main/preferences";
 import { cliEnvironment, cliPath, runCommand } from "../src/main/providers/transport";
-import { runtimeCandidates } from "../src/main/providers/antigravity";
 import { apiBillingPath, readApiBilling, writeApiBilling } from "../src/main/providers/api-billing";
 import { flyoutOrigin } from "../src/domain/notch";
 import { DesktopConnections } from "../src/main/connections";
@@ -57,11 +56,6 @@ describe("Windows paths and environment", () => {
     const env = { Path: "C:\\Tools", SystemRoot: "C:\\Windows", TEMP: "C:\\Temp", OPENROUTER_API_KEY: "synthetic-not-a-key", USERPROFILE: home };
     expect(minimalEnvironment(env, "win32")).toEqual({ PATH: "C:\\Tools", SystemRoot: "C:\\Windows", TEMP: "C:\\Temp", USERPROFILE: home });
     expect(minimalEnvironment({ PATH: "/usr/bin", OTHER: "x" }, "darwin")).toEqual({ PATH: "/usr/bin", TMPDIR: undefined });
-  });
-  it("lists Windows container runtimes from Program Files and PATH", () => {
-    expect(runtimeCandidates({ ProgramFiles: "C:\\Program Files", Path: "C:\\Tools;relative" }, "win32")).toEqual([
-      "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe", "C:\\Program Files\\RedHat\\Podman\\podman.exe", "C:\\Tools\\docker.exe", "C:\\Tools\\podman.exe",
-    ]);
   });
 });
 

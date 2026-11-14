@@ -1,12 +1,8 @@
-import { accessSync, constants } from "node:fs";
 import { copyFile, mkdtemp, readdir, rm } from "node:fs/promises";
-import { basename, join } from "node:path";
-import { envValue, pathFor, windowsSearchPath, type Platform } from "../platform";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { type Usage, type Tokens, tokens, addTokens, totalTokens, localDay, weekStart, Unavailable, failed } from "../../domain/models";
+import { type Usage, type Tokens, tokens, addTokens, totalTokens, localDay, weekStart, Unavailable } from "../../domain/models";
 import { telemetry } from "../../domain/telemetry";
-import { runCommand, CommandFailure, type Command, type CommandOptions } from "./transport";
-import { parseAntigravity } from "./parsers";
 import { antigravityHistory } from "./usage";
 import { readFile } from "node:fs/promises";
 
@@ -68,55 +64,10 @@ export async function readConversations(directory: string, now: number, signal?:
   }
   return conversationUsage(databases, now);
 }
-export class AntigravityRuntime {
-  private recoveryFailedAt?: number;
-  private pending?: Promise<string | undefined>;
-  constructor(readonly candidates: string[], readonly command: Command = runCommand, readonly env?: NodeJS.ProcessEnv) {}
-  resolve(signal?: AbortSignal, now = Date.now()): Promise<string | undefined> {
-    if (this.pending) return this.pending;
-    this.pending = this.select(signal, now).finally(() => { this.pending = undefined; }); return this.pending;
-  }
-  private async select(signal: AbortSignal | undefined, now: number): Promise<string | undefined> {
-    const available = this.candidates.filter(p => { try { accessSync(p, constants.X_OK); return true; } catch { return false; } });
-    for (const p of available) if (await this.probe(p, ["info"], { signal })) return p;
-    if (signal?.aborted || (this.recoveryFailedAt !== undefined && now - this.recoveryFailedAt < 60000)) return;
-    const podman = available.find(p => /^podman(?:\.exe)?$/i.test(basename(p)));
-    if (!podman || !await this.probe(podman, ["machine", "inspect", "podman-machine-default"], { signal })) return;
-    if (!await this.probe(podman, ["machine", "start", "podman-machine-default"], { signal }) || !await this.probe(podman, ["info"], { signal })) { this.recoveryFailedAt = now; return; }
-    this.recoveryFailedAt = undefined; return podman;
-  }
-  private async probe(binary: string, args: string[], options: CommandOptions): Promise<boolean> { try { await this.run(binary, args, options); return true; } catch { return false; } }
-  run(binary: string, args: string[], options: CommandOptions = {}) { return this.command(binary, args, { ...options, env: this.env, timeoutMs: args[0] === "info" || args.includes("inspect") ? 5000 : 30000 }); }
-  async quota(now: number, signal?: AbortSignal) {
-    // Native agy usage can exist without the container, so a missing quota runtime gets its own reason, not "No usage yet".
-    const missing = () => signal?.aborted ? new Unavailable("noData") : new Unavailable("containerMissing", "Antigravity Desktop");
-    const runtime = await this.resolve(signal); if (!runtime) throw missing();
-    for (const args of [["image", "inspect", "antigravity-cli:local"], ["volume", "inspect", "antigravity-config"], ["volume", "inspect", "antigravity-bin"]]) {
-      // Only a completed inspect with a nonzero exit confirms absence; a timeout or spawn failure is a read failure.
-      try { await this.run(runtime, args, { signal }); } catch (e) { throw e instanceof CommandFailure && e.exitCode !== null ? missing() : signal?.aborted ? new Unavailable("noData") : failed("antigravity"); }
-    }
-    return parseAntigravity(await this.run(runtime, ["run", "--rm", "--pull=never", "-v", "antigravity-config:/root/.gemini", "-v", "antigravity-bin:/root/.local/bin", "antigravity-cli:local", "-p", "/usage"], { signal }), now);
-  }
-  async usage(root: string, now: number, signal?: AbortSignal): Promise<Usage> {
-    signal?.throwIfAborted();
-    try { return await readConversations(join(root, "conversations"), now, signal); } catch { signal?.throwIfAborted(); /* Older native history comes next. */ }
-    try { return antigravityHistory(await readFile(join(root, "history.jsonl"), { encoding: "utf8", signal }), now); } catch { signal?.throwIfAborted(); /* Container fallback uses existing volumes only. */ }
-    const runtime = await this.resolve(signal); if (!runtime) throw new Unavailable("dataNotFound", "Antigravity usage");
-    for (const args of [["volume", "inspect", "antigravity-config"], ["image", "inspect", "alpine"]]) if (!await this.probe(runtime, args, { signal })) throw new Unavailable("dataNotFound", "Antigravity usage");
-    const temporary = await mkdtemp(join(tmpdir(), "meterusage-agy-container-"));
-    try {
-      await this.run(runtime, ["run", "--rm", "--pull=never", "-v", "antigravity-config:/data:ro", "-v", `${temporary}:/out`, "alpine", "sh", "-c", "cp /data/antigravity-cli/conversations/*.db /data/antigravity-cli/conversations/*.db-wal /data/antigravity-cli/conversations/*.db-shm /out/ 2>/dev/null; test -n \"$(ls /out/*.db 2>/dev/null)\""], { signal });
-      return await readConversations(temporary, now, signal);
-    } catch { signal?.throwIfAborted(); /* Older container installs keep only history. */ }
-    finally { await rm(temporary, { recursive: true, force: true }); }
-    try { return antigravityHistory(await this.run(runtime, ["run", "--rm", "--pull=never", "-v", "antigravity-config:/data:ro", "alpine", "cat", "/data/antigravity-cli/history.jsonl"], { signal }), now); } catch { throw new Unavailable("dataNotFound", "Antigravity usage"); }
-  }
-}
-export function runtimeCandidates(env: NodeJS.ProcessEnv, platform: Platform = process.platform): string[] {
-  if (platform === "win32") {
-    const path = pathFor("win32"), programs = envValue(env, "ProgramFiles", "win32") ?? "C:\\Program Files";
-    const searched = windowsSearchPath(env).flatMap(dir => [path.join(dir, "docker.exe"), path.join(dir, "podman.exe")]);
-    return [...new Set([path.join(programs, "Docker", "Docker", "resources", "bin", "docker.exe"), path.join(programs, "RedHat", "Podman", "podman.exe"), ...searched])];
-  }
-  return [...new Set(["/opt/homebrew/bin/docker", "/opt/homebrew/bin/podman", "/usr/local/bin/docker", "/usr/local/bin/podman", "/usr/bin/docker", ...(env.PATH ?? "").split(":").flatMap(p => [join(p, "docker"), join(p, "podman")])])];
+/** Reads only the native CLI's local activity stores. */
+export async function nativeAntigravityUsage(root: string, now: number, signal?: AbortSignal): Promise<Usage> {
+  signal?.throwIfAborted();
+  try { return await readConversations(join(root, "conversations"), now, signal); } catch { signal?.throwIfAborted(); /* Older native history comes next. */ }
+  try { return antigravityHistory(await readFile(join(root, "history.jsonl"), { encoding: "utf8", signal }), now); }
+  catch { signal?.throwIfAborted(); throw new Unavailable("dataNotFound", "Antigravity usage"); }
 }

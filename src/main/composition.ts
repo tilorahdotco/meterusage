@@ -8,7 +8,8 @@ import { Preferences } from "./preferences";
 import { ClaudeActivitySource, scanCodex } from "./providers/activity";
 import { parseCodex, parseClaudeQuota, parseClaudePlan, parseLocalQuota, parseOpenRouter, parseOpenCode, parseGrok, parseStatus, object, text } from "./providers/parsers";
 import { cliPath, cliEnvironment, codexRPC, runCommand, httpTransport, endpoints, type Command, type HTTP } from "./providers/transport";
-import { AntigravityRuntime, runtimeCandidates } from "./providers/antigravity";
+import { nativeAntigravityUsage } from "./providers/antigravity";
+import { nativeAntigravityQuota } from "./providers/antigravity-cli";
 import { scanGrok, openRouterUsage, openCodeUsage, parseOpenCodeRows, openCodeQuery } from "./providers/usage";
 import { demoSources } from "./demo";
 import { museCodeQuota, museCodeRPC } from "./providers/muse-code";
@@ -61,7 +62,6 @@ export function compose(launch: Launch, prefs: Preferences, options: { command?:
   if (launch.codexTest) return [{ ...connectedCodex(), status: async signal => parseStatus("codex", await http(endpoints.codexStatus, "codex", undefined, signal), now()) }];
   if (launch.demo) return demoSources(now, prefs.accounts);
   const command = options.command ?? runCommand, env = cliEnvironment(launch.home, launch.env, launch.platform);
-  const runtime = new AntigravityRuntime(runtimeCandidates(env, launch.platform), command, env);
   const makeCodex = (slot: Slot, home?: string): Source => {
     const rpc = (signal?: AbortSignal, id?: string) => codexRPC(cliPath("codex", launch.home, env), { env: { ...env, ...(home ? { CODEX_HOME: home } : {}) }, signal }, id);
     return { slot, quota: async signal => parseCodex(await rpc(signal), now()), activity: async signal => scanCodex(join(home ?? join(launch.home, ".codex"), "sessions"), now(), signal), consumeReset: async (id, signal) => {
@@ -100,7 +100,7 @@ export function compose(launch: Launch, prefs: Preferences, options: { command?:
   const antigravity: Source = antigravityIdentity !== "" ? {
     slot: primary("antigravity"), accountBound: true,
     quota: signal => options.connections ? options.connections.quota("antigravity", signal, antigravityIdentity) : Promise.reject(new Unavailable("notSignedIn", "Antigravity Desktop")),
-  } : { slot: primary("antigravity"), quota: signal => runtime.quota(now(), signal), usage: signal => runtime.usage(join(launch.home, ".gemini/antigravity-cli"), now(), signal) };
+  } : { slot: primary("antigravity"), quota: signal => nativeAntigravityQuota(launch.home, env, command, now(), signal, launch.platform), usage: signal => nativeAntigravityUsage(join(launch.home, ".gemini/antigravity-cli"), now(), signal) };
   const grokIdentity = String(prefs.values.desktopGrokIdentity);
   const muse: Source[] = prefs.enabled("muse") ? [{
     slot: primary("muse"), accountBound: true, quota: async signal => museCodeQuota(await museCodeRPC(cliPath("muse", launch.home, env), { env, signal }), now()),

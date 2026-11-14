@@ -33,7 +33,7 @@ they do not establish native connection closure.
 | OpenRouter | Existing `OPENROUTER_API_KEY` or supported local key file for `/api/v1/key` and `/api/v1/credits`. An existing management key, with configured API-key fallback, is used for `/api/v1/activity`. | Aggregate usage, balances, limits, dates, request counts and token totals. |
 | OpenCode Go | Existing `opencode-go` key in the local auth store for `https://opencode.ai/zen/go/v1/usage`. Read-only session SQL, with `opencode db --format json` fallback, selects tokens, cost, message counts, dates and directory. | Quota windows, numeric usage and project basename. No message bodies, prompts or tool arguments are selected. |
 | Grok | Existing OIDC key from `.grok/auth.json`, re-read for each billing refresh, sent to `cli-chat-proxy.grok.com/v1/billing?format=credits`. Session `summary.json` files supply dates and message counts. | Allowance, period/reset, plan and session/count metadata. No chat-history content is decoded. |
-| Antigravity | Existing agy container CLI `/usage`; numeric fields from conversation SQLite/protobuf stores, native first and container-volume fallback. Older stores use only history conversation ID/timestamp fields. | Model-group quota, numeric token totals, turn times and aggregate counts. Older history has unknown tokens. No prompt/tool payload or workspace text is decoded. |
+| Antigravity | Native agy CLI `-p /usage`, after its changelog confirms read-only print support; numeric fields from local conversation SQLite/protobuf stores. Older stores use only history conversation ID/timestamp fields. | Model-group quota, numeric token totals, turn times and aggregate counts. Older history has unknown tokens. No prompt/tool payload or workspace text is decoded. |
 | Cursor, Copilot, Gemini | Existing local quota/usage JSON candidates and local presence checks. | Snapshot quota windows when present. These readers do not fetch cloud quota or provide a token ledger. Presence alone never becomes a zero-usage reading. |
 
 Muse Code allowance stays in memory and is not written to the shared quota
@@ -60,9 +60,10 @@ in main-process memory and request headers; they are not displayed, logged,
 written to cache or sent to the renderer. Antigravity and Codex CLIs manage
 their own authentication.
 
-Antigravity runtime recovery may start only an already-existing
-`podman-machine-default` after inspection. It does not create a machine or pull
-an image. A healthy runtime is not restarted to repair internet or auth errors.
+Antigravity CLI collection requires a native executable and skips shell wrappers
+without running them. It does not use Docker or Podman. The CLI owns authentication;
+background reads disable browser launch and automatic CLI updates. Quota reads
+are bounded to 30 seconds and 1 MiB per command.
 SQLite usage reads are read-only. Antigravity copies the database and WAL to an
 owned temporary directory for a coherent read, then removes that copy.
 

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 follows [Semantic Versioning](https://semver.org/).
 
+## 2026-11-14
+
+- Antigravity CLI allowance now reads the native `agy -p /usage` report,
+  with a capability check before print mode. Shell/container wrappers are skipped
+  without execution. Activity reads native local stores; Docker and Podman are
+  no longer required or started. Missing CLI errors point to the native CLI.
+
 ## 2026-11-13
 
 - API billing cards and Settings use less text: three figures, one note line and one "period · fetched" line per card; Settings groups **Admin key** and **Credit** with one help line each. See ADR 0049.

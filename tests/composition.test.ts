@@ -16,6 +16,23 @@ const roots: string[] = []; const temp = () => { const root = mkdtempSync(join(r
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 const now = Date.parse("2026-10-06T12:00:00Z");
 const liveFixture = (home: string): Launch => ({ home, data: join(home, "app-data"), env: {}, demo: false, candidate: false });
+describe("native Antigravity source composition", () => {
+  it("uses the native quota command and leaves missing activity local", async () => {
+    const home = temp(), directory = join(home, process.platform === "win32" ? ".local/bin" : ".local/share/antigravity/bin"), binary = join(directory, process.platform === "win32" ? "agy.exe" : "agy");
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(binary, Buffer.from(process.platform === "win32" ? "4d5a000000000000" : "7f454c4602010100", "hex"), { mode: 0o755 });
+    const launch = { ...liveFixture(home), platform: process.platform }, prefs = await Preferences.load(launch);
+    const calls: string[][] = [];
+    const command: Command = async (binary, args) => {
+      calls.push([binary, ...args]);
+      return args[0] === "changelog" ? "Added non-interactive answers for the read-only slash commands in print mode: /usage without starting an agent turn" : "Gemini Models\tWeekly Limit Remaining\t75%\t2030-01-01T00:00:00Z";
+    };
+    const source = compose(launch, prefs, { command, now: () => now }).find(s => s.slot.provider === "antigravity")!;
+    await expect(source.quota?.()).resolves.toMatchObject({ windows: [expect.objectContaining({ usedPercent: 25 })] });
+    await expect(source.usage?.()).rejects.toMatchObject({ code: "dataNotFound" });
+    expect(calls).toEqual([[binary, "changelog"], [binary, "-p", "/usage"]]);
+  });
+});
 describe.each(["codex", "claude"] as const)("%s live test profile", provider => {
   const flag = `--${provider}-test-profile`;
   it("accepts only coherent Electron singleton metadata for GUI handoff, preserving every link", async () => {

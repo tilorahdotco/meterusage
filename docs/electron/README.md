@@ -260,3 +260,11 @@ with `ditto -c -k --norsrc --keepParent MeterUsage.app MeterUsage-<version>-mac-
 Do not add `__MACOSX` resource-fork entries: the updater accepts only entries
 inside `MeterUsage.app`. Verify the extracted signature and stapled ticket,
 then exercise `stageUpdate` against the final ZIP before publication.
+
+## Antigravity CLI
+
+Install the native `agy` CLI using Google's [CLI setup guide](https://antigravity.google/docs/getting-started?tab=cli), then sign in through the CLI. MeterUsage reads its read-only `agy -p /usage` report. The installed CLI must document headless read-only slash commands in its changelog. Older versions need an update.
+
+On macOS and Linux, MeterUsage checks `~/.local/share/antigravity/bin/agy`, common GUI install folders, `~/.local/bin/agy` and absolute PATH entries. A separate native install in the first folder can coexist with an older shell wrapper. Windows discovery checks `agy.exe` in user CLI folders and PATH. Shell wrappers are skipped without execution. Docker and Podman are not required.
+
+The CLI manages its own authentication. A T3 Code ACP installation alone does not establish native CLI sign-in. MeterUsage does not read or copy T3 credentials. If quota collection fails, check `agy -p /usage` in a terminal using the native executable, then sign in or update the CLI as needed. Local activity remains available when its native history exists.
