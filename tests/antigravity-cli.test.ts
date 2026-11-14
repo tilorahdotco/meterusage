@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -7,7 +7,15 @@ import { Unavailable } from "../src/domain/models";
 import { antigravityCliCandidates, isNativeExecutable, nativeAntigravityQuota } from "../src/main/providers/antigravity-cli";
 import type { Command } from "../src/main/providers/transport";
 
-const roots: string[] = [];
+const { roots } = vi.hoisted(() => ({ roots: [] as string[] }));
+vi.mock("node:fs", async importOriginal => {
+  const fs = await importOriginal<typeof import("node:fs")>();
+  const { sep } = await import("node:path");
+  return { ...fs, openSync(file: string, flags: number) {
+    if (!roots.some(root => file.startsWith(root + sep))) throw new Error("Outside synthetic fixture");
+    return fs.openSync(file, flags);
+  } };
+});
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 const ELF = Buffer.from("7f454c460201010000000000", "hex");
 const native = process.platform === "win32" ? Buffer.from("4d5a000000000000", "hex") : ELF;

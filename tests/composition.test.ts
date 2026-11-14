@@ -21,7 +21,7 @@ describe("native Antigravity source composition", () => {
     const home = temp(), directory = join(home, process.platform === "win32" ? ".local/bin" : ".local/share/antigravity/bin"), binary = join(directory, process.platform === "win32" ? "agy.exe" : "agy");
     mkdirSync(directory, { recursive: true });
     writeFileSync(binary, Buffer.from(process.platform === "win32" ? "4d5a000000000000" : "7f454c4602010100", "hex"), { mode: 0o755 });
-    const launch = { ...liveFixture(home), platform: process.platform }, prefs = await Preferences.load(launch);
+    const launch = { ...liveFixture(home), platform: process.platform }, prefs = await Preferences.load(launch, async () => { throw new Error("Synthetic preferences absent"); });
     const calls: string[][] = [];
     const command: Command = async (binary, args) => {
       calls.push([binary, ...args]);
