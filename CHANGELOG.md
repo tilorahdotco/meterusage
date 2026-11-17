@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 follows [Semantic Versioning](https://semver.org/).
 
+## 2026-11-17
+
+- Claude Desktop Connect now reports an expired saved session as expired,
+  with a step to open Claude Desktop, instead of a Keychain decryption failure.
+  Claude Desktop renews this cookie only while it runs.
+- The Connections status line wraps above its buttons instead of collapsing to
+  one character per line.
+
 ## 2026-11-14
 
 - Antigravity CLI allowance now reads the native `agy -p /usage` report,

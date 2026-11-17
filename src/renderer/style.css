@@ -63,8 +63,9 @@
 .settings .connection-method { padding: 8px 0; border-bottom: 0; flex-wrap: wrap; gap: 6px; }
 .settings .connection-method select { max-width: 70%; min-width: 0; }
 .settings .connection-help { line-height: 1.4; margin-bottom: 6px; }
-.connection-actions, .onboarding-finish { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.connection-actions > p, .onboarding-finish > p { flex: 1; min-width: 0; }
+.connection-actions, .onboarding-finish { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+/* A basis keeps the status readable; buttons wrap below it instead of squeezing it to one character. */
+.connection-actions > p, .onboarding-finish > p { flex: 1 1 18ch; min-width: 0; }
 .onboarding-finish { margin-top: 12px; }
 .settings .connect-button { color: var(--text); font-weight: 600; background: color-mix(in srgb, var(--brand) 8%, var(--surface)); border-color: color-mix(in srgb, var(--brand) 30%, var(--border)); }
 .settings .provider-setting { display: grid; grid-template-columns: minmax(0, 1fr) 68px 90px; align-items: center; gap: 14px; }
@@ -127,7 +128,6 @@
   .settings .onboarding { grid-template-columns: minmax(0, 1fr); }
   .settings .onboarding button { grid-column: 1; grid-row: auto; justify-self: start; }
   .settings .connection-method select { max-width: 100%; }
-  .settings .connection-actions, .settings .onboarding-finish { flex-wrap: wrap; }
   .settings .connection-row button { max-width: 100%; }
 }
 .surface-flyout button { border-radius: 5px; min-height: 24px; padding: 2px 5px; }

@@ -87,6 +87,10 @@ Part of [project knowledge](../KB.md). Provider readers, desktop connections, ac
   are still read before and after requests. This avoids a second Keychain
   authorization during one Connect without weakening identity checks.
   Synthetic regression coverage does not prove live connection acceptance.
+- Claude Desktop renews its `sessionKey` cookie only while it runs. A store
+  read after the cookie expired fails with the `expired` stage message, not
+  `decryption`. Observed on macOS on 2026-11-17: launching Claude Desktop wrote
+  a new expiry to the store.
 
 - Antigravity Desktop quota uses compact model headings and limit labels.
   It preserves provider-reported bucket values and resets; duration metadata
