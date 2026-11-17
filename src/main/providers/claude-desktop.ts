@@ -21,6 +21,7 @@ export const desktopReadErrors = {
   selection: "Claude Desktop's cache has no current session for the active account and organization.",
   ambiguous: "Claude Desktop's cache has conflicting session or organization cookies. MeterUsage cannot safely choose one.",
   locked: "Could not open Claude Desktop's cookie store while Claude Desktop holds it. Quit Claude Desktop, then try connecting again.",
+  expired: "Claude Desktop's saved session has expired. Open Claude Desktop, confirm you are signed in, then try connecting again.",
 } as const;
 /** Windows wording for the stages that name the macOS Keychain. */
 export const windowsDesktopReadErrors = { ...desktopReadErrors, decryption: "Could not decrypt Claude Desktop's session cookies with its Windows-protected key." } as const;
@@ -58,7 +59,9 @@ export function desktopCredential(config: string, stores: { version: string; coo
       if (!Array.isArray(versions) || versions.length !== 1 || versions[0].version !== "24" || !Array.isArray(rows) || rows.length > 32) throw unavailable();
       for (const raw of rows) {
         const row = object(raw), name = row.name;
-        if (name !== "sessionKey" && name !== "lastActiveOrg" || row.host_key !== ".claude.ai" && row.host_key !== "claude.ai" || row.path !== "/" || row.is_secure !== 1 || name === "sessionKey" && row.is_httponly !== 1 || typeof row.expires_utc !== "string" || !/^[1-9]\d{0,18}$/.test(row.expires_utc) || BigInt(row.expires_utc) > 9223372036854775807n || BigInt(row.expires_utc) <= expiry || typeof row.encrypted_value !== "string" || row.encrypted_value.length > 65536 || !/^(?:[a-f\d]{2})+$/i.test(row.encrypted_value)) throw unavailable();
+        if (name !== "sessionKey" && name !== "lastActiveOrg" || row.host_key !== ".claude.ai" && row.host_key !== "claude.ai" || row.path !== "/" || row.is_secure !== 1 || name === "sessionKey" && row.is_httponly !== 1 || typeof row.expires_utc !== "string" || !/^[1-9]\d{0,18}$/.test(row.expires_utc) || BigInt(row.expires_utc) > 9223372036854775807n || typeof row.encrypted_value !== "string" || row.encrypted_value.length > 65536 || !/^(?:[a-f\d]{2})+$/i.test(row.encrypted_value)) throw unavailable();
+        // Claude Desktop renews the cookie while it runs; a stale store needs the app, not a new Keychain entry.
+        if (BigInt(row.expires_utc) <= expiry) { reading?.("expired"); throw unavailable(); }
         reading?.("decryption");
         let plaintext: Buffer;
         try { plaintext = decrypt(Buffer.from(row.encrypted_value, "hex")); } catch { throw unavailable(); }

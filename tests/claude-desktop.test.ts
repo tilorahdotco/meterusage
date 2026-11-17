@@ -87,6 +87,14 @@ it.each(["schema", "encrypted-version", "digest", "password", "expired", "expiry
   }
   expect(() => desktopCredential(config, stores, secret, now)).toThrow("Not signed in");
 });
+it("reports an expired session after a decrypted cookie as expired, not as a decryption failure", () => {
+  const stages: string[] = [], stale = row(); stale.expires_utc = String((BigInt(now - 3600000) + 11644473600000n) * 1000n);
+  expect(() => desktopCredential(config, [store([row("lastActiveOrg", org), stale])], password, now, stage => stages.push(stage))).toThrow("Not signed in");
+  expect(stages.at(-1)).toBe("expired");
+  stages.length = 0;
+  expect(() => desktopCredential(config, [store()], "wrong", now, stage => stages.push(stage))).toThrow("Not signed in");
+  expect(stages.at(-1)).toBe("decryption");
+});
 it("compares Chromium expiry exactly as BigInt", () => {
   const bound = (BigInt(now + 120000) + 11644473600000n) * 1000n;
   const cookies = rows(); cookies[0].expires_utc = String(bound + 1n);
