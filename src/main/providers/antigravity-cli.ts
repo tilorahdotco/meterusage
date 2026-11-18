@@ -37,10 +37,15 @@ export function isNativeExecutable(file: string, platform: Platform = process.pl
   finally { if (fd !== undefined) try { closeSync(fd); } catch { /* Already closed. */ } }
 }
 
-// agy must never open a browser for sign-in during a background refresh.
+// agy must never open a browser for sign-in during a background refresh. SSH variables make agy treat the
+// session as remote: it skips the saved sign-in and waits for a URL login past the refresh timeout. MeterUsage
+// runs on the local desktop, so they are removed even when the app was started from an SSH shell.
+const remoteSession = ["SSH_CLIENT", "SSH_CONNECTION", "SSH_TTY"];
 function environment(home: string, env: NodeJS.ProcessEnv, platform: Platform): NodeJS.ProcessEnv {
   const browser = platform === "win32" ? `"${systemBinary("cmd.exe", env)}" /d /c exit 1` : "/usr/bin/false";
-  return { ...cliEnvironment(home, env, platform), BROWSER: browser, AGY_CLI_DISABLE_AUTO_UPDATE: "true" };
+  const result: NodeJS.ProcessEnv = { ...cliEnvironment(home, env, platform), BROWSER: browser, AGY_CLI_DISABLE_AUTO_UPDATE: "true" };
+  for (const key of Object.keys(result)) if (remoteSession.includes(key.toUpperCase())) delete result[key];
+  return result;
 }
 
 /** Reads the native Antigravity CLI /usage output. The CLI owns authentication; no secret store is opened here. */
