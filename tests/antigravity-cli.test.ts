@@ -42,6 +42,19 @@ describe("native Antigravity CLI quota", () => {
       expect(call.maxBytes).toBe(1048576);
     }
   });
+  it("removes SSH session variables so agy uses the saved desktop sign-in", async () => {
+    const root = home(); install(root, native);
+    const envs: NodeJS.ProcessEnv[] = [];
+    const command: Command = async (_b, args, options) => { envs.push(options?.env ?? {}); return args[0] === "changelog" ? changelog : usage; };
+    const remote = { ...env, SSH_CLIENT: "192.0.2.1 50000 22", SSH_CONNECTION: "192.0.2.1 50000 192.0.2.2 22", SSH_TTY: "/dev/ttys001", ssh_client: "lowercase", SSH_AUTH_SOCK: "/tmp/agent" } as NodeJS.ProcessEnv;
+    await nativeAntigravityQuota(root, remote, command, 0);
+    expect(envs).toHaveLength(2);
+    for (const e of envs) {
+      expect(Object.keys(e).filter(key => /^ssh_(client|connection|tty)$/i.test(key))).toEqual([]);
+      expect(e.SSH_AUTH_SOCK).toBe("/tmp/agent");
+    }
+    expect(remote.SSH_CONNECTION).toBeDefined();
+  });
   it("never runs -p when the changelog lacks the documented entry", async () => {
     const root = home(); install(root, native);
     const calls: string[][] = [];

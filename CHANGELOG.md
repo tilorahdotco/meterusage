@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 follows [Semantic Versioning](https://semver.org/).
 
+## 2026-11-18
+
+- Antigravity CLI allowance no longer stops refreshing when MeterUsage was
+  started from an SSH shell. MeterUsage removes `SSH_CLIENT`,
+  `SSH_CONNECTION` and `SSH_TTY` before it runs `agy`. With them, `agy`
+  skips the saved sign-in and waits for a URL login past the refresh timeout.
+
 ## 2026-11-17
 
 - Claude Desktop Connect now reports an expired saved session as expired,
