@@ -1,0 +1,37 @@
+# AI code review with PR-Agent (open source, MIT) on Claude, from the org's shared
+# workflow (tilorahdotco/.github, docs/USAGE.md#pr-agent-review). No model key is
+# stored: each run exchanges GitHub's identity token for a 15-minute Anthropic token.
+# - Reviews a PR when it opens, reopens or leaves draft.
+# - Comment `/review` to run it again, `/improve` for code suggestions, or
+#   `/ask <question>`. Comment commands use this workflow from main.
+# Keep this file's name and the `@main` reference: the federation rule gives a token only
+# to the shared workflow at its `main`, called from `.github/workflows/pr-agent.yml`.
+name: PR-Agent review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write # GitHub's identity token, exchanged for the Anthropic token
+
+concurrency:
+  # One review at a time per PR. Every comment gets its own group, so a command is
+  # never replaced by a later comment or event; a command can run beside a review.
+  group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.event.comment.id || 'review' }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    name: PR-Agent review
+    # Only PR events and the three commands start a run. The shared workflow checks
+    # again: drafts, fork PRs, the author's write access and `--config.` arguments.
+    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && (startsWith(github.event.comment.body, '/review') || startsWith(github.event.comment.body, '/ask') || startsWith(github.event.comment.body, '/improve')))
+    uses: tilorahdotco/.github/.github/workflows/pr-agent.yml@main
+    with:
+      runner: ubuntu-latest # public repository: GitHub-hosted only
