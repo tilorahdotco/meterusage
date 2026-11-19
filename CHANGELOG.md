@@ -6,7 +6,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## 2026-11-19
 
-- PR-Agent reviews PRs on Claude Opus 5.5 through the org's shared workflow, with no stored model key: each run exchanges GitHub's identity token for a 15-minute Anthropic token in the `pr-cicd` workspace. Comment `/review`, `/improve` or `/ask` on a PR.
+- PR-Agent reviews PRs on Claude Opus 5.5 (and answers `/ask` and `/improve` with Claude Haiku 5.5) through the org's shared workflow, with no stored model key: each run exchanges GitHub's identity token for a 15-minute Anthropic token in the `pr-cicd` workspace. Comment `/review`, `/improve` or `/ask` on a PR.
 
 ## 2026-11-18
 

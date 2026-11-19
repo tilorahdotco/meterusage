@@ -30,6 +30,6 @@ jobs:
     # Only PR events and `/` commands on a PR start a run. The shared workflow
     # re-checks drafts, fork PRs and the comment author's write access.
     if: github.event_name == 'pull_request' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '/'))
-    uses: tilorahdotco/.github/.github/workflows/pr-agent.yml@e4a9dab101d96a582cedaba894a70aced464d2a4
+    uses: tilorahdotco/.github/.github/workflows/pr-agent.yml@cb672ee45c74b2a1a53a4a2ed43b84c89bff0974
     with:
       runner: ubuntu-latest # public repository: GitHub-hosted only
