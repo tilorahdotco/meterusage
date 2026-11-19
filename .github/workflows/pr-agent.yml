@@ -1,0 +1,31 @@
+# AI code review with PR-Agent (open source, MIT) on Claude, from the org's shared
+# workflow (tilorahdotco/.github, docs/USAGE.md#pr-agent-review). No model key is
+# stored: each run exchanges GitHub's identity token for a 15-minute Anthropic token.
+# - Reviews a PR when it opens, reopens or leaves draft.
+# - Comment `/review` to run it again, `/improve` for code suggestions, or
+#   `/ask <question>`. Comment commands use this workflow from main.
+# Keep this file's name: the federation rule accepts only `.github/workflows/pr-agent.yml`.
+name: PR-Agent review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write # GitHub's identity token, exchanged for the Anthropic token
+
+concurrency:
+  group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    name: PR-Agent review
+    uses: tilorahdotco/.github/.github/workflows/pr-agent.yml@e4a9dab101d96a582cedaba894a70aced464d2a4
+    with:
+      runner: ubuntu-latest # public repository: GitHub-hosted only
