@@ -61,7 +61,7 @@ export const ownedByUser = (stat: Stats, platform: Platform = process.platform) 
 export const modeExposes = (stat: Stats, mask: number, platform: Platform = process.platform) => platform !== "win32" && (stat.mode & mask) !== 0;
 
 const childKeys = { darwin: ["PATH", "TMPDIR"], win32: ["PATH", "PATHEXT", "SystemRoot", "SystemDrive", "windir", "ComSpec", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH"] };
-/** Minimal environment for isolated provider subprocesses. Windows programs need SystemRoot and profile folders to start. */
+/** Minimal environment for isolated provider subprocesses. Windows programs need SystemRoot and profile folders to start; Linux keeps the session bus. */
 export function minimalEnvironment(env: NodeJS.ProcessEnv, platform: Platform = process.platform): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = {};
   for (const name of platform === "win32" ? childKeys.win32 : childKeys.darwin) {
@@ -70,6 +70,8 @@ export function minimalEnvironment(env: NodeJS.ProcessEnv, platform: Platform = 
     if (platform !== "win32") result[name] = key === undefined ? undefined : env[key];
     else if (key !== undefined && env[key] !== undefined) result[name] = env[key];
   }
+  // The Linux keyring (Secret Service) is reached over the session bus; keep only its address when present.
+  if (platform === "linux") for (const name of ["DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"]) if (env[name]) result[name] = env[name];
   return result;
 }
 

@@ -13,9 +13,9 @@ export function autostartExecutable(exe: string, env: NodeJS.ProcessEnv) {
   return image && posix.isAbsolute(image) && existsSync(image) ? image : exe;
 }
 
-// Exec quoting needs escapes for these characters, and % starts a field code.
-// Refuse them instead, so a path can never change the command.
-const unsafeExec = /["`$\\%\x00-\x1f\x7f]/;
+// Exec quoting needs escapes for these characters, % starts a field code and
+// the program path may not contain "=". Refuse them, so a path can never change the command.
+const unsafeExec = /["`$\\%=\x00-\x1f\x7f]/;
 export function autostartEntry(executable: string) {
   if (!posix.isAbsolute(executable) || unsafeExec.test(executable)) throw new Error("Could not change login item");
   return ["[Desktop Entry]", "Type=Application", "Name=MeterUsage", "Comment=AI usage limits in the system tray", `Exec="${executable}"`, "Terminal=false", "X-GNOME-Autostart-enabled=true", ""].join("\n");

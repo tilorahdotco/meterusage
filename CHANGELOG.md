@@ -8,7 +8,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 - MeterUsage now starts on Linux instead of exiting with "currently support
   macOS and Windows only" (ADR 0050, stage 1). It runs in the system tray with
-  a menu, keeps settings in `~/.config/MeterUsage`, and can start at login
+  a menu, keeps settings in `~/.config/MeterUsage` (or `$XDG_CONFIG_HOME/MeterUsage`
+  when that is an absolute path inside your home folder), and can start at login
   through an XDG autostart entry. CLI providers and the Codex connection work;
   Claude Desktop, Grok Bot Desktop and Antigravity Desktop connections and
   automatic updates are not available on Linux yet. `pnpm package:linux` builds

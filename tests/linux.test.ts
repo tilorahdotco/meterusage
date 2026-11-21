@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
-import { appDataDirectory, localRoot, supportRoot } from "../src/main/platform";
+import { appDataDirectory, localRoot, minimalEnvironment, supportRoot } from "../src/main/platform";
 import { launchConfiguration } from "../src/main/launch";
 import { Preferences } from "../src/main/preferences";
 import { DesktopConnections } from "../src/main/connections";
@@ -28,6 +28,12 @@ describe("Linux paths", () => {
     expect(localRoot("/home/testuser", "linux", {})).toBe("/home/testuser/.config");
     // macOS is unchanged.
     expect(appDataDirectory("/Users/testuser", "darwin", { XDG_CONFIG_HOME: "/Users/testuser/.xdg" })).toBe("/Users/testuser/Library/Application Support/MeterUsage");
+  });
+  it("keeps the session bus in the minimal environment of a Linux test profile only", () => {
+    const env = { PATH: "/usr/bin", DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/1000/bus", XDG_RUNTIME_DIR: "/run/user/1000", OPENAI_API_KEY: "synthetic" };
+    expect(minimalEnvironment(env, "linux")).toEqual({ PATH: "/usr/bin", TMPDIR: undefined, DBUS_SESSION_BUS_ADDRESS: env.DBUS_SESSION_BUS_ADDRESS, XDG_RUNTIME_DIR: env.XDG_RUNTIME_DIR });
+    expect(minimalEnvironment({ PATH: "/usr/bin" }, "linux")).toEqual({ PATH: "/usr/bin", TMPDIR: undefined });
+    expect(minimalEnvironment(env, "darwin")).toEqual({ PATH: "/usr/bin", TMPDIR: undefined });
   });
   it("records Linux on an installed launch and leaves macOS launches unmarked", () => {
     expect(launchConfiguration([], { PATH: "/usr/bin" }, "/home/testuser", false, "linux")).toMatchObject({ demo: false, home: "/home/testuser", data: "/home/testuser/.config/MeterUsage", platform: "linux" });
@@ -90,7 +96,7 @@ describe("Linux updates", () => {
 describe("Linux autostart", () => {
   it("writes a quoted Exec line and refuses paths that would need escaping", () => {
     expect(autostartEntry("/opt/MeterUsage/meterusage")).toContain('Exec="/opt/MeterUsage/meterusage"\n');
-    for (const path of ["relative/meterusage", '/opt/a"b', "/opt/$HOME", "/opt/a`b", "/opt/a\\b", "/opt/100%", "/opt/a\nExec=/bin/sh"]) expect(() => autostartEntry(path), path).toThrow("Could not change login item");
+    for (const path of ["relative/meterusage", '/opt/a"b', "/opt/$HOME", "/opt/a`b", "/opt/a\\b", "/opt/100%", "/opt/a\nExec=/bin/sh", "/home/testuser/apps/version=2/meterusage"]) expect(() => autostartEntry(path), path).toThrow("Could not change login item");
     expect(autostartPath("/home/testuser", {})).toBe("/home/testuser/.config/autostart/dev.meterusage.app.desktop");
   });
   it.skipIf(!posixHost)("starts the AppImage file when present, else the executable", () => {

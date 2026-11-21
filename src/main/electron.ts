@@ -35,7 +35,7 @@ const desktopHelper = app.isPackaged ? join(process.resourcesPath, "desktop-keyc
 void main().catch(() => { process.stderr.write("MeterUsage could not start.\n"); app.exit(1); });
 async function main() {
   const json = args.includes("json") || args.includes("--json");
-  const launch = launchConfiguration(args, process.env, undefined, !json && process.platform === "darwin");
+  const launch = launchConfiguration(args, process.env, undefined, !json && (macShell || linuxShell));
   // Validate isolation before Electron creates a session or contacts a singleton socket.
   if (launch.profile) { app.setPath("userData", join(launch.data, "electron")); app.setPath("sessionData", join(launch.data, "electron")); }
   app.setName("MeterUsage");
