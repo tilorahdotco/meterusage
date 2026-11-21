@@ -40,7 +40,7 @@ export function launchConfiguration(args: string[], env: NodeJS.ProcessEnv = pro
   // Demo always isolates preferences, provider sources, caches and Electron's
   // userData before any provider or coordinator is constructed.
   const isolated = liveTest ? resolve(profile!) : demo ? profile ?? mkdtempSync(join(tmpdir(), "meterusage-demo-")) : undefined;
-  return { demo, candidate: index >= 0, ...(codexTest ? { codexTest: true } : {}), ...(claudeTest ? { claudeTest: true } : {}), home: demo ? isolated! : realHome, data: isolated ?? appDataDirectory(realHome, platform, env), profile: isolated, env: liveTest ? minimalEnvironment(env, platform) : demo ? {} : { ...env }, ...(platform === "win32" ? { platform } : {}) };
+  return { demo, candidate: index >= 0, ...(codexTest ? { codexTest: true } : {}), ...(claudeTest ? { claudeTest: true } : {}), home: demo ? isolated! : realHome, data: isolated ?? appDataDirectory(realHome, platform, env), profile: isolated, env: liveTest ? minimalEnvironment(env, platform) : demo ? {} : { ...env }, ...(platform === "win32" || platform === "linux" ? { platform } : {}) };
 }
 
 function validateElectronSingletons([socketLink, cookieLink, lockLink]: string[]) {

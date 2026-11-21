@@ -9,9 +9,9 @@ function renameExecutable(bundle, command = execFileSync) {
   command("/usr/libexec/PlistBuddy", ["-c", "Set :CFBundleExecutable meterusage", join(bundle, "Contents/Info.plist")]);
 }
 module.exports = async context => {
-  // Windows keeps MeterUsage.exe; only the macOS bundle renames its executable.
-  if (context.electronPlatformName === "win32") return;
-  if (context.electronPlatformName !== "darwin") throw new Error("Only macOS and Windows packaging are enabled");
+  // Windows keeps MeterUsage.exe and Linux sets executableName itself; only the macOS bundle renames its executable.
+  if (context.electronPlatformName === "win32" || context.electronPlatformName === "linux") return;
+  if (context.electronPlatformName !== "darwin") throw new Error("Only macOS, Windows and Linux packaging are enabled");
   renameExecutable(join(context.appOutDir, "MeterUsage.app"));
 };
 module.exports.renameExecutable = renameExecutable;

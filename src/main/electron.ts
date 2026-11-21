@@ -18,6 +18,7 @@ import { ApiBillingFetch, apiBillingFetchErrors } from "./api-billing-fetch";
 import { prepaidFrom } from "../domain/api-billing";
 import { NotchFold } from "./notch-fold";
 import { Updater, removeStagedInstallers, windowsInstallation, type Release } from "./updater";
+import { autostartEnabled, autostartExecutable, setAutostart } from "./linux-autostart";
 import { runJSON } from "./cli";
 import { channel, stateChannel, statusPages, companionGuide, panelScales, PanelSize, type ViewState, type Surface, type Request, type Reply } from "../shared/ipc";
 import { parseRequest, trustedSender, projectSettings, shareSnapshot } from "./ipc";
@@ -26,7 +27,7 @@ import { notchFrame, cardOnRight, stripWidth, cardWidth, minimumShareSize, flyou
 import { trayTooltip } from "../domain/overview";
 
 const shareCardWidth = 250;
-const windowsShell = process.platform === "win32";
+const windowsShell = process.platform === "win32", linuxShell = process.platform === "linux", macShell = process.platform === "darwin";
 const portableUpdate = "This copy of MeterUsage cannot update itself. Download the Windows installer from the GitHub release.";
 
 const args = process.argv.slice(1);
@@ -34,7 +35,7 @@ const desktopHelper = app.isPackaged ? join(process.resourcesPath, "desktop-keyc
 void main().catch(() => { process.stderr.write("MeterUsage could not start.\n"); app.exit(1); });
 async function main() {
   const json = args.includes("json") || args.includes("--json");
-  const launch = launchConfiguration(args, process.env, undefined, !json && process.platform === "darwin");
+  const launch = launchConfiguration(args, process.env, undefined, !json && (macShell || linuxShell));
   // Validate isolation before Electron creates a session or contacts a singleton socket.
   if (launch.profile) { app.setPath("userData", join(launch.data, "electron")); app.setPath("sessionData", join(launch.data, "electron")); }
   app.setName("MeterUsage");
@@ -43,8 +44,8 @@ async function main() {
   if (json) {
     // Windows pipes write asynchronously; exit only after the redirected report has flushed.
     await runJSON(args, process.env, desktopHelper).then(json => { if (windowsShell) process.stdout.write(json + "\n", () => app.exit(0)); else { process.stdout.write(json + "\n"); app.exit(0); } }, () => { process.stderr.write("meterusage: could not read report\n"); app.exit(1); });
-  } else if (process.platform !== "darwin" && !windowsShell) {
-    process.stderr.write("MeterUsage desktop candidates currently support macOS and Windows only.\n"); app.exit(1);
+  } else if (!macShell && !windowsShell && !linuxShell) {
+    process.stderr.write("MeterUsage desktop candidates currently support macOS, Windows and Linux only.\n"); app.exit(1);
   } else {
     let reveal: (() => void) | undefined, requested = false;
     const activate = () => { if (reveal) reveal(); else requested = true; };
@@ -59,8 +60,8 @@ async function start(launch: Launch) {
   mkdirSync(launch.data, { recursive: true });
   if (windowsShell && app.isPackaged && !launch.demo && !launch.candidate) void removeStagedInstallers();
   app.dock?.hide();
-  // Windows would otherwise add Electron's default File/Edit/View menu to the framed Settings window.
-  if (windowsShell) Menu.setApplicationMenu(null);
+  // Windows and Linux would otherwise add Electron's default File/Edit/View menu to the framed Settings window.
+  if (!macShell) Menu.setApplicationMenu(null);
   const prefs = await Preferences.load(launch);
   const http = desktopHTTP(launch, session);
   const documents = new Map<number, string>(), windows = new Map<Surface, BrowserWindow>();
@@ -79,7 +80,7 @@ async function start(launch: Launch) {
     if (!launch.demo && !launch.candidate && Notification.isSupported()) new Notification({ title: alert.title, body: alert.body, silent: !alert.sound }).show();
   }, sources);
   const issueReports = new IssueReports(() => coordinator.diagnostics(app.getVersion()), publish, prefs);
-  const apiBillingFetch = new ApiBillingFetch(launch, () => coordinator.refresh(), fetch, windowsShell ? undefined : (provider, signal) => runCommand(desktopHelper, [`--api-${provider}`, "--allow-ui"], { signal, timeoutMs: 60000, maxBytes: 8192 }), provider => prepaidFrom(prefs.values, provider), windowsShell ? undefined : async (provider, key, signal) => { await runCommand(desktopHelper, [`--api-${provider}`, "--save", "--allow-ui"], { input: key, signal, timeoutMs: 60000, maxBytes: 8192 }); });
+  const apiBillingFetch = new ApiBillingFetch(launch, () => coordinator.refresh(), fetch, !macShell ? undefined : (provider, signal) => runCommand(desktopHelper, [`--api-${provider}`, "--allow-ui"], { signal, timeoutMs: 60000, maxBytes: 8192 }), provider => prepaidFrom(prefs.values, provider), !macShell ? undefined : async (provider, key, signal) => { await runCommand(desktopHelper, [`--api-${provider}`, "--save", "--allow-ui"], { input: key, signal, timeoutMs: 60000, maxBytes: 8192 }); });
   // Invalidate the restored quota archive while retaining this connection's activity.
   for (const p of ["codex", "claude", "antigravity", "grok"] as const) if (connections.configured(p)) coordinator.forgetQuota(p, true);
   const notch = { expanded: false, cardOnRight: false, selected: "codex", dragging: false };
@@ -94,12 +95,15 @@ async function start(launch: Launch) {
   const tray = new Tray(trayIcon());
   tray.setToolTip("MeterUsage");
   let checkingForUpdates = false;
-  tray.on("right-click", () => tray.popUpContextMenu(Menu.buildFromTemplate([{ label: "Open MeterUsage", click: () => showUsage() }, { label: "Settings…", click: () => showSettings() }, { label: checkingForUpdates ? "Checking for Updates…" : "Check for Updates…", enabled: !checkingForUpdates, click: () => void checkForUpdates() }, { type: "separator" }, { label: "Quit MeterUsage", role: "quit" }])));
+  const trayMenu = () => Menu.buildFromTemplate([{ label: "Open MeterUsage", click: () => showUsage() }, { label: "Settings…", click: () => showSettings() }, ...(!linuxShell ? [{ label: checkingForUpdates ? "Checking for Updates…" : "Check for Updates…", enabled: !checkingForUpdates, click: () => void checkForUpdates() }] : []), { type: "separator" }, { label: "Quit MeterUsage", role: "quit" }]);
+  // Linux status notifier items show a fixed menu and may not report clicks; it has no update check (ADR 0050).
+  if (linuxShell) tray.setContextMenu(trayMenu());
+  else tray.on("right-click", () => tray.popUpContextMenu(trayMenu()));
   // On Windows, clicking the tray icon first blurs (and hides) an open flyout; that click must not reopen it.
   let flyoutBlurredAt = 0;
   tray.on("click", () => { const w = windows.get("flyout"); if (w?.isVisible()) w.hide(); else if (!windowsShell || Date.now() - flyoutBlurredAt > 300) showUsage(); });
   let shareState: ViewState | undefined, shareHeight = 0, shareReady: ((image: Electron.NativeImage) => void) | undefined, shareFailed: ((error: Error) => void) | undefined;
-  const state = (surface?: Surface): ViewState => surface === "share" && shareState ? shareState : ({ appVersion: app.getVersion(), ...(windowsShell ? { platform: "win32" as const } : {}), ...(surface === "settings" ? { issueReport: issueReports.state } : {}), connections: connections.state, snapshot: coordinator.snapshot(), settings: projectSettings(prefs.values, prefs.accounts, launch.home, surface), systemDark: nativeTheme.shouldUseDarkColorsForSystemIntegratedUI, notch: { ...notch, maxHeight: Math.floor((anchor ? screen.getDisplayNearestPoint(anchor) : screen.getPrimaryDisplay()).workArea.height) }, update: updater.visible ? { version: updater.visible.version, state: updater.installState } : undefined });
+  const state = (surface?: Surface): ViewState => surface === "share" && shareState ? shareState : ({ appVersion: app.getVersion(), ...(windowsShell ? { platform: "win32" as const } : linuxShell ? { platform: "linux" as const } : {}), ...(surface === "settings" ? { issueReport: issueReports.state } : {}), connections: connections.state, snapshot: coordinator.snapshot(), settings: projectSettings(prefs.values, prefs.accounts, launch.home, surface), systemDark: nativeTheme.shouldUseDarkColorsForSystemIntegratedUI, notch: { ...notch, maxHeight: Math.floor((anchor ? screen.getDisplayNearestPoint(anchor) : screen.getPrimaryDisplay()).workArea.height) }, update: updater.visible ? { version: updater.visible.version, state: updater.installState } : undefined });
   const updater = new Updater(prefs, app.getVersion(), publish, undefined, release => {
     if (!launch.demo && !launch.candidate && Notification.isSupported()) new Notification({ title: "MeterUsage update available", body: prefs.values.updateAutoInstall === true ? `MeterUsage ${release.version} will install when MeterUsage is not in use.` : `MeterUsage ${release.version} is ready to install.`, silent: true }).show();
   });
@@ -187,7 +191,7 @@ async function start(launch: Launch) {
     const existing = windows.get(surface); if (existing && !existing.isDestroyed()) return existing;
     const panel = surface === "notch", trayImage = surface === "tray", shareImage = surface === "share";
     if (surface === "settings") settingsHeight = undefined;
-    const w = new BrowserWindow({ width: shareImage ? shareCardWidth * 2 : trayImage ? 1000 : panel ? stripWidth : surface === "settings" ? 1040 : Math.round(420 * panelScale()), height: trayImage ? 22 : panel ? notchHeight : surface === "settings" ? 680 : Math.ceil(flyoutHeight * panelScale()), show: false, frame: surface === "settings", transparent: panel || trayImage || shareImage, resizable: surface === "settings", minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, ...(panel ? { ...(windowsShell ? {} : { type: "panel" }), focusable: false, hasShadow: false } : {}), title: surface === "settings" ? "MeterUsage Settings" : "MeterUsage", backgroundColor: panel || trayImage || shareImage ? "#00000000" : "#242428", webPreferences: { preload: join(__dirname, "../preload/preload.cjs"), offscreen: trayImage || shareImage, zoomFactor: shareImage ? 2 : 1, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
+    const w = new BrowserWindow({ width: shareImage ? shareCardWidth * 2 : trayImage ? 1000 : panel ? stripWidth : surface === "settings" ? 1040 : Math.round(420 * panelScale()), height: trayImage ? 22 : panel ? notchHeight : surface === "settings" ? 680 : Math.ceil(flyoutHeight * panelScale()), show: false, frame: surface === "settings", transparent: panel || trayImage || shareImage, resizable: surface === "settings", minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, ...(panel ? { ...(macShell ? { type: "panel" } : {}), focusable: false, hasShadow: false } : {}), title: surface === "settings" ? "MeterUsage Settings" : "MeterUsage", backgroundColor: panel || trayImage || shareImage ? "#00000000" : "#242428", webPreferences: { preload: join(__dirname, "../preload/preload.cjs"), offscreen: trayImage || shareImage, zoomFactor: shareImage ? 2 : 1, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
     if (trayImage) { w.webContents.setFrameRate(10); w.webContents.on("paint", (_event, _rect, image) => { if (!tray.isDestroyed() && trayWidth > 0) tray.setImage(image); }); }
     if (shareImage) {
       w.webContents.setFrameRate(10);
@@ -224,7 +228,10 @@ async function start(launch: Launch) {
   let flyoutBottom = false;
   function showFlyout() {
     let bounds = tray.getBounds();
-    if (windowsShell && (bounds.width === 0 || bounds.height === 0)) {
+    if (linuxShell && (bounds.width === 0 || bounds.height === 0)) {
+      // Linux trays report no bounds. The tray menu or icon was just used, so the pointer is beside the panel.
+      bounds = { ...screen.getCursorScreenPoint(), width: 1, height: 1 };
+    } else if (windowsShell && (bounds.width === 0 || bounds.height === 0)) {
       // Windows 11 starts new tray icons in the overflow area, which reports empty bounds. A click on the
       // taskbar is beside the icon; otherwise use the default notification-area corner.
       const cursor = screen.getCursorScreenPoint(), area = screen.getDisplayNearestPoint(cursor).workArea;
@@ -232,8 +239,8 @@ async function start(launch: Launch) {
       bounds = onTaskbar ? { ...cursor, width: 1, height: 1 } : { x: area.x + area.width - 1, y: area.y + area.height, width: 1, height: 1 };
     }
     const w = create("flyout"), work = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y }).workArea, origin = flyoutOrigin(bounds, work, w.getBounds());
-    // The tray corner is also the side notch's default edge; keep the flyout beside a visible notch on Windows.
-    const strip = windows.get("notch"), stripBounds = windowsShell && strip && !strip.isDestroyed() && strip.isVisible() ? strip.getBounds() : undefined;
+    // The tray corner is also the side notch's default edge; keep the flyout beside a visible notch on Windows and Linux.
+    const strip = windows.get("notch"), stripBounds = !macShell && strip && !strip.isDestroyed() && strip.isVisible() ? strip.getBounds() : undefined;
     if (stripBounds && origin.x < stripBounds.x + stripBounds.width && origin.x + w.getBounds().width > stripBounds.x) origin.x = Math.max(work.x, stripBounds.x - w.getBounds().width);
     flyoutBottom = origin.bottom; w.setPosition(origin.x, origin.y);
     sizeFlyout(); w.show(); w.focus(); void coordinator.refreshIfStale();
@@ -256,7 +263,7 @@ async function start(launch: Launch) {
     if (next.x !== bounds.x || next.y !== bounds.y || next.width !== bounds.width || next.height !== bounds.height) source.setBounds(next, false);
   }
   function showSettings() {
-    if (!launch.demo && !launch.candidate && app.isPackaged) prefs.values.launchAtLogin = app.getLoginItemSettings().openAtLogin;
+    if (!launch.demo && !launch.candidate && app.isPackaged) prefs.values.launchAtLogin = linuxShell ? autostartEnabled(launch.home, launch.env) : app.getLoginItemSettings().openAtLogin;
     windows.get("flyout")?.hide(); const w = create("settings"); publish();
     // Settings opens 1040 px wide (ADR 0043). Fit it to a narrower screen before the first show;
     // sizeSettings waits for the renderer's first resize.
@@ -365,8 +372,11 @@ async function start(launch: Launch) {
       case "setPreference":
         if (r.key === "launchAtLogin") {
           if (launch.demo || launch.candidate || !app.isPackaged) throw new Error("Login items require an installed app");
-          app.setLoginItemSettings({ openAtLogin: r.value === true });
-          if (app.getLoginItemSettings().openAtLogin !== r.value) throw new Error("Could not change login item");
+          if (linuxShell) setAutostart(launch.home, launch.env, r.value === true, autostartExecutable(app.getPath("exe"), process.env));
+          else {
+            app.setLoginItemSettings({ openAtLogin: r.value === true });
+            if (app.getLoginItemSettings().openAtLogin !== r.value) throw new Error("Could not change login item");
+          }
         }
         await prefs.set(r.key, r.value);
         if (r.key === "showProviderMuse") {
@@ -451,8 +461,8 @@ async function start(launch: Launch) {
             create("share");
           });
           windows.get("share")?.close(); shareState = undefined;
-          // Windows has no native share sheet; the rendered card goes to the clipboard instead.
-          if (windowsShell) { clipboard.writeImage(image); sharing = false; folding.changed(); break; }
+          // Windows and Linux have no native share sheet; the rendered card goes to the clipboard instead.
+          if (!macShell) { clipboard.writeImage(image); sharing = false; folding.changed(); break; }
           shareDirectory = mkdtempSync(join(launch.data, "share-")); const path = join(shareDirectory, "MeterUsage.png"); writeFileSync(path, image.toPNG(), { mode: 0o600 });
           sharedDirectories.add(shareDirectory);
           // ShareMenu reports menu dismissal, not completion of the service.
@@ -476,12 +486,14 @@ async function start(launch: Launch) {
     const source = BrowserWindow.fromWebContents(event.sender), surface = [...windows].find(([, w]) => w === source)?.[0];
     if (!source || !surface) return { ok: false, error: "Unknown window" };
     try { return await handle(parseRequest(raw), source, surface); }
-    catch (e) { return { ok: false, error: e instanceof Error && [...Object.values(apiBillingFetchErrors), portableUpdate, "Invalid request", "Unknown account", "Reset credit unavailable", "Reset confirmation expired", "Couldn't redeem Codex reset", ...Object.values(claudeResetErrors), "Login items require an installed app", "Could not change login item", "Could not share snapshot", "Card too tall to share", "Open Codex on this Mac, then try connecting again", "Codex app not found in Applications. Install or update Codex, then try connecting again", "Open Claude Desktop and sign in, then try connecting again", "Could not access Claude Desktop through macOS Keychain. Check the access prompt, then try connecting again.", ...Object.values(desktopReadErrors), ...Object.values(windowsDesktopReadErrors), ...Object.values(grokBotConnectionErrors), ...Object.values(grokBotWindowsErrors), ...Object.values(connectionErrors), ...(windowsShell ? ["Connection unavailable"] : []), "Could not read Claude account allowance. Try connecting again later.", "Could not verify the same Claude Desktop account after the allowance request. Try connecting again.", "Could not save the Claude Desktop connection preferences. Try connecting again.", "Could not clear the cancelled Codex connection", "Could not disconnect Codex", "Could not disconnect Claude Desktop", "Open one Antigravity Desktop account and sign in, then try connecting again", "Could not disconnect Antigravity Desktop", "Could not select Grok CLI", "Could not disconnect Grok Bot Desktop", "Connections are disabled in demo mode", "Could not connect Grok Bot Desktop. Sign in to Grok Bot, check allowance and Keychain access, then reconnect."].includes(e.message) ? e.message : "Could not complete action" }; }
+    catch (e) { return { ok: false, error: e instanceof Error && [...Object.values(apiBillingFetchErrors), portableUpdate, "Invalid request", "Unknown account", "Reset credit unavailable", "Reset confirmation expired", "Couldn't redeem Codex reset", ...Object.values(claudeResetErrors), "Login items require an installed app", "Could not change login item", "Could not share snapshot", "Card too tall to share", "Open Codex on this Mac, then try connecting again", "Codex app not found in Applications. Install or update Codex, then try connecting again", "Open Claude Desktop and sign in, then try connecting again", "Could not access Claude Desktop through macOS Keychain. Check the access prompt, then try connecting again.", ...Object.values(desktopReadErrors), ...Object.values(windowsDesktopReadErrors), ...Object.values(grokBotConnectionErrors), ...Object.values(grokBotWindowsErrors), ...Object.values(connectionErrors), ...(!macShell ? ["Connection unavailable"] : []), "Could not read Claude account allowance. Try connecting again later.", "Could not verify the same Claude Desktop account after the allowance request. Try connecting again.", "Could not save the Claude Desktop connection preferences. Try connecting again.", "Could not clear the cancelled Codex connection", "Could not disconnect Codex", "Could not disconnect Claude Desktop", "Open one Antigravity Desktop account and sign in, then try connecting again", "Could not disconnect Antigravity Desktop", "Could not select Grok CLI", "Could not disconnect Grok Bot Desktop", "Connections are disabled in demo mode", "Could not connect Grok Bot Desktop. Sign in to Grok Bot, check allowance and Keychain access, then reconnect."].includes(e.message) ? e.message : "Could not complete action" }; }
   });
   const unsubscribe = coordinator.subscribe(() => { syncNotch(); publish(); if (!coordinator.snapshot().refreshing) { void updater.checkIfDue(); void maybeAutoInstall(); } });
   screen.on("display-metrics-changed", () => { placeNotch(); sizeFlyout(); sizeSettings(); publish(); }); screen.on("display-removed", () => { placeNotch(); sizeFlyout(); sizeSettings(); publish(); });
   powerMonitor.on("resume", () => { void coordinator.refresh(); });
   app.on("window-all-closed", () => {});
+  // Linux session managers end apps with SIGTERM at logout; quit through the same cleanup as the tray menu.
+  if (linuxShell) for (const signal of ["SIGTERM", "SIGINT"] as const) process.on(signal, () => app.quit());
   const clockTimer = setInterval(publish, 60000);
   nativeTheme.on("updated", publish);
   let quitting = false, quitReady = false;
@@ -501,8 +513,8 @@ async function start(launch: Launch) {
     });
   });
   nativeTheme.themeSource = prefs.values.appearanceTheme as "system" | "dark" | "light";
-  // The text tray image needs a wide macOS status item; the Windows notification area is a fixed 16 px square.
-  if (!windowsShell) create("tray");
+  // The text tray image needs a wide macOS status item; Windows and Linux trays show a fixed square icon.
+  if (macShell) create("tray");
   restoreAnchor();
   if (prefs.values.onboardingCompleted === true) create("flyout");
   // Recovery failures remain visible in connection state, with collection disabled.
@@ -514,11 +526,12 @@ async function start(launch: Launch) {
 }
 function trayIcon() {
   const source = nativeImage.createFromPath(join(__dirname, "../renderer/AppIcon.png"));
-  if (!windowsShell) { const icon = source.resize({ width: 18, height: 18 }); icon.setTemplateImage(true); return icon; }
-  // Windows shows the colored app icon; provide the common display scales so it stays sharp.
-  const icon = nativeImage.createEmpty();
-  for (const scaleFactor of [1, 1.25, 1.5, 2]) { const size = Math.round(16 * scaleFactor); icon.addRepresentation({ scaleFactor, width: size, height: size, buffer: source.resize({ width: size, height: size, quality: "best" }).toPNG() }); }
+  if (macShell) { const icon = source.resize({ width: 18, height: 18 }); icon.setTemplateImage(true); return icon; }
+  // Windows and Linux show the colored app icon; provide the common display scales so it stays sharp.
+  // Linux panels draw tray icons at about 22-24 px, the Windows notification area at 16 px.
+  const icon = nativeImage.createEmpty(), base = linuxShell ? 24 : 16;
+  for (const scaleFactor of [1, 1.25, 1.5, 2]) { const size = Math.round(base * scaleFactor); icon.addRepresentation({ scaleFactor, width: size, height: size, buffer: source.resize({ width: size, height: size, quality: "best" }).toPNG() }); }
   return icon;
 }
-/** The installed app: the .app bundle on macOS, the install folder holding MeterUsage.exe on Windows. */
-function appLocation() { return windowsShell ? dirname(app.getPath("exe")) : resolve(app.getPath("exe"), "../../.."); }
+/** The installed app: the .app bundle on macOS, the folder holding the executable on Windows and Linux. */
+function appLocation() { return !macShell ? dirname(app.getPath("exe")) : resolve(app.getPath("exe"), "../../.."); }

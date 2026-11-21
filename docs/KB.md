@@ -123,6 +123,7 @@ These facts are split by topic so each file stays small:
 - [Provider sources and accounts](kb/providers.md): Provider readers, desktop connections, account slots and live test profiles.
 - [Electron app behavior](kb/app.md): Settings, onboarding, cards, heatmaps, side notch, history and lifecycle in the Electron app.
 - [Windows](kb/windows.md): Windows paths, file trust, CLI discovery, packaging, tests, updater and CI.
+- [Linux](kb/linux.md): Linux paths, shell, launch at login, packaging, sandbox, tests and CI.
 - [Releases and repository facts](kb/releases.md): Product summary, version pins, published betas and CI scope.
 - [Legacy Swift and migration evidence](kb/legacy-swift.md): Facts about the frozen Swift app and the Swift-to-Electron migration proof.
 

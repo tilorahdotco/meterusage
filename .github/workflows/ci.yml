@@ -39,6 +39,49 @@ jobs:
       build: |
         pnpm build
         bash tests/scripts/make-app-tests.sh
+  # Linux desktop shell (ADR 0050): package the unsigned build and smoke-test it on a virtual display.
+  linux:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Install pnpm
+        run: npm install --global pnpm@12.9.1 --ignore-scripts
+      - name: Install virtual display tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb xdotool
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Package unsigned Linux build
+        run: pnpm exec electron-builder --linux --x64 --publish never
+      # Ubuntu 24.04 blocks the unprivileged user namespaces Chromium's sandbox uses.
+      # Give chrome-sandbox the setuid bit a system package would set, so the sandbox stays on.
+      - name: Enable the Chromium sandbox helper
+        run: sudo chown root:root release/linux-unpacked/chrome-sandbox && sudo chmod 4755 release/linux-unpacked/chrome-sandbox
+      - name: Smoke test packaged app
+        run: bash Scripts/electron/linux-smoke.sh release/linux-unpacked/meterusage smoke-artifacts
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: linux-smoke
+          path: smoke-artifacts
+          retention-days: 14
+      - name: Upload Linux packages
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: linux-packages
+          path: |
+            release/*.AppImage
+            release/*.tar.gz
+          retention-days: 7
   # Windows has no physical test machine; this runner is the test machine (ADR 0038).
   windows:
     needs: [changes]
@@ -94,7 +137,7 @@ jobs:
 
   gate:
     name: CI gate
-    needs: [changes, ci, windows]
+    needs: [changes, ci, linux, windows]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2

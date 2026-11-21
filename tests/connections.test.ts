@@ -12,6 +12,9 @@ import { launchConfiguration } from "../src/main/launch";
 import { endpoints, httpTransport, type Command, type HTTP } from "../src/main/providers/transport";
 import * as transport from "../src/main/providers/transport";
 import { parseRequest, projectSettings } from "../src/main/ipc";
+import { modelMacOSHost } from "./macos-host";
+
+modelMacOSHost();
 
 const { roots } = vi.hoisted(() => ({ roots: [] as string[] }));
 vi.mock("node:fs", async importOriginal => {

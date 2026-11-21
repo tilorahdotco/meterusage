@@ -33,7 +33,8 @@ function releaseFrom(data: RawRelease, platform: Platform): Release {
   if (typeof data.tag_name !== "string" || !versionPattern.test(data.tag_name) || data.draft === true) throw new Error("Invalid release");
   const version = data.tag_name.replace(/^v/i, "");
   // Stable Swift assets are MeterUsage-<v>.zip; Electron betas add -mac-arm64. Windows uses the NSIS installer only.
-  for (const expected of platform === "win32" ? [`MeterUsage-${version}-win-x64.exe`] : [`MeterUsage-${version}.zip`, `MeterUsage-${version}-mac-arm64.zip`]) {
+  // Linux has no updater yet (ADR 0050), so no asset ever matches there.
+  for (const expected of platform === "win32" ? [`MeterUsage-${version}-win-x64.exe`] : platform === "linux" ? [] : [`MeterUsage-${version}.zip`, `MeterUsage-${version}-mac-arm64.zip`]) {
     const asset = data.assets?.find(a => a.name === expected);
     const url = releaseOwners.map(owner => `https://github.com/${owner}/meterusage/releases/download/${data.tag_name}/${expected}`).find(candidate => asset?.browser_download_url === candidate);
     if (asset && url && typeof asset.digest === "string" && /^sha256:[a-f\d]{64}$/i.test(asset.digest)) return { version, tag: data.tag_name, asset: { url, digest: asset.digest.toLowerCase() } };
@@ -143,8 +144,10 @@ export class Updater {
   constructor(readonly prefs: Preferences, readonly currentVersion: string, readonly changed: () => void, readonly download = fetchUpdate, readonly announce: (release: Release) => void = () => {}) {}
   get visible() { return !this.prefs.launch.demo && !this.prefs.launch.candidate && this.prefs.values.updateCheckEnabled === true && this.available?.version !== this.prefs.values.updateDismissedVersion ? this.available : undefined; }
   private get platform() { return this.prefs.launch.platform ?? process.platform; }
+  /** Linux builds make no release check and offer no installation until a Linux updater exists (ADR 0050). */
+  get supported() { return this.platform !== "linux"; }
   checkIfDue(now = Date.now()) {
-    if (this.prefs.launch.demo || this.prefs.launch.candidate || this.prefs.values.updateCheckEnabled !== true || this.check || now - Number(this.prefs.values.updateLastCheckDate ?? 0) < 3600000) return;
+    if (!this.supported || this.prefs.launch.demo || this.prefs.launch.candidate || this.prefs.values.updateCheckEnabled !== true || this.check || now - Number(this.prefs.values.updateLastCheckDate ?? 0) < 3600000) return;
     return this.start(now, true).then(() => {}, () => { /* A release lookup failure stays separate from usage. */ });
   }
   /**
@@ -153,7 +156,7 @@ export class Updater {
    * or is cancelled. A scheduled check already in progress is reused, without its notification.
    */
   async checkNow(now = Date.now()) {
-    if (this.prefs.launch.demo || this.prefs.launch.candidate || this.prefs.values.updateCheckEnabled !== true) throw new Error("Update checks unavailable");
+    if (!this.supported || this.prefs.launch.demo || this.prefs.launch.candidate || this.prefs.values.updateCheckEnabled !== true) throw new Error("Update checks unavailable");
     if (!this.check) return this.start(now, false);
     this.quiet = true;
     try { return await this.check; } finally { this.quiet = false; }
@@ -196,7 +199,7 @@ export class Updater {
    */
   async install(current: string, release: Release | undefined, command: Command = runCommand, allowed: () => boolean = () => true) {
     const windows = this.platform === "win32";
-    if (this.prefs.launch.demo || this.prefs.launch.candidate || this.prefs.values.updateCheckEnabled !== true || (windows ? !windowsInstallation(current) : basename(current) !== "MeterUsage.app") || !release || ["downloading", "installing"].includes(this.installState)) throw new Error("Update installation unavailable");
+    if (!this.supported || this.prefs.launch.demo || this.prefs.launch.candidate || this.prefs.values.updateCheckEnabled !== true || (windows ? !windowsInstallation(current) : basename(current) !== "MeterUsage.app") || !release || ["downloading", "installing"].includes(this.installState)) throw new Error("Update installation unavailable");
     const generation = this.generation, controller = new AbortController(); this.installController = controller;
     let deferred = false;
     const guard = () => { controller.signal.throwIfAborted(); if (generation !== this.generation || this.prefs.values.updateCheckEnabled !== true) throw new Error("Update cancelled"); };

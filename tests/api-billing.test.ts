@@ -5,6 +5,9 @@ import { dirname, join } from "node:path";
 import { type ApiBillingProvider, type ApiBillingSnapshot } from "../src/domain/api-billing";
 import { apiBillingPath, collectApiBilling, parseApiBillingSnapshot, readApiBilling, writeApiBilling } from "../src/main/providers/api-billing";
 import { runApiUsageHelper } from "../src/main/api-usage-helper";
+import { modelMacOSHost } from "./macos-host";
+
+modelMacOSHost();
 
 const now = Date.parse("2026-10-16T12:00:00Z"), start = Date.parse("2026-10-01T00:00:00Z"), day = 86400000;
 const roots: string[] = [];

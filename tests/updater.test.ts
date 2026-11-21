@@ -6,6 +6,9 @@ import { tmpdir } from "node:os";
 import { Updater, fetchUpdate, parseRelease, parseReleases, newer, verifyDigest, stageUpdate, releaseEndpoint, releasesEndpoint } from "../src/main/updater";
 import { launchConfiguration } from "../src/main/launch";
 import { Preferences } from "../src/main/preferences";
+import { modelMacOSHost } from "./macos-host";
+
+modelMacOSHost();
 const bytes = Buffer.from("synthetic update bytes"), digest = "sha256:" + createHash("sha256").update(bytes).digest("hex");
 const payload = (url = "https://github.com/tilorahdotco/meterusage/releases/download/v0.2.42/MeterUsage-0.2.42.zip", hash = digest) => JSON.stringify({ tag_name: "v0.2.42", assets: [{ name: "MeterUsage-0.2.42.zip", browser_download_url: url, digest: hash }] });
 const roots: string[] = []; const temp = () => { const p = mkdtempSync(join(realpathSync(tmpdir()), "meterusage-fixture-")); roots.push(p); return p; };

@@ -3,7 +3,7 @@ import { closeSync, constants, fstatSync, openSync, readSync, statSync } from "n
 import type { Stats } from "node:fs";
 
 // Platform seams for the Electron main process. Each helper takes the platform
-// explicitly so Linux and macOS test runs can exercise the Windows branches.
+// explicitly so every test host can exercise the macOS, Windows and Linux branches.
 export type Platform = NodeJS.Platform;
 export const pathFor = (platform: Platform) => platform === "win32" ? win32 : posix;
 
@@ -38,13 +38,19 @@ function windowsFolder(home: string, env: NodeJS.ProcessEnv, name: "APPDATA" | "
   if (configured && win32.isAbsolute(configured) && within(home, win32.resolve(configured), "win32")) return win32.resolve(configured);
   return win32.join(home, "AppData", name === "APPDATA" ? "Roaming" : "Local");
 }
-/** Per-user application data root: Application Support on macOS, roaming AppData on Windows. */
-export function supportRoot(home: string, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): string {
-  return platform === "win32" ? windowsFolder(home, env, "APPDATA") : posix.join(home, "Library/Application Support");
+// $XDG_CONFIG_HOME follows the same rule: an absolute path under the given home, else ~/.config.
+function linuxConfig(home: string, env: NodeJS.ProcessEnv): string {
+  const configured = env.XDG_CONFIG_HOME;
+  if (configured && posix.isAbsolute(configured) && within(home, posix.resolve(configured), "linux")) return posix.resolve(configured);
+  return posix.join(home, ".config");
 }
-/** Machine-local per-user data root. Windows apps keep caches and some configuration under %LOCALAPPDATA%. */
+/** Per-user application data root: Application Support on macOS, roaming AppData on Windows, the XDG config folder on Linux. */
+export function supportRoot(home: string, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): string {
+  return platform === "win32" ? windowsFolder(home, env, "APPDATA") : platform === "linux" ? linuxConfig(home, env) : posix.join(home, "Library/Application Support");
+}
+/** Machine-local per-user data root. Windows apps keep caches and some configuration under %LOCALAPPDATA%; elsewhere it is supportRoot. */
 export function localRoot(home: string, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env): string {
-  return platform === "win32" ? windowsFolder(home, env, "LOCALAPPDATA") : posix.join(home, "Library/Application Support");
+  return platform === "win32" ? windowsFolder(home, env, "LOCALAPPDATA") : supportRoot(home, platform, env);
 }
 export const appDataDirectory = (home: string, platform: Platform = process.platform, env: NodeJS.ProcessEnv = process.env) => pathFor(platform).join(supportRoot(home, platform, env), "MeterUsage");
 
@@ -55,7 +61,7 @@ export const ownedByUser = (stat: Stats, platform: Platform = process.platform) 
 export const modeExposes = (stat: Stats, mask: number, platform: Platform = process.platform) => platform !== "win32" && (stat.mode & mask) !== 0;
 
 const childKeys = { darwin: ["PATH", "TMPDIR"], win32: ["PATH", "PATHEXT", "SystemRoot", "SystemDrive", "windir", "ComSpec", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH"] };
-/** Minimal environment for isolated provider subprocesses. Windows programs need SystemRoot and profile folders to start. */
+/** Minimal environment for isolated provider subprocesses. Windows programs need SystemRoot and profile folders to start; Linux keeps the session bus. */
 export function minimalEnvironment(env: NodeJS.ProcessEnv, platform: Platform = process.platform): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = {};
   for (const name of platform === "win32" ? childKeys.win32 : childKeys.darwin) {
@@ -64,6 +70,8 @@ export function minimalEnvironment(env: NodeJS.ProcessEnv, platform: Platform = 
     if (platform !== "win32") result[name] = key === undefined ? undefined : env[key];
     else if (key !== undefined && env[key] !== undefined) result[name] = env[key];
   }
+  // The Linux keyring (Secret Service) is reached over the session bus; keep only its address when present.
+  if (platform === "linux") for (const name of ["DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"]) if (env[name]) result[name] = env[name];
   return result;
 }
 

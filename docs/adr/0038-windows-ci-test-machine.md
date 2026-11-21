@@ -117,4 +117,5 @@ yet portable; a failure there does not fail the job.
 - macOS behavior is unchanged: the same defaults domain, data folder, checks,
   tray image and updater.
 - Unsigned builds trigger SmartScreen warnings. Release notes must say so.
-- Linux remains unsupported for the desktop shell.
+- Linux remains unsupported for the desktop shell. [ADR 0050](0050-linux-desktop-shell.md)
+  adds it.
