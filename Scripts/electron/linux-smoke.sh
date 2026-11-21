@@ -11,8 +11,9 @@ exe="$(realpath "${1:-release/linux-unpacked/meterusage}")"
 artifacts="$(mkdir -p "${2:-smoke-artifacts}" && realpath "${2:-smoke-artifacts}")"
 root="$(mktemp -d "${TMPDIR:-/tmp}/meterusage-smoke.XXXXXX")"
 display=":${SMOKE_DISPLAY:-97}"
-xvfb=""
-cleanup() { [ -n "$xvfb" ] && kill "$xvfb" 2>/dev/null; rm -rf "$root"; }
+xvfb="" app=""
+# Stop a running app before removing its profile, also when a check fails.
+cleanup() { local status=$?; set +e; [ -n "$app" ] && kill "$app" 2>/dev/null && wait "$app" 2>/dev/null; [ -n "$xvfb" ] && kill "$xvfb" 2>/dev/null; rm -rf "$root"; exit "$status"; }
 trap cleanup EXIT
 
 assert_report() {
@@ -34,17 +35,17 @@ screenshot() {
 gui() {
   local name="$1" profile="$2" minimum="$3"
   DISPLAY="$display" "$exe" --demo --candidate-profile "$profile" 2> "$artifacts/$name.stderr.txt" &
-  local pid=$!
+  local pid=$!; app=$pid
   sleep 20
   if ! kill -0 "$pid" 2>/dev/null; then cat "$artifacts/$name.stderr.txt"; echo "$name exited early" >&2; exit 1; fi
-  # Every window adopts the document title "MeterUsage" once loaded.
-  local count; count="$(DISPLAY="$display" xdotool search --onlyvisible --name '^MeterUsage$' 2>/dev/null | wc -l)"
+  # Every window adopts the document title "MeterUsage" once loaded. xdotool exits 1 when none match.
+  local count; count="$( { DISPLAY="$display" xdotool search --onlyvisible --name '^MeterUsage$' 2>/dev/null || true; } | wc -l)"
   echo "$name visible MeterUsage windows: $count"
   screenshot "$artifacts/$name.png"
-  if [ "$count" -lt "$minimum" ]; then kill "$pid"; echo "$name shows $count MeterUsage windows; expected at least $minimum" >&2; exit 1; fi
+  if [ "$count" -lt "$minimum" ]; then echo "$name shows $count MeterUsage windows; expected at least $minimum" >&2; exit 1; fi
   sleep 5
   if ! kill -0 "$pid" 2>/dev/null; then echo "$name exited after its windows appeared" >&2; exit 1; fi
-  kill "$pid"; wait "$pid" 2>/dev/null || true
+  kill "$pid"; wait "$pid" 2>/dev/null || true; app=""
 }
 
 # 0. Electron's bundled Node provides node:sqlite, which the provider readers use.
