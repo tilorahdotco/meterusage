@@ -177,7 +177,7 @@ it("describes a saved account with missing allowance without claiming a live con
   view.snapshot.quotas.antigravity = { status: "missing", reason: "Not signed in to Antigravity Desktop", code: "notSignedIn" };
   const markup = renderToStaticMarkup(createElement(Connections, { state: view, action: async () => {} }));
   expect(markup).toContain("Connection saved. Account allowance is unavailable.");
-  expect(markup).toContain("Allowance: Not signed in to Antigravity Desktop");
+  expect(markup).toContain('<p class="secondary connection-problem">Not signed in to Antigravity Desktop</p>'); expect(markup).toContain(">No allowance</span>");
   expect(markup).not.toContain("Connected. Account allowance is unavailable.");
 });
 it("restores the saved CLI source without claiming account sign-in", () => {
@@ -266,11 +266,11 @@ it("shows measured Grok quota burn on menu and detail cards without inventing to
   const render = (detail = false) => renderToStaticMarkup(createElement(ProviderCard, { slot: primary("grok"), state: view, action: async () => {}, detail }));
   for (const detail of [false, true]) {
     const markup = render(detail);
-    expect(markup).toContain("Quota burn · 60 pp/h"); expect(markup).toContain("Est. 1h 28m left");
+    expect(markup).toContain("Quota burn · 60 pp/h"); expect(markup).toContain("Runs out in ~1h 28m");
     expect(markup).toContain("Percentage points of quota used per hour"); expect(markup).not.toContain("tokens/min"); expect(markup).not.toContain("$");
   }
   view.snapshot.appearance.pacing = false;
-  expect(render()).not.toContain("Quota burn"); expect(render()).not.toContain("Est. "); expect(render()).toContain("Resets ");
+  expect(render()).not.toContain("Quota burn"); expect(render()).not.toContain("Runs out"); expect(render()).toContain("Resets ");
   view.snapshot.appearance.pacing = true;
   view.snapshot.archived.grok = observed; view.snapshot.quotas.grok = { status: "missing", code: "offline", reason: "Offline" };
   expect(render()).toContain("Last known"); expect(render()).not.toContain("Quota burn"); expect(render()).not.toContain("Collecting usage after reset");
@@ -281,15 +281,15 @@ it("collects Grok observations before displaying a rate and preserves measured z
   const render = (w: typeof first.windows[number]) => renderToStaticMarkup(createElement(Meter, { w, now, pacing: true, quotaBurn: true }));
   expect(render(first.windows[0])).toContain("Collecting quota burn rate"); expect(render(first.windows[0])).not.toContain("pp/h");
   const unchanged = observeQuota(quota("grok", [window("Grok Bot Desktop", 87)], now), first, now);
-  expect(render(unchanged.windows[0])).toContain("Quota burn · 0 pp/h"); expect(render(unchanged.windows[0])).not.toContain("Est. ");
+  expect(render(unchanged.windows[0])).toContain("Quota burn · 0 pp/h"); expect(render(unchanged.windows[0])).not.toContain("Runs out");
   const tiny = observeQuota(quota("grok", [window("Grok Bot Desktop", 87.0001)], now), first, now);
   expect(render(tiny.windows[0])).toContain("&lt;0.1 pp/h");
 });
 
 it("hides forecasts when pacing is disabled and retains the reported reset time", () => {
   const render = (pacing: boolean) => renderToStaticMarkup(createElement(Meter, { w, now, pacing }));
-  expect(render(true)).toContain("left"); expect(render(true)).toContain("Resets ");
-  expect(render(false)).not.toContain("left"); expect(render(false)).toContain("Resets ");
+  expect(render(true)).toContain('<span class="runs-out">Runs out in ~15m</span> · <span class="reset-line"'); expect(render(true)).not.toContain("(in ");
+  expect(render(false)).not.toContain("Runs out"); expect(render(false)).not.toContain("(in "); expect(render(false)).toContain("Resets ");
 });
 
 it("shows unavailable reset status without a redemption action", () => {
@@ -297,7 +297,7 @@ it("shows unavailable reset status without a redemption action", () => {
   view.snapshot.quotas.codex = value(q);
   for (const status of ["consumed", "revoked", undefined]) {
     q.resetCredits = [{ id: "c", title: "Reset", status }];
-    const markup = renderApp(view); expect(markup).not.toContain("Use reset"); expect(markup).toContain(status ?? "Status not reported");
+    const markup = renderApp(view); expect(markup).not.toContain("Use reset"); expect(markup).toContain(status ? status[0].toUpperCase() + status.slice(1) : "Status not reported");
   }
   q.canConsumeReset = true;
   q.resetCredits = [{ id: "c", title: "Reset", status: "AVAILABLE", expiresAt: now + 1000 }]; expect(renderApp(view)).toContain("Use reset");
@@ -657,7 +657,7 @@ it("keeps static exports free of actions and selectors while retaining credit an
     expect(live).toContain(action); expect(exported).not.toContain(action);
   }
   expect(exported).not.toMatch(/<(button|select)\b/);
-  for (const data of ["1 earned reset credits", "Full reset", "available", "Expires", "26 weeks", "1,234,567 tokens, 2 sessions", "80% used"]) {
+  for (const data of ["1 earned reset credits", "Full reset", "Available", "Expires", "12 weeks · 14 quiet weeks hidden", "1,234,567 tokens, 2 sessions", "80%<small> used</small>"]) {
     expect(live).toContain(data); expect(exported).toContain(data);
   }
 });
@@ -695,7 +695,7 @@ it("preserves action alerts and dated archive reasons across the shared cards", 
   for (const surface of ["flyout", "notch", "share"]) {
     const card = renderApp(view, surface);
     expect(card).toContain(`<p class="stale quota-stale">Last known · ${new Date(now - 60000).toLocaleString()}<br/>Synthetic offline reason</p>`);
-    expect(card).toContain("80% used"); expect(card).not.toContain("Use reset");
+    expect(card).toContain("80%<small> used</small>"); expect(card).not.toContain("Use reset");
   }
 });
 
@@ -857,8 +857,9 @@ it.each(["idle", "missing", "value"] as const)("separates connected source, coll
   for (const collected of [false, true]) {
     view.settings.values.showProviderCodex = collected;
     const markup = renderToStaticMarkup(createElement(Connections, { state: view, action: async () => {} }));
-    expect(markup).toContain("Current source: Browser sign-in");
-    expect(markup).toContain(`Collection: ${collected ? "On" : "Off"} · Allowance: ${status === "value" ? "Available" : status === "missing" ? "Synthetic unavailable" : "Not checked yet"}`);
+    expect(markup).toContain(`Browser sign-in · ${collected ? "collecting" : "collection off"}`);
+    expect(markup).toContain(`>${status === "value" ? "Connected" : "No allowance"}</span>`);
+    expect(markup.includes('<p class="secondary connection-problem">Synthetic unavailable</p>')).toBe(status === "missing");
     expect(markup.includes("Connected · Account allowance")).toBe(status === "value");
     expect(markup).toContain('aria-label="Configure Codex" aria-expanded="false" aria-controls="connection-codex"');
   }
@@ -953,16 +954,18 @@ it("shows one selected usage card while retaining ordered provider and account t
   view.snapshot.slots = [primary("codex"), primary("claude"), { ...primary("claude"), slotID: "work", label: "Work" }];
   view.snapshot.quotas.claude = value(quota("claude", [window("Session", 21)], now));
   view.snapshot.quotas["claude#work"] = value(quota("claude", [window("Session", 43)], now));
-  for (const [selected, expected] of [["", "80% used"], ["claude", "21% used"], ["claude#work", "43% used"], ["removed", "80% used"]]) {
+  const figure = (used: number) => `${used}%<small> used</small>`;
+  for (const [selected, expected] of [["", figure(80)], ["claude", figure(21)], ["claude#work", figure(43)], ["removed", figure(80)]]) {
     vi.mocked(useState).mockReturnValueOnce([selected, () => {}]);
     const markup = renderToStaticMarkup(createElement(UsagePanel, { state: view, action: async () => {} }));
     expect((markup.match(/<article/g) ?? []).length).toBe(1);
     expect((markup.match(/role="tab"/g) ?? []).length).toBe(3);
     expect((markup.match(/tabindex="0"/g) ?? []).length).toBe(1);
     expect(markup).toContain(expected);
-    expect(markup).toContain('aria-label="Claude · Work"');
-    expect(markup.indexOf('aria-label="Codex"')).toBeLessThan(markup.indexOf('aria-label="Claude"'));
-    for (const other of ["80% used", "21% used", "43% used"].filter(value => value !== expected)) expect(markup).not.toContain(other);
+    // Every tab names its headline usage, so the overview needs no click.
+    expect(markup).toContain('aria-label="Claude · Work, 43% of quota used"');
+    expect(markup.indexOf('aria-label="Codex, 80% of quota used"')).toBeLessThan(markup.indexOf('aria-label="Claude, 21% of quota used"'));
+    for (const other of [figure(80), figure(21), figure(43)].filter(value => value !== expected)) expect(markup).not.toContain(other);
   }
 });
 it("distinguishes unnamed accounts in usage tab names and tooltips", () => {
@@ -1039,17 +1042,20 @@ it("offers key-free local OpenCode Go setup and dispatches the existing collecti
   const view = state(), action = vi.fn(async () => {});
   view.snapshot.demo = false;
   const markup = renderToStaticMarkup(createElement(Connections, { state: view, action }));
-  expect(markup).toContain('id="connection-openCodeGo"');
+  expect(markup).toContain('aria-label="Configure OpenCode Go" aria-expanded="false" aria-controls="connection-openCodeGo"');
+  expect(markup).toContain('id="connection-openCodeGo" hidden=""');
+  expect(markup).toContain('>Off</span>');
   expect(markup).toContain("Use local OpenCode");
   expect(markup).toContain("Local Go activity needs no sign-in or key.");
   expect(markup).toContain("An existing Go key also enables allowance.");
   const root = Connections({ state: view, action });
   const group = root.props.children.find((node: any) => node?.props?.className === "settings-group");
-  const local = group.props.children.find((node: any) => node?.props?.id === "connection-openCodeGo");
-  local.props.children[0].props.children[1].props.onClick();
+  const local = group.props.children.find((node: any) => node?.key === "openCodeGo");
+  local.props.action.props.onClick();
   expect(action).toHaveBeenLastCalledWith({ action: "setPreference", key: "showProviderOpenCodeGo", value: true });
   view.settings.values.showProviderOpenCodeGo = true;
   expect(renderToStaticMarkup(createElement(Connections, { state: view, action }))).toContain("Local collection enabled");
+  expect(renderToStaticMarkup(createElement(Connections, { state: view, action }))).toContain("Local Go activity · collecting");
   view.snapshot.demo = true;
   expect(renderToStaticMarkup(createElement(Connections, { state: view, action }))).toMatch(/<button(?=[^>]*disabled)[^>]*>Stop local OpenCode/);
 });
@@ -1077,7 +1083,7 @@ it.each(["cursor", "bot"] as const)("names the saved Grok %s account source accu
   const view = state(); view.snapshot.demo = false;
   view.connections = [{ provider: "grok", source: "account", accountMethod, localAvailable: true, status: "connected" }];
   const markup = renderToStaticMarkup(createElement(Connections, { state: view, action: async () => {} }));
-  expect(markup).toContain(`Current source: ${accountMethod === "cursor" ? "Grok Bot via Cursor (legacy Beta)" : "Grok Bot Desktop (Beta)"}`);
+  expect(markup).toContain(`<p class="secondary">${accountMethod === "cursor" ? "Grok Bot via Cursor (legacy Beta)" : "Grok Bot Desktop (Beta)"} · `);
   expect(markup).toContain('>Grok Bot Desktop (Beta)</option>');
 });
 
@@ -1308,4 +1314,30 @@ it("names the reset day as today, tomorrow, or the weekday", () => {
   const day = new Date(at(5, 23)).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
   expect(resetText(at(5, 23), base)).toBe(`Resets ${day}, ${time(at(5, 23))}`);
   expect(time(at(0, 23))).not.toBe(time(at(1, 3)));
+});
+
+it("warns on fast burn before 80%, marks even pace, and counts down only to a reset that comes first", () => {
+  const render = (win: ReturnType<typeof window>) => renderToStaticMarkup(createElement(Meter, { w: win, now, pacing: true }));
+  const fast = render(window("5-hour", 50, now + 4 * 3600000, 300));
+  expect(fast).toContain('style="color:var(--warn)">50%'); expect(fast).toContain("Burning fast"); expect(fast).toContain('<b class="meter-pace" style="left:20%">');
+  expect(fast).toContain("Runs out in ~1h"); expect(fast).not.toContain("(in ");
+  const calm = render(window("Weekly", 10, now + 3 * 86400000, 10080));
+  expect(calm).toContain('style="color:var(--good)">10%'); expect(calm).toContain("Well paced"); expect(calm).toContain("(in 3d)"); expect(calm).not.toContain("Runs out");
+});
+
+it("folds healthy service status into one line that keeps each status-page link", () => {
+  const view = state(), action = vi.fn(async () => {});
+  view.snapshot.statuses = { codex: value({ provider: "codex", severity: "operational", description: "All systems operational", checkedAt: now }), claude: value({ provider: "claude", severity: "operational", description: "All systems operational", checkedAt: now }) } as ViewState["snapshot"]["statuses"];
+  const markup = renderApp(view);
+  expect(markup).toContain("All services operational");
+  for (const name of ["Codex", "Claude"]) expect(markup).toContain(`aria-label="${name} status: Operational. Open status page"`);
+  expect(markup).not.toContain('<p class="secondary status">');
+  view.snapshot.statuses.claude = value({ provider: "claude", severity: "degraded", description: "Elevated errors", checkedAt: now });
+  expect(renderApp(view)).not.toContain("All services operational"); expect(renderApp(view)).toContain("Elevated errors");
+});
+
+it("dates reset credit expiry in the reset line's style", () => {
+  const view = state(), q = quota("codex", [], now), expires = now + 3 * 86400000; q.resetCreditCount = 1;
+  q.resetCredits = [{ id: "c", title: "Full reset", status: "available", expiresAt: expires }]; view.snapshot.quotas.codex = value(q);
+  expect(renderApp(view)).toContain(`Available · Expires ${new Date(expires).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}`);
 });

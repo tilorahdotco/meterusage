@@ -6,6 +6,17 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## 2026-11-21
 
+- The usage panel shows each provider's usage on its tab, under the unchanged
+  provider mark, so you can spot the provider closest to its limit without
+  clicking through tabs. Meters now say "Runs out in ~42m" only for a forecast
+  and show resets as "(in 4d 12h)", where both used to read "left". A bar turns
+  amber while burning fast even below 80%, and Classic bars mark where even use
+  would be. A healthy day shows one "All services operational" line that keeps
+  the status-page links. The token heatmap hides leading quiet weeks (at least
+  12 weeks stay), and the 30-day line moves under More activity when the heatmap
+  is on. Settings → Connections shows one status chip and one source line per
+  provider, with the same row for Muse Code and OpenCode Go. Checked in the
+  browser demo only; not yet checked on macOS.
 - MeterUsage now starts on Linux instead of exiting with "currently support
   macOS and Windows only" (ADR 0050, stage 1). It runs in the system tray with
   a menu, keeps settings in `~/.config/MeterUsage` (or `$XDG_CONFIG_HOME/MeterUsage`
