@@ -88,8 +88,12 @@ export class DesktopConnections {
     try { found = readdirSync(packages, { withFileTypes: true }).filter(entry => entry.isDirectory() && family.test(entry.name)).map(entry => join(packages, entry.name, "LocalCache", "Roaming", name)).filter(path => existsSync(path)); } catch { /* No packaged install. */ }
     return found.length === 1 ? found[0] : roaming;
   }
-  /** Windows has no reader for saved legacy Grok-via-Cursor connections; new Grok connections use Bot Desktop. */
-  private unsupported(provider: ConnectionProvider) { return this.windows && provider === "grok" && this.prefs.values.desktopGrokIdentity !== "" && this.prefs.values.desktopGrokSource !== "bot"; }
+  private get linux() { return this.launch.platform === "linux"; }
+  /**
+   * Windows has no reader for saved legacy Grok-via-Cursor connections; new Grok connections use Bot Desktop.
+   * Linux has no Claude, Antigravity or Grok desktop readers yet (ADR 0050); only the Codex connection is offered.
+   */
+  private unsupported(provider: ConnectionProvider) { return this.linux && provider !== "codex" || this.windows && provider === "grok" && this.prefs.values.desktopGrokIdentity !== "" && this.prefs.values.desktopGrokSource !== "bot"; }
   get state(): ConnectionState[] {
     return (["codex", "claude", "antigravity", "grok"] as const).map(provider => ({ provider, status: this.launch.codexTest && provider !== "codex" || this.launch.claudeTest && provider !== "claude" || this.unsupported(provider) ? "unsupported" : this.pending.has(provider) ? "connecting" : this.enabled(provider) ? "connected" : this.errors.has(provider) ? "failed" : "disconnected", source: this.configured(provider) ? "account" : "cli", ...(provider === "grok" && /^[a-f\d]{64}$/.test(String(this.prefs.values.desktopGrokIdentity)) ? { accountMethod: this.prefs.values.desktopGrokSource === "bot" ? "bot" as const : "cursor" as const } : {}), localAvailable: !this.launch.demo && !this.launch.codexTest && !this.launch.claudeTest }));
   }
@@ -98,6 +102,8 @@ export class DesktopConnections {
   private key(provider: ConnectionProvider) { return provider === "codex" ? "desktopCodexConnection" : provider === "claude" ? "desktopClaudeIdentity" : provider === "antigravity" ? "desktopAntigravityIdentity" : "desktopGrokIdentity"; }
   private binary() {
     if (this.windows) return cliPath("codex", this.launch.home, this.launch.env, "win32");
+    // Linux has no app bundle; the Codex CLI is found on the usual install paths.
+    if (this.linux) return cliPath("codex", this.launch.home, this.launch.env, "linux");
     // Current Codex downloads install as ChatGPT.app with the helper under codex-cli; older installs keep Codex.app.
     for (const root of ["/Applications", join(this.launch.home, "Applications")]) {
       for (const helper of ["ChatGPT.app/Contents/Resources/codex-cli/bin/codex", "Codex.app/Contents/Resources/codex-cli/bin/codex", "Codex.app/Contents/Resources/codex"]) {
@@ -112,7 +118,12 @@ export class DesktopConnections {
     mkdirSync(home, { recursive: true, mode: 0o700 });
     // Windows programs need SystemRoot and the profile folders; credentials stay in Windows Credential Manager (keyring).
     if (this.windows) return { ...minimalEnvironment(this.launch.env, "win32"), PATH: cliEnvironment(this.launch.home, minimalEnvironment(this.launch.env, "win32"), "win32").PATH, HOME: this.launch.home, CODEX_HOME: home };
-    return { HOME: this.launch.home, PATH: cliEnvironment(this.launch.home, { PATH: this.launch.env.PATH }).PATH, CODEX_HOME: home, TMPDIR: this.launch.env.TMPDIR };
+    const base = { HOME: this.launch.home, PATH: cliEnvironment(this.launch.home, { PATH: this.launch.env.PATH }).PATH, CODEX_HOME: home, TMPDIR: this.launch.env.TMPDIR };
+    // The Linux keyring is the Secret Service on the session bus; Codex needs the bus address to reach it.
+    if (!this.linux) return base;
+    const linux: NodeJS.ProcessEnv = { ...base };
+    for (const name of ["DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"]) if (this.launch.env[name]) linux[name] = this.launch.env[name];
+    return linux;
   }
   private async claudePassword(allowUI: boolean, signal?: AbortSignal, guard: () => void = () => {}) {
     try {
@@ -344,14 +355,14 @@ export class DesktopConnections {
     const readErrors = this.windows ? windowsDesktopReadErrors : desktopReadErrors, grokErrors = this.windows ? grokBotWindowsErrors : grokBotConnectionErrors;
     let grokError = this.windows ? connectionErrors.grokWindows : "Could not connect Grok Bot Desktop. Sign in to Grok Bot, check allowance and Keychain access, then reconnect.";
     let claudeError = "Open Claude Desktop and sign in, then try connecting again";
-    let codexError = this.windows ? connectionErrors.codexWindows : "Open Codex on this Mac, then try connecting again";
+    let codexError = this.windows ? connectionErrors.codexWindows : this.linux ? connectionErrors.codexLinux : "Open Codex on this Mac, then try connecting again";
     try {
       if (!await consent()) return false;
       controller.signal.throwIfAborted();
       if (provider === "codex") {
         let binary: string;
         try { binary = this.binary(); }
-        catch (error) { if (error instanceof Unavailable && error.code === "cliNotFound") codexError = this.windows ? connectionErrors.codexMissingWindows : "Codex app not found in Applications. Install or update Codex, then try connecting again"; throw error; }
+        catch (error) { if (error instanceof Unavailable && error.code === "cliNotFound") codexError = this.windows || this.linux ? connectionErrors.codexMissingWindows : "Codex app not found in Applications. Install or update Codex, then try connecting again"; throw error; }
         const id = randomUUID();
         // An unfinished profile permits cleanup, never collection.
         await this.disable("codex");

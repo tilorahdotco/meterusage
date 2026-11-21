@@ -80,7 +80,7 @@ export class Preferences {
       const path = join(launch.data, "preferences.json");
       let damaged = false;
       if (existsSync(path)) { try { const text = readFileSync(path, "utf8"); let raw: Record<string, unknown>; try { raw = JSON.parse(text); if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid preferences"); } catch (error) { damaged = true; throw error; } for (const [key, v] of Object.entries(raw)) if (key === "providerOrder") prefs.values[key] = normalizeProviderOrder(v); else if (validate(key, v)) prefs.values[key] = v; } catch {
-        // Keep known defaults for a damaged file. A Windows install sets the file aside so the next save cannot overwrite it.
+        // Keep known defaults for a damaged file. A Windows or Linux install sets the file aside so the next save cannot overwrite it.
         // A read error (an antivirus or sync lock) is not damage; only unparsable content is set aside.
         if (damaged && !launch.demo && !launch.codexTest && !launch.claudeTest) try { renameSync(path, `${path}.damaged-${Date.now()}`); } catch { /* Defaults still apply. */ }
       } }
@@ -108,8 +108,11 @@ export class Preferences {
     if (launch.claudeTest) Object.assign(prefs.values, claudeTestPreferences);
     prefs.values.refreshIntervalSeconds = prefs.refreshInterval; return prefs;
   }
-  /** Isolated profiles and Windows keep preferences in JSON; installed macOS apps keep the shared defaults domain. */
-  get jsonStore() { return this.launch.demo || this.launch.codexTest === true || this.launch.claudeTest === true || (this.launch.platform ?? process.platform) === "win32"; }
+  /**
+   * Isolated profiles, Windows and Linux keep preferences in JSON; installed macOS apps keep the shared defaults domain.
+   * Linux is read from the launch only, which launchConfiguration always sets there, so macOS fixtures keep their shape on Linux test hosts.
+   */
+  get jsonStore() { return this.launch.demo || this.launch.codexTest === true || this.launch.claudeTest === true || (this.launch.platform ?? process.platform) === "win32" || this.launch.platform === "linux"; }
   get refreshInterval() { const stored = this.values.refreshIntervalSeconds as number; return Math.max(30, stored > 0 ? stored : 60); }
   get providerOrder() { return normalizeProviderOrder(this.values.providerOrder); }
   get accounts() { return this.values.managedAccounts as ManagedAccount[]; }

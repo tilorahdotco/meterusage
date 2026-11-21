@@ -1,0 +1,25 @@
+# Linux
+
+Part of [project knowledge](../KB.md). Linux paths, shell, packaging, tests and CI.
+
+- [ADR 0050](../adr/0050-linux-desktop-shell.md) adds the Linux desktop shell in stages, with the `ubuntu-latest` CI runner and Xvfb as the only test machine. Stage 1 (foundation, shell, packages, CI smoke) is source-implemented. No Linux build is published, and no real Linux desktop has accepted it.
+
+- Linux app data is `$XDG_CONFIG_HOME/MeterUsage`. `$XDG_CONFIG_HOME` is used only when it is absolute and under the home folder; otherwise `~/.config`. `localRoot` equals `supportRoot` on Linux. `launchConfiguration` records `platform: "linux"`, and Linux branches read `launch.platform` (preferences, connections, updater). Installed Linux preferences use `preferences.json` through the Windows/test JSON writer.
+
+- Linux desktop connections: only Codex is offered. Claude Desktop, Grok Bot Desktop and Antigravity Desktop report `unsupported`, and `connect` throws `Connection unavailable`. The Codex child environment adds `DBUS_SESSION_BUS_ADDRESS` and `XDG_RUNTIME_DIR` for the Secret Service keyring, and Codex is found with `cliPath` (no app bundle). Codex connect errors use `connectionErrors.codexLinux` and `codexMissingWindows`. API billing **Use saved key** is hidden.
+
+- Linux shell (`src/main/electron.ts`, `linuxShell`): colored tray icon (24 px base with 1x-2x representations), fixed `setContextMenu` menu without Check for Updates, flyout at the pointer when `tray.getBounds()` is empty, clipboard **Copy card image**, no application menu, no `type: "panel"` notch, no text tray image. SIGTERM and SIGINT call `app.quit()`; before that handler, the packaged app ignored SIGTERM. Renderer copy says "this computer" when `state.platform` is `linux`, and Settings > General replaces the update toggles with a note.
+
+- Linux launch at login: `src/main/linux-autostart.ts` writes `$XDG_CONFIG_HOME/autostart/dev.meterusage.app.desktop` atomically (mode 0644) or removes it. `Exec` is the `APPIMAGE` file when it is an absolute existing path, else `app.getPath("exe")`. Paths containing `"`, `` ` ``, `$`, `\`, `%` or control characters are refused with "Could not change login item".
+
+- Linux JSON: Chromium selects its Ozone platform before the main script runs, so `app.commandLine.appendSwitch("ozone-platform", ...)` has no effect, and with no display the packaged app crashes ("Missing X server or $DISPLAY"). A fast demo report can finish before that crash, which hides the problem. Headless use passes `--ozone-platform=headless` on the command line.
+
+- Linux updater: none yet. `parseRelease`/`parseReleases` select no asset for `linux`; `Updater.supported` is false, so `checkIfDue` returns, and `checkNow` and `install` throw.
+
+- Linux packaging: `pnpm package:linux` builds unsigned `MeterUsage-<version>-linux-x64.AppImage` and `.tar.gz` (the artifact name fixes `x64`, since AppImage would otherwise say `x86_64`). `executableName: meterusage`. `after-pack.cjs` returns for Linux. Running the AppImage file needs FUSE 2 (`libfuse2`/`libfuse2t64`), which Ubuntu 22.04+ does not install by default; without it the runtime exits with "AppImages require FUSE to run". The extracted `squashfs-root/AppRun` was checked to print a demo schema-1 report with `--ozone-platform=headless`. electron-builder warns that `desktopName` is unset; window-to-.desktop association is not configured.
+
+- Chromium sandbox on Linux: Ubuntu 24.04+ restricts unprivileged user namespaces. The unpacked build and tar.gz then need `chrome-sandbox` root-owned with mode 4755; an AppImage needs an AppArmor profile instead. `--no-sandbox` is not recommended. Hosts with `kernel.apparmor_restrict_unprivileged_userns=0` run the sandbox unprivileged.
+
+- `Scripts/electron/linux-smoke.sh [exe] [artifacts]` needs Xvfb and xdotool; ImageMagick or ffmpeg add screenshots. It checks packaged `node:sqlite`, headless JSON (demo with at least 5 ok providers, and the real profile unless `SMOKE_LIVE=0`), then a demo first launch (at least 1 visible `MeterUsage` window) and a relaunch with onboarding complete (at least 2). The CI `linux` job sets the setuid sandbox helper, runs the script and uploads `linux-smoke` and `linux-packages`.
+
+- Test files whose fixtures model macOS (`api-billing`, `composition`, `connections`, `updater`) call `modelMacOSHost()` from `tests/macos-host.ts`, which presents `process.platform` as `darwin` on a Linux host for that file. `tests/linux.test.ts` covers the Linux branches on every host and skips its filesystem cases on Windows.

@@ -12,6 +12,9 @@ import { providers, quota, Unavailable } from "../src/domain/models";
 import { DesktopConnections } from "../src/main/connections";
 import { Coordinator } from "../src/main/coordinator";
 import { readArchive } from "../src/main/history";
+import { modelMacOSHost } from "./macos-host";
+
+modelMacOSHost();
 const roots: string[] = []; const temp = () => { const root = mkdtempSync(join(realpathSync(tmpdir()), "meterusage-fixture-")); roots.push(root); return root; };
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 const now = Date.parse("2026-10-06T12:00:00Z");

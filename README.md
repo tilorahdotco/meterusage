@@ -40,6 +40,32 @@ accounts, real upgrades and many native behaviors remain unverified on a real
 PC. See [Windows beta notes](docs/BETA.md#windows-beta-20) and
 [ADR 0038](docs/adr/0038-windows-ci-test-machine.md).
 
+### Linux (build from source, preview)
+
+There is no Linux download yet. Developers can build unsigned x64 packages
+from a checkout with Node 24 and pnpm:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm package:linux
+```
+
+This writes `release/MeterUsage-<version>-linux-x64.AppImage` and `.tar.gz`.
+The AppImage needs FUSE 2 (`libfuse2`, named `libfuse2t64` on Ubuntu 24.04 and
+later); the tar.gz copy does not.
+MeterUsage runs in the system tray; open it from the tray menu. CLI providers
+and the Codex connection work. Claude Desktop, Grok Bot Desktop and
+Antigravity Desktop connections and automatic updates are not available on
+Linux yet. Settings are in `~/.config/MeterUsage`. For `meterusage json` without
+a display (a server or SSH), add `--ozone-platform=headless`.
+
+On Ubuntu 24.04 and later, Chromium's sandbox needs the tar.gz copy's
+`chrome-sandbox` to be owned by root with mode 4755, or an AppArmor profile for
+the AppImage. Do not use `--no-sandbox`. A CI job packages and smoke-tests
+each change on a virtual display; tray, panel and desktop behavior is
+unverified on a real Linux desktop. See
+[ADR 0050](docs/adr/0050-linux-desktop-shell.md).
+
 Stable acceptance remains open. Historical Swift releases and source are
 [recovery references](legacy/swift/README.md), with no separate offered edition.
 Both implementations share app identity and saved data. Do not run them together

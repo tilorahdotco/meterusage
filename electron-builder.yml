@@ -31,6 +31,19 @@ mac:
     LSUIElement: true
     NSAppTransportSecurity:
       NSAllowsArbitraryLoads: false
+# Unsigned Linux builds (ADR 0050). Nothing here signs or publishes.
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: tar.gz
+      arch: [x64]
+  # Only x64 is built; AppImage would otherwise say x86_64 and tar.gz x64.
+  artifactName: MeterUsage-${version}-linux-x64.${ext}
+  executableName: meterusage
+  icon: Resources/AppIcon.png
+  category: Development
+  synopsis: AI usage limits in the system tray
 # Unsigned Windows builds (ADR 0038). SmartScreen warns until a code-signing
 # certificate exists; nothing here signs or publishes.
 win:
