@@ -279,7 +279,10 @@ A pull request should include:
 Keep screenshots in demo mode so they contain no real account data. Preserve
 the MIT license and do not claim affiliation with Anthropic or OpenAI.
 
-Close an issue or PR only with a comment that gives the outcome (done and where, or why not). A workflow reopens it otherwise.
+Close an issue or PR only with a comment that gives the outcome (done and where, or why not).
+Use `gh issue close <n> --comment "..."`, or comment at most 30 minutes before you close.
+The comment must be yours and at least 10 characters. A workflow reopens it otherwise.
+A merged PR that closes an issue ("Fixes #N") needs no extra comment.
 
 ## Reporting a problem
 
