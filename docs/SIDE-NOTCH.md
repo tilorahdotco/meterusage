@@ -152,7 +152,7 @@ saved font-size choice or the rail. Static exports retain all metrics and full
 period/burn data. Recorded activity headings and
 Recorded sessions/messages labels distinguish telemetry from account/local
 summary counts. Static shared cards omit footer actions, reset buttons and the
-heatmap selector while retaining credit details and the 26 weeks label. They
+heatmap selector while retaining credit details and the week-count label. They
 also omit the unused hover readout space. Export width, full-height sizing and
 frozen selected-account behavior retain their existing implementation. Native
 export completeness remains a separate check.
