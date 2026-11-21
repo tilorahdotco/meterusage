@@ -64,7 +64,7 @@ Stage 1 sets these platform rules:
   toggle writes or removes the XDG autostart entry
   `$XDG_CONFIG_HOME/autostart/dev.meterusage.app.desktop`. `Exec` starts the
   AppImage file when `APPIMAGE` names an existing absolute file, and otherwise
-  the executable. A path with `"`, `` ` ``, `$`, `\`, `%` or a control
+  the executable. A path with `"`, `` ` ``, `$`, `\`, `%`, `=` or a control
   character is refused, so it never needs desktop-entry escaping.
 - **Headless JSON.** Chromium picks its display platform before app code runs,
   so `meterusage json` needs an X or Wayland display. On a server or over SSH,
