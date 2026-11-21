@@ -1341,3 +1341,16 @@ it("dates reset credit expiry in the reset line's style", () => {
   q.resetCredits = [{ id: "c", title: "Full reset", status: "available", expiresAt: expires }]; view.snapshot.quotas.codex = value(q);
   expect(renderApp(view)).toContain(`Available · Expires ${new Date(expires).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}`);
 });
+
+it("takes the tab headline from the same effective windows as the notch strip", () => {
+  const view = state(); view.snapshot.activities = {};
+  const q = quota("openRouter", [], now); q.credits = { unit: "dollars", balance: 75, usedDollars: 25, limitDollars: 100 } as typeof q.credits;
+  view.snapshot.slots = [primary("codex"), primary("openRouter")]; view.snapshot.quotas.openRouter = value(q);
+  expect(renderToStaticMarkup(createElement(UsagePanel, { state: view, action: async () => {} }))).toContain('aria-label="OpenRouter, 25% of quota used"');
+});
+
+it("tints the rule meter for fast burn below 80% and keeps calm usage plain", () => {
+  const rule = (win: ReturnType<typeof window>) => renderToStaticMarkup(createElement(StyleContext.Provider, { value: "ledger" }, createElement(Meter, { w: win, now, pacing: true })));
+  expect(rule(window("5-hour", 50, now + 4 * 3600000, 300))).toContain('class="meter-fill" style="width:50%;background:var(--warn)"');
+  expect(rule(window("Weekly", 10, now + 3 * 86400000, 10080))).toContain('class="meter-fill" style="width:10%"');
+});

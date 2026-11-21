@@ -76,7 +76,8 @@ function Flap({ text, label }: { text: string; label?: string }) {
 }
 function MeterVisual({ kind, used, marker, colour }: { kind: MeterKind; used: number; marker?: number; colour: string }) {
   if (kind === "tape") return <>{segments(30, used, marker)}{marker !== undefined && <b className="meter-pace" style={{ left: `${marker}%` }} />}</>;
-  if (kind === "rule") return <><span className="meter-fill" style={{ width: `${used}%`, background: used >= 80 ? colour : undefined }} />{marker !== undefined && <b className="meter-pace" style={{ left: `${marker}%` }} />}</>;
+  // Rule keeps its plain ink fill while headroom is good; any warning colour (80%+ or fast burn) tints it.
+  if (kind === "rule") return <><span className="meter-fill" style={{ width: `${used}%`, background: colour === "var(--good)" ? undefined : colour }} />{marker !== undefined && <b className="meter-pace" style={{ left: `${marker}%` }} />}</>;
   if (kind === "orbit") return <>{marker !== undefined && <span className="meter-time" style={{ width: `${marker}%` }} />}<span className="meter-fill" style={{ width: `${used}%`, background: marker !== undefined && used > marker + 10 ? "var(--alert)" : undefined }} /></>;
   if (kind === "ascii") return <span className="meter-ascii" aria-hidden="true">[{asciiBar(used, marker, 24)}]</span>;
   if (kind === "flap") return <>{segments(12, used, marker)}</>;
@@ -518,8 +519,8 @@ export function UsagePanel({ state, action }: { state: ViewState; action: (r: Re
     <TabsList activateOnFocus aria-label="Usage provider" className="provider-tabs w-full justify-start overflow-x-auto group-data-horizontal/tabs:h-auto">{slots.map(item => {
       const digit = item.slotID ? slots.filter(s => s.provider === item.provider).indexOf(item) + 1 : undefined;
       const name = slotName(item) + (digit && !item.label ? ` ${digit}` : "");
-      // Same headline window as the menu bar and notch strip, so the tab, tray and strip never disagree.
-      const q = extract(state.snapshot.quotas[slotKey(item)]) ?? state.snapshot.archived[slotKey(item)], w = q && headlineWindow(item.provider, q.windows), used = w && Math.round(w.usedPercent);
+      // Same headline window as the notch strip (including OpenRouter's balance window), so tab and strip never disagree.
+      const q = extract(state.snapshot.quotas[slotKey(item)]) ?? state.snapshot.archived[slotKey(item)], w = q && headlineWindow(item.provider, effectiveWindows(q)), used = w && Math.round(w.usedPercent);
       return <TabsTrigger key={slotKey(item)} value={slotKey(item)} aria-label={used === undefined ? name : `${name}, ${used}% of quota used`} title={name} className="provider-tab h-auto flex-none flex-col gap-0.5 px-2 py-1"><span className="provider-tab-mark"><Mark slot={item} state={state} />{digit && <small>{digit}</small>}</span><span className="provider-tab-percent" aria-hidden="true" style={w ? { color: headroom(w.usedPercent) } : undefined}>{used === undefined ? "–" : `${used}%`}</span><i className="provider-tab-meter" aria-hidden="true">{w && <i style={{ width: `${clamp(w.usedPercent)}%`, background: headroom(w.usedPercent) }} />}</i></TabsTrigger>;
     })}</TabsList>
     <TabsContent value={slotKey(slot)}>{card}</TabsContent>
