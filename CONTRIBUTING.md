@@ -279,6 +279,8 @@ A pull request should include:
 Keep screenshots in demo mode so they contain no real account data. Preserve
 the MIT license and do not claim affiliation with Anthropic or OpenAI.
 
+Close an issue or PR only with a comment that gives the outcome (done and where, or why not). A workflow reopens it otherwise.
+
 ## Reporting a problem
 
 Use GitHub Issues for bugs and feature ideas. Include the macOS version, the
