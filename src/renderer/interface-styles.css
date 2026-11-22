@@ -64,6 +64,7 @@
 .trace-line { fill: none; stroke: var(--brand); stroke-width: 1.5; }
 .trace-area { fill: color-mix(in srgb, var(--brand) 18%, transparent); }
 .trace-cursor { stroke: var(--text); stroke-width: 1; stroke-dasharray: 2 2; }
+.trace-gap { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 2; }
 .strip-hits { position: absolute; inset: 0; display: flex; }
 .strip-hits > span { flex: 1 1 0; }
 /* The outer modifier is strip-kind-*, so it never matches the inner .strip-bars or .strip-spark rows. */

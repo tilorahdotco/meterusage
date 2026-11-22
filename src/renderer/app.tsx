@@ -147,8 +147,16 @@ function ActivityStrip({ kind, cells, label }: { kind: Exclude<ChartKind, "grid"
   else if (kind === "trace") {
     // Each day owns an equal slice, so the latest day is drawn and the cursor sits over its hit area.
     const width = 300, height = 60, slice = width / shown.length, y = (c: StripCell) => height - 3 - level(c) * (height - 8);
-    const path = `M0 ${y(shown[0]).toFixed(1)}` + shown.map((c, i) => `V${y(c).toFixed(1)}H${((i + 1) * slice).toFixed(1)}`).join("");
-    body = <>{quietBlock}<span className="strip-plot"><svg className="strip-trace" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true"><path className="trace-area" d={`${path}V${height}H0Z`} /><path className="trace-line" d={path} vectorEffect="non-scaling-stroke" />{active !== undefined && <line className="trace-cursor" x1={(active + .5) * slice} x2={(active + .5) * slice} y1="0" y2={height} vectorEffect="non-scaling-stroke" />}</svg><span className="strip-hits">{shown.map((c, i) => <span key={i} title={c.label} onPointerEnter={() => setActive(i)} />)}</span></span></>;
+    // Unavailable days break the line and get a dashed baseline, as the bars mark them, instead of plotting as zero.
+    const runs: { x0: number; d: string }[] = [];
+    shown.forEach((c, i) => {
+      if (c.amount === undefined) return;
+      const step = `V${y(c).toFixed(1)}H${((i + 1) * slice).toFixed(1)}`, last = runs.at(-1), start = +(i * slice).toFixed(1);
+      if (last && i > 0 && shown[i - 1].amount !== undefined) last.d += step; else runs.push({ x0: start, d: `M${start} ${y(c).toFixed(1)}${step}` });
+    });
+    const path = runs.map(r => r.d).join(""), area = runs.map(r => `${r.d}V${height}H${r.x0}Z`).join("");
+    const gaps = shown.map((c, i) => c.amount === undefined && <line key={i} className="trace-gap" x1={i * slice} x2={(i + 1) * slice} y1={height - .5} y2={height - .5} vectorEffect="non-scaling-stroke" />);
+    body = <>{quietBlock}<span className="strip-plot"><svg className="strip-trace" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true"><path className="trace-area" d={area} /><path className="trace-line" d={path} vectorEffect="non-scaling-stroke" />{gaps}{active !== undefined && <line className="trace-cursor" x1={(active + .5) * slice} x2={(active + .5) * slice} y1="0" y2={height} vectorEffect="non-scaling-stroke" />}</svg><span className="strip-hits">{shown.map((c, i) => <span key={i} title={c.label} onPointerEnter={() => setActive(i)} />)}</span></span></>;
   } else body = <>{quietBlock}<span className="strip-bars" style={{ gap: shown.length > 40 ? 0 : 2 }}>{shown.map((c, i) => <span key={i} title={c.label} className={`${c.amount === undefined ? "unavailable-day" : ""}${i === active ? " active" : ""}${i === shown.length - 1 ? " latest" : ""}`} onPointerEnter={() => setActive(i)}><i style={{ height: `${c.amount ? Math.max(4, level(c) * 100) : 0}%` }} /></span>)}</span></>;
   // A slider reads one day at a time in screen readers' focus mode; the visual readout repeats it for pointer users.
   return <><div className={`activity-strip strip-kind-${kind}`} role="slider" tabIndex={0} aria-label={`${label}${collapsed ? `, ${quietLabel} collapsed` : ""}`} aria-valuemin={1} aria-valuemax={shown.length} aria-valuenow={current + 1} aria-valuetext={shown[current]?.label} onKeyDown={move} onPointerLeave={() => setActive(undefined)} onBlur={() => setActive(undefined)}>{body}</div><div className="heatmap-readout" aria-hidden="true">{readout ? <span>{readout}</span> : <span className="secondary">{shown.length} day{shown.length === 1 ? "" : "s"} shown</span>}</div></>;

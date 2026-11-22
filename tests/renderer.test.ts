@@ -1264,6 +1264,10 @@ it("draws strip days without overflow, inventing light use or hiding the latest 
   const trace = strip("trace", [...Array(9).fill(0), 7]);
   expect(trace).toContain("9 quiet days");
   expect(trace).toMatch(/d="M0 [\d.]+V[\d.]+H300\.0"/);
+  const gap = strip("trace", [5, undefined, 5]);
+  expect(gap).toMatch(/class="trace-line" d="M0 5\.0V5\.0H100\.0M200 5\.0V5\.0H300\.0"/);
+  expect(gap).toMatch(/class="trace-area" d="M0 5\.0V5\.0H100\.0V60H0ZM200 5\.0V5\.0H300\.0V60H200Z"/);
+  expect(gap).toMatch(/<line class="trace-gap" x1="100" x2="200"/);
   expect(strip("bars", [undefined, undefined])).toContain("Activity unavailable");
   expect(strip("bars", [...Array(20).fill(0), 4])).toContain("2 weeks 6 days quiet");
   expect(strip("bars", [...Array(21).fill(0), 4])).toContain("3 quiet weeks");
@@ -1341,7 +1345,8 @@ it("dates reset credit expiry in the reset line's style", () => {
   q.resetCredits = [{ id: "c", title: "Full reset", status: "available", expiresAt: expires }]; view.snapshot.quotas.codex = value(q);
   const markup = renderApp(view);
   expect(markup.replace(/<span class="nowrap">([^<]*)<\/span>/g, "$1")).toContain(`Available · Expires ${new Date(expires).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}`);
-  expect(markup).toMatch(/Expires [A-Za-z]+, <span class="nowrap">[A-Z][a-z]{2} \d{1,2}<\/span>/);
+  // Locale-independent: the date text sits after "Expires", and in English its "Nov 30" part is wrapped whole.
+  if (/[A-Z][a-z]{2} \d{1,2}/.test(new Date(expires).toLocaleDateString([], { month: "short", day: "numeric" }))) expect(markup).toMatch(/Expires [^<]*<span class="nowrap">[A-Z][a-z]{2} \d{1,2}<\/span>/);
 });
 
 it("takes the tab headline from the same effective windows as the notch strip", () => {
