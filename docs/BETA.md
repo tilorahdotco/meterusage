@@ -52,7 +52,7 @@ grep -F 'MeterUsage-0.3.0-beta.26-mac-arm64.zip' SHA256SUMS | shasum -a 256 -c -
 Expected ZIP SHA-256:
 
 ```text
-f1ee03d410144f2eb89d2b4e8654ef9686eaa09a5bd68b8a6c359c2e0f27a07c
+6d7b50d69f75cb4d1d314d45059daf859d1e1ef41536d05ccbae7880f12fbd0d
 ```
 
 ## Provider coverage
@@ -91,9 +91,8 @@ f1ee03d410144f2eb89d2b4e8654ef9686eaa09a5bd68b8a6c359c2e0f27a07c
 - OpenAI API and Anthropic API billing use separate owner-only snapshots.
   Settings → API connections can reuse a provider's fixed legacy Keychain
   Admin key or accept a masked one-time Admin key. Original saved keys are
-  preserved and newly pasted keys are not saved in beta 20. Current source adds
-  a **Save key in macOS Keychain** option, selected by default, to save a pasted
-  key after a successful fetch; that fix is not included in beta 20. OpenRouter keeps its existing
+  preserved. Since beta 26, a **Save key in macOS Keychain** option, selected
+  by default, saves a pasted key after a successful fetch. OpenRouter keeps its existing
   balance and aggregate activity source. Read [API setup and limits](API_USAGE_BETA.md).
 
 See [source choices](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/electron/README.md#source-choices),
@@ -261,7 +260,14 @@ Data and settings are in `%APPDATA%\MeterUsage`. Uninstall from **Settings →
 Apps**; app data is kept. Later Windows pre-releases install through the
 in-app updater (digest-verified, unsigned; [ADR 0039](adr/0039-windows-updater.md)).
 
-Beta.20's Windows assets were built from `7e6f0bb` by the **Windows release
+Beta.26's Windows assets were built from `7e6f0bb` by the **Windows release
+build** workflow
+([run 44965492395](https://github.com/tilorahdotco/meterusage/actions/runs/44965492395)).
+On a GitHub `windows-latest` runner, it passed typecheck, 711 Windows tests
+(11 skipped), packaging, packaged-app smoke tests, and the silent install,
+update handoff and uninstall check.
+
+Beta.20's Windows assets were built from `f25f7c8` by the **Windows release
 build** workflow
 ([run 42341011274](https://github.com/tilorahdotco/meterusage/actions/runs/42341011274)).
 On a GitHub `windows-latest` runner, it passed typecheck, 675 Windows tests
