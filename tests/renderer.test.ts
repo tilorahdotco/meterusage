@@ -1354,3 +1354,11 @@ it("tints the rule meter for fast burn below 80% and keeps calm usage plain", ()
   expect(rule(window("5-hour", 50, now + 4 * 3600000, 300))).toContain('class="meter-fill" style="width:50%;background:var(--warn)"');
   expect(rule(window("Weekly", 10, now + 3 * 86400000, 10080))).toContain('class="meter-fill" style="width:10%"');
 });
+
+it("marks the scroll root per surface so only the usage panel hides its scrollbar", () => {
+  const view = state(), css = readFileSync("src/renderer/style.css", "utf8");
+  expect(renderApp(view)).toMatch(/class="[^"]*\bpanel-viewport viewport-flyout\b/);
+  expect(renderApp(view, "settings")).toMatch(/class="[^"]*\bpanel-viewport viewport-settings\b/);
+  expect(css).toContain('.viewport-flyout > [data-slot="scroll-area-scrollbar"] { display: none; }');
+  expect(css).not.toContain(".viewport-settings");
+});
