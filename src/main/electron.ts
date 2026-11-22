@@ -27,6 +27,8 @@ import { notchFrame, cardOnRight, stripWidth, cardWidth, minimumShareSize, flyou
 import { trayTooltip } from "../domain/overview";
 
 const shareCardWidth = 250;
+/** Usage-panel width in points at Medium; Small and Large scale it (324 and 414). */
+const flyoutWidth = 360;
 const windowsShell = process.platform === "win32", linuxShell = process.platform === "linux", macShell = process.platform === "darwin";
 const portableUpdate = "This copy of MeterUsage cannot update itself. Download the Windows installer from the GitHub release.";
 
@@ -191,7 +193,7 @@ async function start(launch: Launch) {
     const existing = windows.get(surface); if (existing && !existing.isDestroyed()) return existing;
     const panel = surface === "notch", trayImage = surface === "tray", shareImage = surface === "share";
     if (surface === "settings") settingsHeight = undefined;
-    const w = new BrowserWindow({ width: shareImage ? shareCardWidth * 2 : trayImage ? 1000 : panel ? stripWidth : surface === "settings" ? 1040 : Math.round(420 * panelScale()), height: trayImage ? 22 : panel ? notchHeight : surface === "settings" ? 680 : Math.ceil(flyoutHeight * panelScale()), show: false, frame: surface === "settings", transparent: panel || trayImage || shareImage, resizable: surface === "settings", minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, ...(panel ? { ...(macShell ? { type: "panel" } : {}), focusable: false, hasShadow: false } : {}), title: surface === "settings" ? "MeterUsage Settings" : "MeterUsage", backgroundColor: panel || trayImage || shareImage ? "#00000000" : "#242428", webPreferences: { preload: join(__dirname, "../preload/preload.cjs"), offscreen: trayImage || shareImage, zoomFactor: shareImage ? 2 : 1, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
+    const w = new BrowserWindow({ width: shareImage ? shareCardWidth * 2 : trayImage ? 1000 : panel ? stripWidth : surface === "settings" ? 1040 : Math.round(flyoutWidth * panelScale()), height: trayImage ? 22 : panel ? notchHeight : surface === "settings" ? 680 : Math.ceil(flyoutHeight * panelScale()), show: false, frame: surface === "settings", transparent: panel || trayImage || shareImage, resizable: surface === "settings", minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, ...(panel ? { ...(macShell ? { type: "panel" } : {}), focusable: false, hasShadow: false } : {}), title: surface === "settings" ? "MeterUsage Settings" : "MeterUsage", backgroundColor: panel || trayImage || shareImage ? "#00000000" : "#242428", webPreferences: { preload: join(__dirname, "../preload/preload.cjs"), offscreen: trayImage || shareImage, zoomFactor: shareImage ? 2 : 1, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
     if (trayImage) { w.webContents.setFrameRate(10); w.webContents.on("paint", (_event, _rect, image) => { if (!tray.isDestroyed() && trayWidth > 0) tray.setImage(image); }); }
     if (shareImage) {
       w.webContents.setFrameRate(10);
@@ -250,7 +252,7 @@ async function start(launch: Launch) {
     const w = windows.get("flyout"); if (!w || w.isDestroyed()) return;
     const bounds = w.getBounds(), work = screen.getDisplayMatching(bounds).workArea;
     // The panel never fills the display: beyond 70% of the work area its content scrolls between the pinned header and footer.
-    const width = Math.min(Math.round(420 * panelScale()), work.width), height = Math.min(Math.ceil(flyoutHeight * panelScale()), Math.round(work.height * flyoutMaxScreenShare));
+    const width = Math.min(Math.round(flyoutWidth * panelScale()), work.width), height = Math.min(Math.ceil(flyoutHeight * panelScale()), Math.round(work.height * flyoutMaxScreenShare));
     // A bottom taskbar anchors the flyout's lower edge, so content height changes grow it upward.
     w.setBounds({ x: Math.round(Math.min(Math.max(bounds.x, work.x), work.x + work.width - width)), y: flyoutBottom ? work.y + work.height - height : Math.round(Math.min(Math.max(bounds.y, work.y), work.y + work.height - height)), width, height }, false);
   }
