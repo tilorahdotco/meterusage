@@ -6,6 +6,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## 2026-11-21
 
+- Publish 0.3.0-beta.26, build 97, for macOS and Windows from `7e6f0bb`, and pin installs and docs to it. Versions beta.21 to beta.25 were local test builds and were never published.
 - Record native macOS demo checks of the new usage panel, all eight styles and the side-notch anchor, and document how to capture the demo app from an SSH session. Internal. Nothing changes for you.
 - The usage panel shows each provider's usage on its tab, under the unchanged
   provider mark, so you can spot the provider closest to its limit without
@@ -17,7 +18,7 @@ follows [Semantic Versioning](https://semver.org/).
   12 weeks stay), and the 30-day line moves under More activity when the heatmap
   is on. Settings → Connections shows one status chip and one source line per
   provider, with the same row for Muse Code and OpenCode Go. Checked in the
-  browser demo only; not yet checked on macOS.
+  browser demo and in the native macOS demo app.
 - MeterUsage now starts on Linux instead of exiting with "currently support
   macOS and Windows only" (ADR 0050, stage 1). It runs in the system tray with
   a menu, keeps settings in `~/.config/MeterUsage` (or `$XDG_CONFIG_HOME/MeterUsage`

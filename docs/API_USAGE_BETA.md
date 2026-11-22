@@ -18,8 +18,8 @@ its own period. Refresh rereads the file; it does not fetch billing or make an
 old snapshot fresh. Anthropic's cost report excludes Priority Tier costs. Neither
 provider's report replaces its dashboard or invoice.
 
-The macOS Keychain save option below is an unreleased source change,
-not included in beta 20. See [ADR 0047](adr/0047-opt-in-api-key-saving.md).
+The macOS Keychain save option below ships in beta 26 and later. See
+[ADR 0047](adr/0047-opt-in-api-key-saving.md).
 
 ## OpenAI remaining balance
 

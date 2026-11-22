@@ -44,8 +44,8 @@ if [ "$(uname -m)" != arm64 ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null ||
 fi
 
 # Pin the reviewed release and digest together; never fall back to a build.
-RELEASE_VERSION="0.3.0-beta.20"
-RELEASE_SHA256="f1ee03d410144f2eb89d2b4e8654ef9686eaa09a5bd68b8a6c359c2e0f27a07c"
+RELEASE_VERSION="0.3.0-beta.26"
+RELEASE_SHA256="6d7b50d69f75cb4d1d314d45059daf859d1e1ef41536d05ccbae7880f12fbd0d"
 RELEASE_URL="https://github.com/tilorahdotco/meterusage/releases/download/v${RELEASE_VERSION}/MeterUsage-${RELEASE_VERSION}-mac-arm64.zip"
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/meterusage-download.XXXXXX")"
 STAGING_DIR=""

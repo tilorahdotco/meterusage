@@ -10,7 +10,7 @@ download. Historical Swift source and releases remain available for recovery.
 
 ## Download
 
-[Download MeterUsage 0.3.0-beta.20, build 90](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.20/MeterUsage-0.3.0-beta.20-mac-arm64.zip)
+[Download MeterUsage 0.3.0-beta.26, build 97](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.26/MeterUsage-0.3.0-beta.26-mac-arm64.zip)
 for Apple silicon, macOS 13 or later. This is a **beta**, Developer ID signed
 and notarized. See [installation and known limits](docs/BETA.md).
 
@@ -30,14 +30,14 @@ on 2026-11-01. Beta 12 and later accept updates from it. Apps that updated to be
 
 ### Windows (unsigned pre-release)
 
-[Download MeterUsage 0.3.0-beta.20 for Windows](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.20/MeterUsage-0.3.0-beta.20-win-x64.exe)
-(x64 per-user installer; a [portable zip and `SHA256SUMS`](https://github.com/tilorahdotco/meterusage/releases/tag/v0.3.0-beta.20)
+[Download MeterUsage 0.3.0-beta.26 for Windows](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.26/MeterUsage-0.3.0-beta.26-win-x64.exe)
+(x64 per-user installer; a [portable zip and `SHA256SUMS`](https://github.com/tilorahdotco/meterusage/releases/tag/v0.3.0-beta.26)
 are on the release page). This build is **unsigned**: SmartScreen shows "Windows
 protected your PC". Choose **More info → Run anyway** only after the file's
 SHA-256 matches `SHA256SUMS`. There is no Windows test PC. A GitHub Actions
 Windows runner tested this exact build; desktop account connections, real
 accounts, real upgrades and many native behaviors remain unverified on a real
-PC. See [Windows beta notes](docs/BETA.md#windows-beta-20) and
+PC. See [Windows beta notes](docs/BETA.md#windows-beta-26) and
 [ADR 0038](docs/adr/0038-windows-ci-test-machine.md).
 
 ### Linux (build from source, preview)
@@ -90,7 +90,7 @@ reordering and readable token totals. Account coverage depends on the source.
 The beta also includes Antigravity Desktop allowance, Grok Bot Desktop (Beta),
 key-free OpenCode Go local setup and separate [API billing](docs/API_USAGE_BETA.md)
 under Settings → API connections. Reuse a saved Admin key or enter a
-one-time key. **Unreleased source change, not included in beta 20:** on macOS,
+one-time key. Since beta 26, on macOS,
 **Save key in macOS Keychain** starts selected, so a pasted key is saved for reuse
 after a successful fetch. Clear it to use the key once. OpenRouter retains its existing balance
 and activity integration. Desktop compatibility and billing coverage vary;
@@ -166,13 +166,13 @@ All nine provider adapters exist in the Electron source and the legacy Swift sou
 Codex, Claude Code, Antigravity, OpenRouter, Grok, OpenCode Go, Cursor, Copilot
 CLI and Gemini CLI. Their inputs and available measurements differ. The
 [Swift provider matrix](legacy/swift/README.md#provider-matrix) describes existing
-CLI/local collection. The [Electron source choices](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/electron/README.md#source-choices)
+CLI/local collection. The [Electron source choices](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/electron/README.md#source-choices)
 also describe optional Codex browser sign-in and Claude Desktop allowance.
 
 Local activity covers this Mac. Provider-reported account data has its own
 coverage limits. Missing tokens remain unknown. Local token costs are estimates; optional API
 billing cards label provider-reported amounts separately. Provider dashboards
-remain the billing source of record. Read the [beta privacy contract](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/PRIVACY.md)
+remain the billing source of record. Read the [beta privacy contract](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/PRIVACY.md)
 for Electron or the [retained Swift reporting privacy contract](docs/PRIVACY.md#legacy-swift-source-diagnostic-reports) before changing a
 data source or sharing screenshots.
 
@@ -190,11 +190,11 @@ acceptance or verify Swift upgrade/rollback. See [ADR 0034](docs/adr/0034-electr
 - [Beta download, verification and limits](docs/BETA.md)
 - [Current beta screenshots](docs/SCREENSHOTS.md)
 - [Historical Swift recovery reference](legacy/swift/README.md)
-- [Electron guide and known gaps](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/electron/README.md)
+- [Electron guide and known gaps](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/electron/README.md)
 - [Versions and staged Swift retirement](docs/VERSIONS.md)
 - [Contributing](CONTRIBUTING.md)
 - [Project knowledge](docs/KB.md) and [decision index](docs/adr/README.md)
-- [Desktop connections](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/DESKTOP-CONNECTIONS.md), [demo mode](docs/DEMO.md)
+- [Desktop connections](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/DESKTOP-CONNECTIONS.md), [demo mode](docs/DEMO.md)
   and [side notch](docs/SIDE-NOTCH.md)
 - [Concept mockups](docs/mockups/README.md) and [changelog](CHANGELOG.md)
 
@@ -207,11 +207,11 @@ the Swift guide; product screenshots now show the Electron beta.
 See [downloads](#download).
 
 <a id="macos-electron-migration-candidate"></a>
-See the [Electron candidate guide](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/electron/README.md).
+See the [Electron candidate guide](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/electron/README.md).
 
 <a id="second-accounts"></a>
 See [Swift additional local accounts](legacy/swift/README.md#second-accounts) and
-[Electron advanced local accounts](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/electron/README.md#advanced-local-accounts).
+[Electron advanced local accounts](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/electron/README.md#advanced-local-accounts).
 
 <a id="requirements"></a>
 See [beta requirements](docs/BETA.md#install).
@@ -221,7 +221,7 @@ See [contributor setup](CONTRIBUTING.md).
 
 <a id="agent-budget-cli"></a>
 See the [Swift Agent Budget CLI](legacy/swift/README.md#agent-budget-cli) and
-[Electron commands](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/electron/README.md#build-and-test).
+[Electron commands](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/electron/README.md#build-and-test).
 
 <a id="showcase"></a><a id="-showcase"></a>
 <a id="ambient-time-to-empty--side-notch-hud"></a>
@@ -244,7 +244,7 @@ See [installation](#installation).
 
 <a id="report-a-problem"></a>
 See [beta diagnostics and bug reports](docs/BETA.md#known-limits) and the
-[beta reporting guide](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.20/docs/REPORTING.md).
+[beta reporting guide](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.26/docs/REPORTING.md).
 
 <a id="-tldr"></a><a id="tldr"></a>
 See [downloads](#download).
