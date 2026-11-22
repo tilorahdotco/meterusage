@@ -1,6 +1,6 @@
 # Project knowledge
 
-Release documentation refresh: 2026-11-21 for build 99.
+Release documentation refresh: 2026-11-22 for build 100.
 
 ## Contributor checks
 
@@ -34,7 +34,7 @@ Release documentation refresh: 2026-11-21 for build 99.
   `legacy/swift/` and removes them from CI. Historical Swift releases remain
   recovery/reference material. Deletion is still pending. Required Swift
   helpers (`Scripts/electron/*.swift`) and shared `Resources/` assets stay.
-- `Scripts/make-app.sh` pins [Electron 0.3.0-beta.28, build 99](BETA.md), its
+- `Scripts/make-app.sh` pins [Electron 0.3.0-beta.29, build 100](BETA.md), its
   `-mac-arm64.zip` filename and SHA-256. It verifies the download and staged
   signature before replacement, preserves the published signature, and never
   falls back to a compiler. Preparing output does not install the app.
