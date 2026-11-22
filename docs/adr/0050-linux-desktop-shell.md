@@ -1,6 +1,6 @@
 # ADR 0050: Add the Linux desktop shell with CI as the test machine
 
-- Status: Stage 1 source implementation; CI package and smoke job; no published Linux build; real-desktop acceptance pending
+- Status: Stage 1 implemented; first Linux pre-release published (0.3.0-beta.28); updater, desktop connections and real-desktop acceptance pending
 - Date: 2026-11-21
 - Amends: [ADR 0038](0038-windows-ci-test-machine.md) ("Linux remains
   unsupported for the desktop shell")
@@ -115,3 +115,17 @@ limited to what the CI job records until someone tests a real Linux desktop.
   `tests/macos-host.ts`. On a Linux host they would otherwise take the Linux
   branches. `tests/linux.test.ts` covers the Linux branches on every host.
 - No Linux build is published until stage 4.
+
+## Amendment (2026-11-21): first Linux pre-release
+
+The owner chose to publish Linux before stages 2 and 3, under stage 4's
+condition that the CI smoke run passes. 0.3.0-beta.28, build 99, ships an
+unsigned `MeterUsage-<version>-linux-x64.AppImage` and `.tar.gz` in the same
+release and `SHA256SUMS` as macOS and Windows. The packages were built from the
+release commit on an x64 Linux host with the release version and build, passed
+`Scripts/electron/linux-smoke.sh` on Xvfb with the sandbox on, and the AppImage
+produced a demo JSON report. Linux still has no updater: macOS and Windows
+updaters match only their own asset names, so the Linux files do not affect
+them. Release notes and the README state the missing updater, the unsupported
+Desktop connections, the FUSE 2 and sandbox requirements, and that no real
+Linux desktop has tested the build.

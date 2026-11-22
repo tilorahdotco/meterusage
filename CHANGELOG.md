@@ -6,6 +6,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## 2026-11-21
 
+- Publish 0.3.0-beta.28, build 99, for macOS, Windows and Linux from `5a0551a`. It is the first published Linux build: an unsigned AppImage and tar.gz with no in-app updates. Pin installs and docs to it and add a Linux download section (ADR 0050 amendment).
 - The usage panel no longer shows a scrollbar when its content is taller than the panel. It still scrolls with the trackpad, mouse wheel or keyboard.
 - Publish 0.3.0-beta.27, build 98, for macOS and Windows from `6c96d04` (narrower usage panel), and pin installs and docs to it.
 - The usage panel is narrower: 360 points at Medium instead of 420 (324 at Small, 414 at Large). All nine provider tabs still fit without scrolling.
