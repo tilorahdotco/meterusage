@@ -6,6 +6,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## 2026-11-21
 
+- Record native macOS demo checks of the new usage panel, all eight styles and the side-notch anchor, and document how to capture the demo app from an SSH session. Internal. Nothing changes for you.
 - The usage panel shows each provider's usage on its tab, under the unchanged
   provider mark, so you can spot the provider closest to its limit without
   clicking through tabs. Meters now say "Runs out in ~42m" only for a forecast

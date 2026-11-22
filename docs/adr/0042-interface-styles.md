@@ -1,6 +1,6 @@
 # ADR 0042: Selectable interface styles
 
-- Status: Accepted implementation direction; browser demo captures taken, native acceptance pending
+- Status: Accepted implementation direction; browser and native macOS demo captures taken, per-style native notch and Windows checks pending
 - Date: 2026-11-02
 
 ## Context
@@ -61,5 +61,13 @@ visibility, the quiet-week collapse and the service status row. Browser demo
 captures cover the flyout, notch and Settings for every style, plus Ledger in
 Light. Native window chrome still follows Theme: changing `nativeTheme` for a
 style could also change the tray reading of the system appearance, so a Light
-Theme with a fixed dark style keeps a light Settings title bar. Native Electron captures of two providers with different card heights
-(ADR 0004), and a Windows check, remain separate acceptance gates.
+Theme with a fixed dark style keeps a light Settings title bar.
+
+On 2026-11-21 the unpackaged Electron app from main `07b2a25` ran in demo mode
+on macOS 27.2.1 (arm64). Native captures cover the usage panel in all eight
+styles, Classic in Light, Settings → Connections, and the Classic side notch
+with Codex (832 px) and Claude (558 px) detail cards. The strip's top-right
+corner stayed at the same screen point collapsed and with either card open
+(ADR 0004). The captures show window content through Chromium DevTools, without
+window chrome or the menu bar. Native notch captures for the other seven styles
+and a Windows check remain separate acceptance gates.

@@ -43,6 +43,25 @@ for relaunch checks. Preferences, caches, history and Electron state stay there.
 Live provider discovery, login-item changes and update installation are disabled.
 Demo reset confirmation consumes only synthetic fixture credits.
 
+### Native captures from an SSH session
+
+`screencapture` cannot read the display from an SSH session. Start the
+unpackaged app through Launch Services and capture each window's content over
+Chromium DevTools instead. Use this only with a demo profile, because the
+DevTools port exposes the renderer to local processes while the app runs:
+
+```sh
+open -n -a "$PWD/node_modules/electron/dist/Electron.app" --args "$PWD" \
+  --demo --candidate-profile "$PWD/.demo-profile" --remote-debugging-port=9333
+```
+
+`http://127.0.0.1:9333/json/list` lists one page per surface (`?surface=settings`,
+`flyout`, `notch`). `Page.captureScreenshot` returns its content without window
+chrome. Finish onboarding in Settings to open the usage panel. The side notch
+folds about 0.5 s after `notchSelect` when the pointer is elsewhere, so capture
+right after selecting a provider. If `node_modules/electron/dist` is missing
+after installation, run `node node_modules/electron/install.js`.
+
 ## Swift legacy demo
 
 From the legacy Swift source in `legacy/swift/` on macOS, run from the repository root:
