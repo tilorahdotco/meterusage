@@ -18,7 +18,7 @@ Part of [project knowledge](../KB.md). Product summary, version pins, published 
 
 - 0.3.0-beta.16, build 86, was published on 2026-11-02 for macOS and Windows in one release from `73ce30b` (Windows workflow run 41474197722; macOS built, signed and notarized on the Mac). One LF `SHA256SUMS` lists the macOS ZIP (`44d34e6c…87fe51`), the unsigned Windows installer (`07f5937b…5b1c8a`) and the portable zip (`197be91b…30b903`). Later releases follow this combined pattern.
 
-- 0.3.0-beta.28, build 99, was published on 2026-11-21 for macOS, Windows and Linux from `5a0551a` (hidden usage-panel scrollbar #142; first published Linux build #136; Windows workflow run 44972303767; Linux packages built on an x64 Linux host and smoke-tested on Xvfb). `SHA256SUMS`: macOS ZIP `c5f8a73b…537bc0`, Windows installer `86aa0cdd…9802b4`, portable zip `040b8195…f5c7`, Linux AppImage `60a2504b…02e9b9`, tar.gz `1bc0a5e6…385044`.
+- 0.3.0-beta.28, build 99, was published on 2026-11-21 for macOS, Windows and Linux from `5a0551a` (hidden usage-panel scrollbar #142; first published Linux build #136; Windows workflow run 44972303767; Linux packages built on an x64 Linux host and smoke-tested on Xvfb). `SHA256SUMS`: macOS ZIP `c5f8a73b…537bc0`, Windows installer `86aa0cdd…9802b4`, portable zip `040b8195…cbf5c7`, Linux AppImage `60a2504b…05e9b9`, tar.gz `1bc0a5e6…385044`.
 
 - 0.3.0-beta.27, build 98, was published on 2026-11-21 for macOS and Windows from `6c96d04` (usage panel narrowed to 360 points #140; Windows workflow run 44969605397). `SHA256SUMS`: macOS ZIP `7280835d…ca6e18`, Windows installer `517cdf07…63eb46`, portable zip `0ed123a4…e9f79`.
 
