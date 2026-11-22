@@ -2,7 +2,7 @@
 
 Part of [project knowledge](../KB.md). Linux paths, shell, packaging, tests and CI.
 
-- [ADR 0050](../adr/0050-linux-desktop-shell.md) adds the Linux desktop shell in stages, with the `ubuntu-latest` CI runner and Xvfb as the only test machine. Stage 1 (foundation, shell, packages, CI smoke) is source-implemented. No Linux build is published, and no real Linux desktop has accepted it.
+- [ADR 0050](../adr/0050-linux-desktop-shell.md) adds the Linux desktop shell in stages, with the `ubuntu-latest` CI runner and Xvfb as the only test machine. Stage 1 (foundation, shell, packages, CI smoke) is implemented, and 0.3.0-beta.28, build 99, is the first published Linux pre-release (unsigned AppImage and tar.gz, built on an x64 Linux host and smoke-tested on Xvfb). Stages 2 (updater) and 3 (desktop connections) are not implemented, and no real Linux desktop has accepted it.
 
 - Linux app data is `$XDG_CONFIG_HOME/MeterUsage`. `$XDG_CONFIG_HOME` is used only when it is absolute and under the home folder; otherwise `~/.config`. `localRoot` equals `supportRoot` on Linux. `launchConfiguration` records `platform: "linux"` and, for GUI launches, accepts Electron's validated singleton links in a candidate profile (as on macOS), so a second launch activates the running app. The Linux `minimalEnvironment` for live test profiles keeps `DBUS_SESSION_BUS_ADDRESS` and `XDG_RUNTIME_DIR` when set. Linux branches read `launch.platform` (preferences, connections, updater). Installed Linux preferences use `preferences.json` through the Windows/test JSON writer.
 
