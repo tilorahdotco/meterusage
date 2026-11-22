@@ -320,7 +320,7 @@ it("hides reset actions for allowance-only sources while retaining earned credit
   for (const capability of [undefined, false, true]) {
     q.canConsumeReset = capability;
     for (const surface of ["flyout", "notch", "share"]) {
-      const markup = renderApp(view, surface); expect(markup).toContain("1 earned reset credits");
+      const markup = renderApp(view, surface); expect(markup).toContain("1 earned reset credit");
       expect(markup.includes("Use reset")).toBe(capability === true && surface !== "share");
     }
   }
@@ -657,7 +657,7 @@ it("keeps static exports free of actions and selectors while retaining credit an
     expect(live).toContain(action); expect(exported).not.toContain(action);
   }
   expect(exported).not.toMatch(/<(button|select)\b/);
-  for (const data of ["1 earned reset credits", "Full reset", "Available", "Expires", "12 weeks · 14 quiet weeks hidden", "1,234,567 tokens, 2 sessions", "80%<small> used</small>"]) {
+  for (const data of ["1 earned reset credit", "Full reset", "Available", "Expires", "12 weeks · 14 quiet weeks hidden", "1,234,567 tokens, 2 sessions", "80%<small> used</small>"]) {
     expect(live).toContain(data); expect(exported).toContain(data);
   }
 });
@@ -1245,7 +1245,7 @@ it("collapses quiet weeks into one labelled block in strip-chart styles", () => 
   view.snapshot.quotaActivity = { codex: [3, 2, 1, 0].map(ago => ({ day: shiftDay(today, -ago), percent: 10 + ago })) };
   const render = (style: "classic" | "ledger" | "flightDeck" | "terminal") => renderToStaticMarkup(createElement(StyleContext.Provider, { value: style }, createElement(ProviderCard, { slot: primary("codex"), state: view, action: async () => {} })));
   expect(render("classic")).toContain("heatmap-cell");
-  for (const [style, kind] of [["ledger", "bars"], ["flightDeck", "trace"], ["terminal", "spark"]] as const) {
+  for (const [style, kind] of [["ledger", "trace"], ["flightDeck", "trace"], ["terminal", "spark"]] as const) {
     const markup = render(style);
     expect(markup).toContain(`activity-strip strip-kind-${kind}`);
     expect(markup).not.toContain("heatmap-cell");
@@ -1264,6 +1264,10 @@ it("draws strip days without overflow, inventing light use or hiding the latest 
   const trace = strip("trace", [...Array(9).fill(0), 7]);
   expect(trace).toContain("9 quiet days");
   expect(trace).toMatch(/d="M0 [\d.]+V[\d.]+H300\.0"/);
+  const gap = strip("trace", [5, undefined, 5]);
+  expect(gap).toMatch(/class="trace-line" d="M0 5\.0V5\.0H100\.0M200 5\.0V5\.0H300\.0"/);
+  expect(gap).toMatch(/class="trace-area" d="M0 5\.0V5\.0H100\.0V60H0ZM200 5\.0V5\.0H300\.0V60H200Z"/);
+  expect(gap).toMatch(/<line class="trace-gap" x1="100" x2="200"/);
   expect(strip("bars", [undefined, undefined])).toContain("Activity unavailable");
   expect(strip("bars", [...Array(20).fill(0), 4])).toContain("2 weeks 6 days quiet");
   expect(strip("bars", [...Array(21).fill(0), 4])).toContain("3 quiet weeks");
@@ -1339,7 +1343,10 @@ it("folds healthy service status into one line that keeps each status-page link"
 it("dates reset credit expiry in the reset line's style", () => {
   const view = state(), q = quota("codex", [], now), expires = now + 3 * 86400000; q.resetCreditCount = 1;
   q.resetCredits = [{ id: "c", title: "Full reset", status: "available", expiresAt: expires }]; view.snapshot.quotas.codex = value(q);
-  expect(renderApp(view)).toContain(`Available · Expires ${new Date(expires).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}`);
+  const markup = renderApp(view);
+  expect(markup.replace(/<span class="nowrap">([^<]*)<\/span>/g, "$1")).toContain(`Available · Expires ${new Date(expires).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}`);
+  // Locale-independent: the date text sits after "Expires", and in English its "Nov 30" part is wrapped whole.
+  if (/[A-Z][a-z]{2} \d{1,2}/.test(new Date(expires).toLocaleDateString([], { month: "short", day: "numeric" }))) expect(markup).toMatch(/Expires [^<]*<span class="nowrap">[A-Z][a-z]{2} \d{1,2}<\/span>/);
 });
 
 it("takes the tab headline from the same effective windows as the notch strip", () => {
@@ -1361,4 +1368,25 @@ it("marks the scroll root per surface so only the usage panel hides its scrollba
   expect(renderApp(view, "settings")).toMatch(/class="[^"]*\bpanel-viewport viewport-settings\b/);
   expect(css).toContain('.viewport-flyout > [data-slot="scroll-area-scrollbar"] { display: none; }');
   expect(css).not.toContain(".viewport-settings");
+});
+
+it("wraps narrow meter notes and labels between phrases, never inside a date or countdown", () => {
+  const render = (win: ReturnType<typeof window>) => renderToStaticMarkup(createElement(Meter, { w: win, now, pacing: true }));
+  const calm = render(window("Weekly · All models", 10, now + 3 * 86400000, 10080));
+  expect(calm).toContain('<span class="nowrap">Weekly</span> · <span class="nowrap">All models</span>');
+  expect(calm).toMatch(/<span class="reset-line"[^>]*><span class="nowrap">resets [A-Za-z]+,<\/span>/);
+  expect(calm).toContain('<span class="nowrap">(in 3d)</span>');
+  const css = readFileSync("src/renderer/style.css", "utf8"), styles = readFileSync("src/renderer/interface-styles.css", "utf8");
+  expect(css).toContain(".quota-window .runs-out { color: var(--warn); font-weight: 600; white-space: nowrap; }");
+  expect(css).toContain(".quota-window .meter-note > span:not(.reset-line) { display: inline-block;");
+  // The quota-window wrapper also carries meter-ascii; a bare selector made Terminal notes nowrap and clipped them.
+  expect(styles).toContain(".meter > .meter-ascii { display: block; white-space: nowrap;");
+  expect(styles).not.toMatch(/^\.meter-ascii \{/m);
+});
+
+it("keeps the quiet-day count out of the strip readout and pluralises its day count", () => {
+  const strip = (amounts: number[]) => renderToStaticMarkup(createElement(ActivityHeatmap, { title: "Activity", scope: "Synthetic", label: "Test strip", chart: "trace", children: amounts.map((amount, i) => createElement(HeatmapCell, { key: i, amount, peak: 5, readout: `${amount}`, label: `Day ${i}` })) }));
+  const quiet = strip([...Array(21).fill(0), 4]);
+  expect(quiet).toContain("3 quiet weeks collapsed"); expect(quiet).toContain('<span class="secondary">1 day shown</span>');
+  expect(strip([1, 2])).toContain('<span class="secondary">2 days shown</span>');
 });
