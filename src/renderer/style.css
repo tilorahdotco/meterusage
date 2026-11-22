@@ -289,8 +289,10 @@
 /* Unlayered so it beats the scrollbar's Tailwind `flex`: the menu bar panel scrolls without a visible bar,
    like the rest of the app. Wheel, trackpad and keys still scroll. */
 .viewport-flyout > [data-slot="scroll-area-scrollbar"] { display: none; }
-.quota-window .meter-note { margin: 0; }
-.quota-window .runs-out { color: var(--warn); font-weight: 600; }
+/* Short note parts (pace, runs out) move to the next line whole; the reset part flows, with its date phrases kept together in app.tsx. */
+.quota-window .meter-note { margin: 0; } .quota-window .meter-note > span:not(.reset-line) { display: inline-block; max-width: 100%; text-align: start; }
+.quota-window .runs-out { color: var(--warn); font-weight: 600; white-space: nowrap; }
+.nowrap { white-space: nowrap; } :is(.secondary, .heatmap-readout) { text-wrap: pretty; }
 /* Classic: pace tick sits proud of the bar, and the headline figure carries the most weight in the card. */
 .app .quota-window .meter.meter-bar { position: relative; overflow: visible; }
 .app .quota-window .meter-bar .meter-pace { top: -2px; bottom: -2px; opacity: .75; }
