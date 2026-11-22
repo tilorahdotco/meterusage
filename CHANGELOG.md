@@ -6,6 +6,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## 2026-11-22
 
+- Publish 0.3.0-beta.29, build 100, for macOS, Windows and Linux from `2853a37` (meter text fits in every style, activity line graph). The macOS app was compiled on the Mac mini and signed on the fallback Mac. Pin installs and docs to it.
 - Meter notes in the side notch and usage panel read cleanly in every style. Terminal no longer cuts off the end of the note. Lines break between parts ("Burning fast · Runs out in ~42m ·" then "resets today, 2:13 AM"), never inside a date, time or "(in 4d 12h)". Labels such as "Weekly · All models" break at the dot.
 - Orbit, Ledger, Departures and Arcade draw the activity chart as a line graph instead of bars, like Flight Deck and Blueprint. In every line graph, a day with no data breaks the line and shows a dashed baseline instead of dropping to zero.
 - The chart caption says "30 days shown" without repeating the quiet-days label shown beside it, and Terminal's 30-day spark fits on one row in the side notch. "1 day shown" and "1 earned reset credit" now use the singular.

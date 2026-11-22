@@ -1,14 +1,14 @@
 # Electron public beta
 
-MeterUsage **0.3.0-beta.28, build 99** is the sole offered app and default
+MeterUsage **0.3.0-beta.29, build 100** is the sole offered app and default
 download. It remains a beta. The ZIP supports Apple silicon and macOS 13 or
 later and is Developer ID signed, notarized and stapled. Historical Swift
 source/releases remain available for recovery; stable acceptance is still open.
 
 ## Install
 
-1. Download [the beta ZIP](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.28/MeterUsage-0.3.0-beta.28-mac-arm64.zip)
-   and [SHA256SUMS](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.28/SHA256SUMS).
+1. Download [the beta ZIP](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.29/MeterUsage-0.3.0-beta.29-mac-arm64.zip)
+   and [SHA256SUMS](https://github.com/tilorahdotco/meterusage/releases/download/v0.3.0-beta.29/SHA256SUMS).
 2. Quit MeterUsage and keep a copy of your existing app and its saved data for
    rollback. The beta shares the app identity and data locations with Swift.
 3. Unzip the download, move `MeterUsage.app` to Applications, and open it.
@@ -46,13 +46,13 @@ To check the ZIP in its download directory (`SHA256SUMS` also lists the
 Windows files, so check only the macOS line):
 
 ```sh
-grep -F 'MeterUsage-0.3.0-beta.28-mac-arm64.zip' SHA256SUMS | shasum -a 256 -c -
+grep -F 'MeterUsage-0.3.0-beta.29-mac-arm64.zip' SHA256SUMS | shasum -a 256 -c -
 ```
 
 Expected ZIP SHA-256:
 
 ```text
-c5f8a73b8d426dbd8013b66a6fc0a2dbcbbc30d9b4bd7fb0d758732e19537bc0
+27d373bd7506b1ad555cd8f369cef2bf38d93fbac38a6f40c775d044958c2b5d
 ```
 
 ## Provider coverage
@@ -95,8 +95,8 @@ c5f8a73b8d426dbd8013b66a6fc0a2dbcbbc30d9b4bd7fb0d758732e19537bc0
   by default, saves a pasted key after a successful fetch. OpenRouter keeps its existing
   balance and aggregate activity source. Read [API setup and limits](API_USAGE_BETA.md).
 
-See [source choices](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.28/docs/electron/README.md#source-choices),
-[desktop connections](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.28/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.28/docs/PRIVACY.md).
+See [source choices](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.29/docs/electron/README.md#source-choices),
+[desktop connections](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.29/docs/DESKTOP-CONNECTIONS.md) and [privacy](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.29/docs/PRIVACY.md).
 
 ## Known limits
 
@@ -122,16 +122,33 @@ See [source choices](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta
 - Live Codex refresh was observed. Claude paid-account allowance was not
   live-tested. Optional support-report delivery and deployed relay limits
   were not verified end to end.
-- The Windows build of this release is unsigned; see [Windows beta 28](#windows-beta-28).
-- The Linux build is unsigned and has no in-app updates or Desktop connections; see [Linux beta 28](#linux-beta-28).
+- The Windows build of this release is unsigned; see [Windows beta 29](#windows-beta-29).
+- The Linux build is unsigned and has no in-app updates or Desktop connections; see [Linux beta 29](#linux-beta-29).
   Intel Mac binaries are not provided by this beta.
 
 Use Settings > Diagnostics for sanitized diagnostics and **Send report**.
 The app limits report attempts to one every ten minutes, including relaunches.
-Review the [report contents and privacy limits](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.28/docs/REPORTING.md) before sending.
+Review the [report contents and privacy limits](https://github.com/tilorahdotco/meterusage/blob/v0.3.0-beta.29/docs/REPORTING.md) before sending.
 Never include tokens, passwords or raw account files in an issue.
 
 ## Build and screenshot identity
+
+Beta.29 was built from `git archive` of main
+`2853a375aeb5fbf081de7b0a92162f53d4543ad6`. Meter text fits in every interface
+style and Orbit, Ledger, Departures and Arcade draw activity as a line graph
+(#144). Packaging sets `0.3.0-beta.29`, build 100. The macOS app was compiled
+and packaged unsigned on the Mac mini, then signed with the Developer ID key,
+notarized and stapled on the fallback Mac. The macOS ZIP, the unsigned Windows
+installer and portable zip, and the unsigned Linux AppImage and tar.gz come
+from that commit and share one `SHA256SUMS`. Source passed typecheck, 1067
+synthetic tests and production build, and hosted CI on the pull request,
+including the Linux package and smoke job. Apple accepted notarization.
+Stapling, Gatekeeper (`Notarized Developer ID`), bundle version and the
+uploaded assets' SHA-256 were checked separately. The ZIP was installed and
+launched on a Mac. The Windows build passed the release workflow (run
+44992743859). The Linux packages were built on an x64 Linux host and passed
+`Scripts/electron/linux-smoke.sh` on Xvfb with the Chromium sandbox on; the
+AppImage also produced a demo JSON report.
 
 Beta.28 was built from `git archive` of main
 `5a0551a74d2e57a996331da9e3fb89413c306d40`. It hides the usage panel's
@@ -263,15 +280,16 @@ Applications. The new artifact does not close the native acceptance gaps above.
 The [screenshot gallery](SCREENSHOTS.md) uses invented demo data and the actual
 release renderer. It replaces old product captures without exposing real accounts.
 
-## Linux beta 28
+## Linux beta 29
 
-[MeterUsage 0.3.0-beta.28, build 99](https://github.com/tilorahdotco/meterusage/releases/tag/v0.3.0-beta.28)
-is the first published Linux build: **unsigned**, x64, from `5a0551a`.
+[MeterUsage 0.3.0-beta.29, build 100](https://github.com/tilorahdotco/meterusage/releases/tag/v0.3.0-beta.29)
+is an **unsigned** x64 Linux build from `2853a37`. The first Linux build was
+0.3.0-beta.28.
 
 | Asset | SHA-256 |
 | --- | --- |
-| `MeterUsage-0.3.0-beta.28-linux-x64.AppImage` | `60a2504b37cd7b183d47ef0346045b62b8902e2bd6ace6287240b26deb05e9b9` |
-| `MeterUsage-0.3.0-beta.28-linux-x64.tar.gz` | `1bc0a5e6e45b4dbe40dba756871142b43696afe2a7d546218a46e7c349385044` |
+| `MeterUsage-0.3.0-beta.29-linux-x64.AppImage` | `397d5750ccc5a0d4bb80dc00b97c68e1b74256bd876229c5f0e2055fd468a2fb` |
+| `MeterUsage-0.3.0-beta.29-linux-x64.tar.gz` | `8c9a51fba6052ae2390c034d55ab8e3f26e4f9af409c450f8f8355b5317f1c72` |
 
 1. Download one file and `SHA256SUMS`, then run
    `sha256sum -c --ignore-missing SHA256SUMS`.
@@ -290,21 +308,21 @@ page. The build was tested on virtual displays only (a GitHub `ubuntu-latest`
 runner and an Xvfb smoke run), not on a real Linux desktop or tray host
 ([ADR 0050](adr/0050-linux-desktop-shell.md)).
 
-## Windows beta 28
+## Windows beta 29
 
-[MeterUsage 0.3.0-beta.28, build 99](https://github.com/tilorahdotco/meterusage/releases/tag/v0.3.0-beta.28) carries the
+[MeterUsage 0.3.0-beta.29, build 100](https://github.com/tilorahdotco/meterusage/releases/tag/v0.3.0-beta.29) carries the
 **unsigned** Windows build for x64 Windows 10/11 alongside the macOS ZIP. Both
-were built from `5a0551a`, with one `SHA256SUMS` for all five files. Each
+were built from `2853a37`, with one `SHA256SUMS` for all five files. Each
 updater selects only its own platform's asset. The first Windows build,
 [0.3.0-beta.13, build 83](https://github.com/tilorahdotco/meterusage/releases/tag/v0.3.0-beta.13), was Windows-only.
 
 | Asset | SHA-256 |
 | --- | --- |
-| `MeterUsage-0.3.0-beta.28-win-x64.exe` (per-user installer) | `86aa0cddaf05c2dc64c650b81746b47b8430780f480e3e5452cf4f134b9802b4` |
-| `MeterUsage-0.3.0-beta.28-win-x64.zip` (portable; cannot update itself) | `040b81951f22f1707f777b205242a2661235c2e24a26ba2cfd8cfc57c9cbf5c7` |
+| `MeterUsage-0.3.0-beta.29-win-x64.exe` (per-user installer) | `bc80a062ab8d6b7f8f3f969392cd06ddfecc490521855adb195d09a75a648444` |
+| `MeterUsage-0.3.0-beta.29-win-x64.zip` (portable; cannot update itself) | `fd772f804624bad208f0f11b65e63bf242cadcdddb6935ab55717af0fcc4459d` |
 
 1. Download the installer and `SHA256SUMS` from the release.
-2. In PowerShell, run `Get-FileHash -Algorithm SHA256 .\MeterUsage-0.3.0-beta.28-win-x64.exe`
+2. In PowerShell, run `Get-FileHash -Algorithm SHA256 .\MeterUsage-0.3.0-beta.29-win-x64.exe`
    and compare it with `SHA256SUMS`.
 3. Run the installer. SmartScreen warns because there is no code-signing
    certificate; choose **More info → Run anyway** only if the hash matches.
@@ -315,6 +333,13 @@ updater selects only its own platform's asset. The first Windows build,
 Data and settings are in `%APPDATA%\MeterUsage`. Uninstall from **Settings →
 Apps**; app data is kept. Later Windows pre-releases install through the
 in-app updater (digest-verified, unsigned; [ADR 0039](adr/0039-windows-updater.md)).
+
+Beta.29's Windows assets were built from `2853a37` by the **Windows release
+build** workflow
+([run 44992743859](https://github.com/tilorahdotco/meterusage/actions/runs/44992743859)).
+On a GitHub `windows-latest` runner, it passed typecheck, 714 Windows tests
+(11 skipped), packaging, packaged-app smoke tests, and the silent install,
+update handoff and uninstall check.
 
 Beta.28's Windows assets were built from `5a0551a` by the **Windows release
 build** workflow
