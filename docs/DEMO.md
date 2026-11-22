@@ -59,7 +59,9 @@ open -n -a "$PWD/node_modules/electron/dist/Electron.app" --args "$PWD" \
 `flyout`, `notch`). `Page.captureScreenshot` returns its content without window
 chrome. Finish onboarding in Settings to open the usage panel. The side notch
 folds about 0.5 s after `notchSelect` when the pointer is elsewhere, so capture
-right after selecting a provider. If `node_modules/electron/dist` is missing
+right after selecting a provider. For the ADR 0004 anchor check, evaluate
+`[screenX + outerWidth, screenY]` in the notch page (`Runtime.evaluate`) collapsed
+and with each card open; the point must not change. If `node_modules/electron/dist` is missing
 after installation, run `node node_modules/electron/install.js`.
 
 ## Swift legacy demo

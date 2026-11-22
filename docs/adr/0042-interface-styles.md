@@ -67,7 +67,8 @@ On 2026-11-21 the unpackaged Electron app from main `07b2a25` ran in demo mode
 on macOS 27.2.1 (arm64). Native captures cover the usage panel in all eight
 styles, Classic in Light, Settings → Connections, and the Classic side notch
 with Codex (832 px) and Claude (558 px) detail cards. The strip's top-right
-corner stayed at the same screen point collapsed and with either card open
-(ADR 0004). The captures show window content through Chromium DevTools, without
+corner stayed at screen point (1916, 30) collapsed and with either card open
+(ADR 0004). The point was read from the notch window's `screenX + outerWidth`
+and `screenY` (collapsed: x 1880, width 36; open: x 1660, width 256). The captures show window content through Chromium DevTools, without
 window chrome or the menu bar. Native notch captures for the other seven styles
 and a Windows check remain separate acceptance gates.
