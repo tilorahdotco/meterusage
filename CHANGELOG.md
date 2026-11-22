@@ -6,6 +6,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## 2026-11-21
 
+- The usage panel no longer shows a scrollbar when its content is taller than the panel. It still scrolls with the trackpad, mouse wheel or keyboard.
 - Publish 0.3.0-beta.27, build 98, for macOS and Windows from `6c96d04` (narrower usage panel), and pin installs and docs to it.
 - The usage panel is narrower: 360 points at Medium instead of 420 (324 at Small, 414 at Large). All nine provider tabs still fit without scrolling.
 - Publish 0.3.0-beta.26, build 97, for macOS and Windows from `7e6f0bb`, and pin installs and docs to it. Versions beta.21 to beta.25 were local test builds and were never published.
